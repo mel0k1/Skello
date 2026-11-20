@@ -1,0 +1,19 @@
+# NOTICE
+
+Skello - Copyright 2026 Skello contributors
+
+This project is dual licensed under MIT (LICENSE-MIT) and Apache-2.0 (LICENSE-APACHE).
+
+Portions of this project reuse or follow code and protocol knowledge from these projects:
+
+- spreadtrum_flash by ilyakurdyukov - public domain (Unlicense), https://github.com/ilyakurdyukov/spreadtrum_flash
+- qdlrs by the qdl-rs contributors - BSD-3-Clause, https://github.com/qualcomm/qdlrs
+- mtkclient-rs by WUNELEZI1 - Apache-2.0, https://github.com/WUNELEZI1/mtkclient-rs
+- qedl-rs by baiyao105 - MIT, https://github.com/baiyao105/qedl-rs
+
+Projects used as idea and protocol references only, without copying code:
+
+- penumbra by shomykohai - AGPL-3.0, https://github.com/shomykohai/penumbra
+- unisoc-unlock by patrislav1 - no license, https://github.com/patrislav1/unisoc-unlock
+
+Protocol formats and constants follow the Android Open Source Project sources (packages/modules/adb, system/core/fastboot), licensed under Apache-2.0.
