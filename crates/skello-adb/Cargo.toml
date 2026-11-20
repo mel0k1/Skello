@@ -1,0 +1,9 @@
+[package]
+name = "skello-adb"
+description = "ADB wire protocol and adb-server client for Skello"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+crc32fast = { workspace = true }

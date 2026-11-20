@@ -1,0 +1,8 @@
+[package]
+name = "skello-fastboot"
+description = "Fastboot protocol commands and response parsing for Skello"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]

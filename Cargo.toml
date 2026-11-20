@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+members = ["crates/skello-adb", "crates/skello-fastboot"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[workspace.dependencies]
+crc32fast = "1.4"
