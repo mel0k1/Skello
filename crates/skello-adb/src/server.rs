@@ -1,10 +1,3 @@
-//! Client for the adb server that listens on 127.0.0.1:5037.
-//!
-//! Clients talk to the server over the "smart socket": a request and every
-//! reply body are prefixed by their length in 4 lowercase hex digits. The
-//! server first answers a request with a bare `OKAY` or `FAIL` line (see
-//! `smart_socket_enqueue` in the AOSP `sockets.cpp`).
-
 use std::fmt;
 use std::io::{Error as IoError, Read, Write};
 use std::net::TcpStream;
@@ -57,12 +50,10 @@ impl AdbServerClient {
             .map_err(|e| AdbServerError::Protocol(format!("bad version {body:?}: {e}")))
     }
 
-    /// Plain `adb devices` output, one line per connected device.
     pub fn devices(&mut self) -> Result<String, AdbServerError> {
         self.host_service("devices")
     }
 
-    /// Runs a `host:<service>` request and returns the response body.
     pub fn host_service(&mut self, service: &str) -> Result<String, AdbServerError> {
         self.exchange(&format!("host:{service}"))
     }

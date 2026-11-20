@@ -1,17 +1,8 @@
-//! Fastboot protocol: command strings and response parsing.
-//!
-//! Command spellings and status prefixes follow the AOSP host driver
-//! (platform/system/core/fastboot, `constants.h` and `fastboot_driver.cpp`).
-
 use std::fmt;
 
-/// One response line is at most this many bytes, prefix included.
 pub const RESPONSE_SZ: usize = 256;
-/// The official driver rejects longer commands before sending them.
 pub const COMMAND_SZ: usize = 4096;
-/// Bulk payload is written in chunks of this size.
 pub const TRANSPORT_CHUNK_SIZE: usize = 1024;
-/// Seconds the official driver waits for a device response.
 pub const RESP_TIMEOUT_SECS: u64 = 30;
 
 pub const CMD_GETVAR: &str = "getvar";
@@ -33,7 +24,6 @@ pub const RESP_DATA: &str = "DATA";
 pub const RESP_INFO: &str = "INFO";
 pub const RESP_TEXT: &str = "TEXT";
 
-/// `getvar` keys used by the official tool and useful for safety checks.
 pub const VAR_VERSION: &str = "version";
 pub const VAR_VERSION_BOOTLOADER: &str = "version-bootloader";
 pub const VAR_PRODUCT: &str = "product";
@@ -52,15 +42,10 @@ pub const VAR_BATTERY_VOLTAGE: &str = "battery-voltage";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Response {
-    /// `OKAY`: command finished, text after the prefix is optional.
     Ok(String),
-    /// `FAIL`: command failed, the rest is the error message.
     Fail(String),
-    /// `INFO`: progress line, safe to show the user as-is.
     Info(String),
-    /// `TEXT`: diagnostics without progress semantics.
     Text(String),
-    /// `DATA`: hex size of the payload the device expects next.
     Data(u32),
 }
 

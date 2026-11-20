@@ -1,9 +1,3 @@
-//! ADB wire protocol: message framing and constants.
-//!
-//! Layout and constants follow the AOSP sources (platform/packages/modules/adb):
-//! `types.h` for the `amessage` header and `adb.h` for command ids, versions
-//! and payload limits.
-
 use std::fmt;
 
 pub mod server;
@@ -17,18 +11,14 @@ pub const A_WRTE: u32 = 0x4554_5257;
 pub const A_AUTH: u32 = 0x4854_5541;
 pub const A_STLS: u32 = 0x534c_5453;
 
-/// Version offered in the CNXN handshake. Since 0x01000001 the sender may skip
-/// payload checksums, but Skello still fills them in so every peer accepts it.
 pub const A_VERSION: u32 = 0x0100_0001;
 pub const A_VERSION_MIN: u32 = 0x0100_0000;
 
 pub const MAX_PAYLOAD_V1: u32 = 4 * 1024;
 pub const MAX_PAYLOAD: u32 = 1024 * 1024;
 
-/// RSA challenge length sent by adbd during A_AUTH.
 pub const TOKEN_SIZE: usize = 20;
 
-/// Size of the fixed part of every ADB message.
 pub const HEADER_SIZE: usize = 24;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
