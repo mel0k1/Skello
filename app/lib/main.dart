@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'l10n/generated/app_localizations.dart';
 import 'services/core.dart';
+import 'services/device_repository.dart';
 import 'theme/skello_theme.dart';
 import 'ui/home_screen.dart';
 
@@ -14,7 +15,9 @@ Future<void> main() async {
 }
 
 class SkelloApp extends StatelessWidget {
-  const SkelloApp({super.key});
+  const SkelloApp({super.key, this.repository = const DeviceRepository()});
+
+  final DeviceRepository repository;
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +32,7 @@ class SkelloApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
-      home: const HomeScreen(),
+      home: HomeScreen(repository: repository),
     );
   }
 }

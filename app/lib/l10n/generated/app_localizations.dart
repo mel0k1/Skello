@@ -113,8 +113,200 @@ abstract class AppLocalizations {
   /// No description provided for @deviceNotConnectedBody.
   ///
   /// In en, this message translates to:
-  /// **'Skello is an early build: the device list shows up here when the Rust core starts feeding data to the UI. Plug the phone in over USB and turn on debugging ahead of time.'**
+  /// **'No device shows up right now. Plug the phone in over USB, enable USB debugging, confirm the computer on the phone screen, or reboot the phone into fastboot mode. Then refresh.'**
   String get deviceNotConnectedBody;
+
+  /// No description provided for @refreshTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get refreshTooltip;
+
+  /// No description provided for @loadingDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking for devices…'**
+  String get loadingDevices;
+
+  /// No description provided for @sourcesUnavailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Device sources unavailable'**
+  String get sourcesUnavailableTitle;
+
+  /// No description provided for @sourcesUnavailableBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Neither the Skello core nor the system adb and fastboot answered. Install Android platform-tools, make sure adb is on PATH, and refresh.'**
+  String get sourcesUnavailableBody;
+
+  /// No description provided for @retryLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get retryLabel;
+
+  /// No description provided for @rootTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Root tools'**
+  String get rootTooltip;
+
+  /// No description provided for @rootTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Root'**
+  String get rootTitle;
+
+  /// No description provided for @rootIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick the root method for your device, select the boot image of your exact firmware and check it before anything touches the phone.'**
+  String get rootIntro;
+
+  /// No description provided for @methodMagiskSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Patches the boot image with magiskinit. The official flow patches the image on the phone in the Magisk app.'**
+  String get methodMagiskSubtitle;
+
+  /// No description provided for @methodKernelSuSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Root via the kernel or a loadable module. Needs GKI 5.10+ or a module built for your exact kernel.'**
+  String get methodKernelSuSubtitle;
+
+  /// No description provided for @methodApatchSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Kernel patch with kpatch. Needs a kpatch build matched to the kernel version of your firmware.'**
+  String get methodApatchSubtitle;
+
+  /// No description provided for @bootSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Boot image'**
+  String get bootSectionTitle;
+
+  /// No description provided for @pickBootImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Select boot.img'**
+  String get pickBootImage;
+
+  /// No description provided for @bootImageTypeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Android boot image'**
+  String get bootImageTypeLabel;
+
+  /// No description provided for @validBootImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Valid Android boot image'**
+  String get validBootImage;
+
+  /// No description provided for @invalidBootImage.
+  ///
+  /// In en, this message translates to:
+  /// **'This file is not a readable Android boot image.'**
+  String get invalidBootImage;
+
+  /// No description provided for @infoHeaderVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Header version'**
+  String get infoHeaderVersion;
+
+  /// No description provided for @infoPageSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Page size'**
+  String get infoPageSize;
+
+  /// No description provided for @infoKernelSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Kernel size'**
+  String get infoKernelSize;
+
+  /// No description provided for @infoRamdiskSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Ramdisk size'**
+  String get infoRamdiskSize;
+
+  /// No description provided for @infoOsVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Android version'**
+  String get infoOsVersion;
+
+  /// No description provided for @infoOsPatchLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Security patch'**
+  String get infoOsPatchLevel;
+
+  /// No description provided for @infoFileSize.
+  ///
+  /// In en, this message translates to:
+  /// **'File size'**
+  String get infoFileSize;
+
+  /// No description provided for @infoAvbFooter.
+  ///
+  /// In en, this message translates to:
+  /// **'AVB footer'**
+  String get infoAvbFooter;
+
+  /// No description provided for @avbPresent.
+  ///
+  /// In en, this message translates to:
+  /// **'present'**
+  String get avbPresent;
+
+  /// No description provided for @avbAbsent.
+  ///
+  /// In en, this message translates to:
+  /// **'absent'**
+  String get avbAbsent;
+
+  /// No description provided for @checkErrorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Check failed'**
+  String get checkErrorTitle;
+
+  /// No description provided for @magiskGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'1. Unlock the bootloader first. The unlock wizard comes next in the MVP plan.\n2. Download Magisk only from the official repository.\n3. Copy your verified boot.img to the phone.\n4. In the Magisk app: Install → Select and Patch a File → pick boot.img.\n5. Copy the resulting magisk_patched-XXXXX.img back to the PC.\n6. Skello will flash it with fastboot flash boot.'**
+  String get magiskGuide;
+
+  /// No description provided for @kernelsuGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'1. Make sure the kernel supports GKI 5.10 or newer, or find an LKM module built for your exact kernel.\n2. KernelSU patches boot.img in its official app on the phone; modules for a specific kernel come from the official KernelSU builds.\n3. After patching, Skello will flash the image with fastboot flash boot.'**
+  String get kernelsuGuide;
+
+  /// No description provided for @apatchGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'1. Take kpatch exactly for the kernel version of your firmware.\n2. APatch patches boot.img in its official app on the phone.\n3. After patching, Skello will flash the image with fastboot flash boot.'**
+  String get apatchGuide;
+
+  /// No description provided for @warningTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Before you flash'**
+  String get warningTitle;
+
+  /// No description provided for @warningBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Flashing a wrong image or a failed patch can leave the phone dead. A patched image requires an unlocked bootloader, and unlocking wipes the whole storage. Check the image against your exact model.'**
+  String get warningBody;
 }
 
 class _AppLocalizationsDelegate

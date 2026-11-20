@@ -12,6 +12,17 @@ class FastbootDevice {
   final String state;
 }
 
+class DeviceRow {
+  const DeviceRow(this.serial, this.state, this.source);
+
+  final String serial;
+  final String state;
+  final String source;
+
+  bool get isActive => state == 'device' || state == 'fastboot';
+  bool get isProblem => state == 'offline' || state == 'unauthorized';
+}
+
 const _adbStates = {
   'device',
   'offline',
