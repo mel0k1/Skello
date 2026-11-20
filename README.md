@@ -19,6 +19,7 @@ adb и fastboot работают из терминала: нужно помни�
 
 - crates/skello-adb: каркас бинарного протокола adb (заголовок amessage на 24 байта, константы команд из AOSP) и клиент adb-сервера на порту 5037 с тестами
 - crates/skello-fastboot: строки команд fastboot (getvar, download, flash, erase, set_active, reboot-*) и разбор ответов OKAY / FAIL / INFO / TEXT / DATA
+- app: мост Flutter и Rust через flutter_rust_bridge (крейт app/rust собирается cargokit-ом вместе с приложением), DeviceRepository зовёт ядро и при недоступности FFI переключается на системные adb и fastboot
 - app: Flutter-приложение с темой Material 3 Expressive, i18n на русский и английский и честным пустым состоянием экрана устройств
 - CI на GitHub Actions: fmt, clippy, тесты Rust на Linux и Windows, analyze и тесты Flutter; релизные сборки Windows и Linux по тегу
 

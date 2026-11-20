@@ -19,6 +19,7 @@ adb and fastboot live in a terminal: you have to remember commands, keep the ter
 
 - crates/skello-adb: the adb binary protocol frame (24-byte amessage header, command constants from AOSP) and a client for the adb server on port 5037, with tests
 - crates/skello-fastboot: fastboot command strings (getvar, download, flash, erase, set_active, reboot-*) and response parsing for OKAY / FAIL / INFO / TEXT / DATA
+- app: the Flutter-to-Rust bridge over flutter_rust_bridge (the app/rust crate builds with cargokit alongside the app); DeviceRepository calls the core and switches to system adb and fastboot when FFI is unavailable
 - app: a Flutter app with a Material 3 Expressive theme, English and Russian localization, and an honest empty state on the device screen
 - CI on GitHub Actions: fmt, clippy, Rust tests on Linux and Windows, Flutter analyze and tests; release builds for Windows and Linux on tags
 
