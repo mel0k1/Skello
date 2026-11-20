@@ -25,5 +25,9 @@ dependencies = [
 ]
 
 [[package]]
+name = "skello-bootimg"
+version = "0.1.0"
+
+[[package]]
 name = "skello-fastboot"
 version = "0.1.0"
