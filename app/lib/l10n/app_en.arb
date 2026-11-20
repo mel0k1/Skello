@@ -1,0 +1,6 @@
+{
+  "@@locale": "en",
+  "appName": "Skello",
+  "deviceNotConnectedTitle": "Device not connected",
+  "deviceNotConnectedBody": "Skello is an early build: the device list shows up here when the Rust core starts feeding data to the UI. Plug the phone in over USB and turn on debugging ahead of time."
+}

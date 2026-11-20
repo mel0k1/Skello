@@ -1,16 +1,16 @@
 import 'package:material_ui/material_ui.dart';
 
-/// Home screen in its honest empty state: the Rust core is not wired into the
-/// UI yet, so the device list has no data source and the screen says exactly
-/// that instead of showing a fake device row.
+import '../l10n/generated/app_localizations.dart';
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final strings = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: const Text('Skello')),
+      appBar: AppBar(title: Text(strings.appName)),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520),
@@ -29,14 +29,12 @@ class HomeScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Устройство не подключено',
+                          strings.deviceNotConnectedTitle,
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'Skello в ранней сборке: здесь появится список устройств, '
-                          'когда Rust-ядро начнёт передавать данные в интерфейс. '
-                          'Подключите телефон по USB и включите отладку заранее.',
+                          strings.deviceNotConnectedBody,
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
                       ],

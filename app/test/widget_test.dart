@@ -8,7 +8,7 @@ void main() {
     await tester.pumpWidget(const SkelloApp());
 
     expect(find.text('Skello'), findsOneWidget);
-    expect(find.text('Устройство не подключено'), findsOneWidget);
+    expect(find.text('Device not connected'), findsOneWidget);
     expect(find.byIcon(Icons.phone_android), findsOneWidget);
   });
 }
