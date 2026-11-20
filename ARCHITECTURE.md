@@ -4,7 +4,7 @@
 
 ## Слои
 
-- crates/skello-adb и crates/skello-fastboot: протокольные крейты, без привязки к GUI
+- crates/skello-adb, crates/skello-fastboot и crates/skello-bootimg: протокольные крейты, без привязки к GUI
 - app: Flutter-приложение, Material 3 Expressive (светлая и тёмная темы из одного seed-цвета), i18n через ARB-файлы в lib/l10n
 - Связь слоёв: flutter_rust_bridge - крейты собираются в библиотеку и живут в одном процессе с Flutter, типы генерируются в Dart. На первом этапе поверх этого работает фолбэк: системные adb и fastboot вызываются через std::process (cmd/PowerShell на Windows, bash на Linux), чтобы мастера взлетели раньше собственного USB-транспорта
 - Собственный USB-транспорт: крейт nusb (libusb на Linux, WinUSB на Windows), поверх него - реализации транспортов из этого документа и из CHIPSETS.md
@@ -28,6 +28,15 @@
 - Полезную нагрузку драйвер пишет в транспорт кусками по 1024 байта (TRANSPORT_CHUNK_SIZE), таймаут ответа - 30 секунд (RESP_TIMEOUT)
 - Переменные устройства через getvar: unlocked, secure, current-slot, slot-count, has-slot, max-download-size, battery-soc-ok, battery-voltage, partition-size:<раздел>, partition-type:<раздел>. На них строятся все проверки безопасности перед прошивкой
 - A/B-устройства: два слота разделов, set_active переключает, snapshot-update отменяет виртуальные A/B-обновления
+
+## Заголовок boot image (крейт skello-bootimg)
+
+- Формат описан в system/tools/mkbootimg/include/bootimg/bootimg.h. Файл начинается с магии ANDROID!, версия заголовка лежит на смещении 40 байт и определяет раскладку остального
+- v0-v2: kernel_size на смещении 8, ramdisk_size на 16, page_size на 36; v1 добавляет recovery_dtbo, v2 - dtb. Заголовок целиком помещается в первую страницу образа
+- v3-v4: компактный заголовок на 158 байт (header_size на смещении 20), размер страницы фиксирован на 4096, ramdisk вынесен в отдельный образ vendor_boot
+- os_version кодирует версию Android и патч безопасности в одном поле: старшие 21 бита - major.minor.patch, младшие 11 - год (от 2000) и месяц. Ноль значит не задано
+- В конце файла может лежать AVB-футер с магией AVBf на последних 64 байтах - его наличие говорит о vbmeta-подписи образа
+- Проверка заголовка - первый барьер против кирпича: Skello отказывается работать с файлом, который не читается как boot image известной версии
 
 ## Сценарии Skello
 

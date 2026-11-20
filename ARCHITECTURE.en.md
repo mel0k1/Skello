@@ -4,7 +4,7 @@ This file collects what came out of the AOSP and reference-project sources, and 
 
 ## Layers
 
-- crates/skello-adb and crates/skello-fastboot: protocol crates, no GUI coupling
+- crates/skello-adb, crates/skello-fastboot and crates/skello-bootimg: protocol crates, no GUI coupling
 - app: the Flutter app, Material 3 Expressive (light and dark themes from one seed color), i18n through ARB files in lib/l10n
 - Layer bridge: flutter_rust_bridge - the crates build into a library living in the same process as Flutter, types generated into Dart. On top of that, the first stage runs a fallback: system adb and fastboot invoked through std::process (cmd/PowerShell on Windows, bash on Linux), so the wizards work before the own USB transport exists
 - Own USB transport: the nusb crate (libusb on Linux, WinUSB on Windows), with the transports from this file and CHIPSETS.en.md implemented on top
@@ -28,6 +28,15 @@ This file collects what came out of the AOSP and reference-project sources, and 
 - The driver writes payload to the transport in 1024-byte chunks (TRANSPORT_CHUNK_SIZE), response timeout is 30 seconds (RESP_TIMEOUT)
 - Device variables over getvar: unlocked, secure, current-slot, slot-count, has-slot, max-download-size, battery-soc-ok, battery-voltage, partition-size:<partition>, partition-type:<partition>. Every safety check before flashing builds on them
 - A/B devices: two partition slots, set_active switches, snapshot-update cancels virtual A/B updates
+
+## Boot image header (the skello-bootimg crate)
+
+- The format is described in system/tools/mkbootimg/include/bootimg/bootimg.h. The file starts with the ANDROID! magic, the header version sits at byte offset 40 and defines the layout of the rest
+- v0-v2: kernel_size at offset 8, ramdisk_size at 16, page_size at 36; v1 adds recovery_dtbo, v2 adds dtb. The header fits entirely into the first page of the image
+- v3-v4: a compact 158-byte header (header_size at offset 20), the page size is fixed at 4096, the ramdisk moves into a separate vendor_boot image
+- os_version packs the Android version and the security patch into one field: the top 21 bits hold major.minor.patch, the low 11 hold the year (from 2000) and the month. Zero means unset
+- The end of the file may carry an AVB footer with the AVBf magic in the last 64 bytes - its presence means the image is vbmeta-signed
+- Header verification is the first anti-brick barrier: Skello refuses to work with a file that does not read as a boot image of a known version
 
 ## Skello scenarios
 
