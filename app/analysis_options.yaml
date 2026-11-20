@@ -3,4 +3,5 @@ analyzer:
     - build/**
     - windows/**
     - linux/**
+    - lib/l10n/generated/**
 include: package:flutter_lints/flutter.yaml
