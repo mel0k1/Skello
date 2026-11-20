@@ -3,10 +3,13 @@ import 'package:flutter_localizations/flutter_localizations.dart'
 import 'package:material_ui/material_ui.dart';
 
 import 'l10n/generated/app_localizations.dart';
+import 'services/core.dart';
 import 'theme/skello_theme.dart';
 import 'ui/home_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await rustCore.init();
   runApp(const SkelloApp());
 }
 

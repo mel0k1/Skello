@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = ["crates/skello-adb", "crates/skello-fastboot"]
+exclude = ["app/rust"]
 
 [workspace.package]
 version = "0.1.0"

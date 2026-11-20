@@ -11,12 +11,17 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  flutter_rust_bridge: 2.13.0
   intl: any
   material_ui: ^1.11.1
+  rust_lib_skello:
+    path: rust_builder
 
 dev_dependencies:
   flutter_lints: ^5.0.0
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
 
 flutter:

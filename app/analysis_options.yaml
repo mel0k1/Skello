@@ -4,4 +4,5 @@ analyzer:
     - windows/**
     - linux/**
     - lib/l10n/generated/**
+    - rust_builder/cargokit/**
 include: package:flutter_lints/flutter.yaml
