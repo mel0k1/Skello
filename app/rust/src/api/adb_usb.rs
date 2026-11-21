@@ -2,6 +2,8 @@ use std::path::Path;
 
 use skello_adb::{AdbKeys, UsbAdb, adb_usb_device_state, adb_usb_serials};
 
+use crate::api::log;
+
 /// State of one adb device found over USB: "device" after a successful
 /// handshake, "unauthorized" while the key is not accepted, "offline"
 /// when the connection failed.
@@ -13,6 +15,7 @@ pub struct AdbUsbStatus {
 
 pub fn adb_usb_status(keys_dir: String) -> anyhow::Result<Vec<AdbUsbStatus>> {
     let serials = adb_usb_serials()?;
+    log::core_log("adb-usb", &format!(">> handshake for {serials:?}"));
     let keys = AdbKeys::load_or_generate(Path::new(&keys_dir))?;
     let states = std::thread::scope(|scope| {
         let keys_ref = &keys;
@@ -22,6 +25,7 @@ pub fn adb_usb_status(keys_dir: String) -> anyhow::Result<Vec<AdbUsbStatus>> {
                 let serial = serial.clone();
                 scope.spawn(move || {
                     let state = adb_usb_device_state(&serial, keys_ref);
+                    log::core_log("adb-usb", &format!("<< {serial}: {state}"));
                     (serial, state)
                 })
             })
@@ -40,10 +44,15 @@ pub fn adb_usb_shell(
     keys_dir: String,
     command: String,
 ) -> anyhow::Result<String> {
+    log::core_log("adb-usb", &format!(">> shell:{command} on {serial}"));
     let keys = AdbKeys::load_or_generate(Path::new(&keys_dir))?;
     let mut adb = UsbAdb::connect(&serial, &keys)?;
     let out = adb.shell(&command)?;
     let _ = adb.close();
+    log::core_log(
+        "adb-usb",
+        &format!("<< {} bytes: {}", out.len(), out.replace('\n', " | ")),
+    );
     Ok(out)
 }
 
@@ -52,6 +61,13 @@ pub fn adb_usb_reboot(
     keys_dir: String,
     target: String,
 ) -> anyhow::Result<()> {
+    log::core_log(
+        "adb-usb",
+        &format!(
+            ">> reboot,{} on {serial}",
+            if target.is_empty() { "system" } else { &target }
+        ),
+    );
     let keys = AdbKeys::load_or_generate(Path::new(&keys_dir))?;
     let mut adb = UsbAdb::connect(&serial, &keys)?;
     adb.reboot(if target.is_empty() {
@@ -59,5 +75,6 @@ pub fn adb_usb_reboot(
     } else {
         Some(&target)
     })?;
+    log::core_log("adb-usb", "<< ok");
     Ok(())
 }
