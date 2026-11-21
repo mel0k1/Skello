@@ -40,10 +40,10 @@ jobs:
         if: matrix.os == 'windows-latest'
       - name: Package (linux)
         if: matrix.os == 'ubuntu-latest'
-        run: tar -czf ../skello-${{ github.ref_name }}-${{ matrix.artifact }}.tar.gz -C build/linux/x64/release bundle
+        run: tar -czf ../skello-${{ github.ref_name }}-${{ matrix.artifact }}.tar.gz -C build/linux/x64/release bundle -C ${{ github.workspace }} udev
       - name: Package (windows)
         if: matrix.os == 'windows-latest'
-        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath ../skello-${{ github.ref_name }}-${{ matrix.artifact }}.zip
+        run: Compress-Archive -Path build/windows/x64/runner/Release/*, ${{ github.workspace }}/windows -DestinationPath ../skello-${{ github.ref_name }}-${{ matrix.artifact }}.zip
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:

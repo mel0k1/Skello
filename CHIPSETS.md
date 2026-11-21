@@ -39,4 +39,4 @@ Emergency Download Mode (EDL, «9008») поднимается самим boot R
 
 ## Уровень доступа на Linux
 
-Без udev-правил доступ к USB есть только у root. Skello предложит установить правила для вендоров: 1782 (Unisoc), 0e8d (MediaTek), 05c6 (Qualcomm) - как это делает spreadtrum_flash в своих инструкциях.
+Без udev-правил доступ к USB есть только у root. Реализовано: `udev/40-skello.rules` идёт в архиве релиза (raw USB 0666 для 0e8d/05c6:9008/1782/18d1, tty-права для серийных инструментов, привязка qcserial к 9008 с guard через TEST). На Windows транспорт работает через nusb и требует WinUSB: `windows/skello_winusb.inf` (MTK 0003/2000/2001, EDL 9008, Unisoc 4D00, Google fastboot d00d и adb 4ee0) ставится через `windows/install_winusb.cmd` (pnputil с само-элевацией); после привязки COM-драйверы перестают занимать порты - Skello COM не использует.

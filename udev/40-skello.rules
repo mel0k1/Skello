@@ -1,0 +1,32 @@
+# Skello — udev rules for the bootloader ports the app talks to.
+#
+# Skello opens the devices directly over USB bulk endpoints (libusb-style,
+# the nusb backend), so the raw device nodes must be writable by the
+# desktop user. The tty rules below serve the serial tools that ship
+# with other packages and are harmless for Skello.
+#
+# Install:
+#   sudo cp 40-skello.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload && sudo udevadm trigger
+# Then unplug and plug the phone back in.
+
+# --- MediaTek: BROM 0003, preloader 2000, DA 2001 ---
+# raw USB access (Skello's own transport)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0e8d", ENV{DEVTYPE}=="usb_device", MODE="0666"
+# serial ports for tools that go through cdc_acm
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0e8d", MODE="0666"
+
+# --- Qualcomm: EDL 9008 ---
+SUBSYSTEM=="usb", ATTRS{idVendor}=="05c6", ATTRS{idProduct}=="9008", ENV{DEVTYPE}=="usb_device", MODE="0666"
+# bind qcserial when the module is present, so a ttyUSB appears for
+# serial-based tools; guarded, no-op when qcserial is not loaded
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="05c6", ATTRS{idProduct}=="9008", \
+  TEST=="/sys/bus/usb-serial/drivers/qcserial/new_id", \
+  RUN+="/bin/sh -c 'echo 05c6 9008 > /sys/bus/usb-serial/drivers/qcserial/new_id'"
+
+# --- Unisoc: BROM 4D00 ---
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1782", ENV{DEVTYPE}=="usb_device", MODE="0666"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1782", MODE="0666"
+
+# --- Google: fastboot d00d, adb 4ee0 (raw USB access) ---
+SUBSYSTEM=="usb", ATTRS{idVendor}=="18d1", ENV{DEVTYPE}=="usb_device", MODE="0666"

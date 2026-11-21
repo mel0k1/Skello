@@ -1,0 +1,87 @@
+; Skello WinUSB driver package.
+;
+; Skello talks to the bootloader ports directly over USB bulk endpoints
+; (nusb backend), which on Windows requires the WinUSB driver bound to
+; the device. Windows 10+ binds WinUSB itself only to devices that
+; advertise MS OS descriptors; this INF covers the rest of the ports
+; the app opens:
+;
+;   USB\VID_0E8D&PID_0003  MediaTek BROM
+;   USB\VID_0E8D&PID_2000  MediaTek preloader
+;   USB\VID_0E8D&PID_2001  MediaTek DA
+;   USB\VID_05C6&PID_9008  Qualcomm EDL
+;   USB\VID_1782&PID_4D00  Unisoc BROM
+;   USB\VID_18D1&PID_D00D  Google fastboot
+;   USB\VID_18D1&PID_4EE0  Google adb composite
+;
+; After binding, the old COM-port drivers (usbser for the MediaTek CDC
+; ports, the Qualcomm QDLoader for 9008) stop claiming these devices:
+; Skello never uses COM ports, other serial tools do. Roll back through
+; Device Manager if a serial tool must keep working.
+;
+; Install (as administrator):
+;   install_winusb.cmd        (runs pnputil below)
+; or manually:
+;   pnputil /add-driver skello_winusb.inf /install
+; or Device Manager > Update driver > Browse my computer for drivers,
+; point it at this folder.
+
+[Version]
+Signature = "$Windows NT$"
+Class = AndroidUsbDeviceClass
+ClassGuid = {3F8076C9-3843-48AD-A38A-9C11E7806CCE}
+Provider = %ProviderName%
+DriverVer = 11/21/2026,1.0.0.0
+PnpLockdown = 1
+
+[ClassInstall32]
+Addreg = SkelloClassReg
+
+[SkelloClassReg]
+HKR,,,,"Skello USB Devices"
+HKR,,Icon,,"-20"
+
+[Manufacturer]
+%ManufacturerName% = Standard, NT$ARCH$
+
+[Standard.NT$ARCH$]
+%MTK_BROM% = USB_Install, USB\VID_0E8D&PID_0003
+%MTK_PRELOADER% = USB_Install, USB\VID_0E8D&PID_2000
+%MTK_DA% = USB_Install, USB\VID_0E8D&PID_2001
+%QC_EDL% = USB_Install, USB\VID_05C6&PID_9008
+%UNISOC_BROM% = USB_Install, USB\VID_1782&PID_4D00
+%GOOGLE_FASTBOOT% = USB_Install, USB\VID_18D1&PID_D00D
+%GOOGLE_ADB% = USB_Install, USB\VID_18D1&PID_4EE0
+
+[USB_Install]
+Include = winusb.inf
+Needs = WINUSB.NT
+
+[USB_Install.Services]
+Include = winusb.inf
+AddService = WinUSB, 0x00000002, WinUSB_ServiceInstall
+
+[WinUSB_ServiceInstall]
+DisplayName = %WinUSB_SvcDesc%
+ServiceType = 1
+StartType = 3
+ErrorControl = 1
+ServiceBinary = %12%\WinUSB.sys
+
+[USB_Install.HW]
+AddReg = Dev_AddReg
+
+[Dev_AddReg]
+HKR,, DeviceInterfaceGUIDs, 0x10000, "{9d9ba6a0-eae1-4d3f-9a3c-4b1e6f5a2f10}"
+
+[Strings]
+ProviderName = "Skello"
+ManufacturerName = "Skello"
+WinUSB_SvcDesc = "WinUSB"
+MTK_BROM = "Skello MediaTek BROM Port"
+MTK_PRELOADER = "Skello MediaTek Preloader Port"
+MTK_DA = "Skello MediaTek DA Port"
+QC_EDL = "Skello Qualcomm EDL 9008"
+UNISOC_BROM = "Skello Unisoc BROM Port"
+GOOGLE_FASTBOOT = "Skello Google Fastboot Interface"
+GOOGLE_ADB = "Skello Google ADB Interface"

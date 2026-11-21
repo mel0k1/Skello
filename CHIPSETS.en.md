@@ -39,4 +39,4 @@ Skello plan: stage 1 - Sahara over USB, programmer upload, command mode (impleme
 
 ## Access level on Linux
 
-Without udev rules only root can reach USB devices. Skello will offer to install rules for the vendors: 1782 (Unisoc), 0e8d (MediaTek), 05c6 (Qualcomm) - the same approach spreadtrum_flash documents.
+Without udev rules only root can reach USB devices. Implemented: `udev/40-skello.rules` ships in the release archive (raw USB 0666 for 0e8d/05c6:9008/1782/18d1, tty permissions for the serial tools, qcserial binding to 9008 guarded by TEST). On Windows the transport runs through nusb and requires WinUSB: `windows/skello_winusb.inf` (MTK 0003/2000/2001, EDL 9008, Unisoc 4D00, Google fastboot d00d and adb 4ee0) installs through `windows/install_winusb.cmd` (pnputil with self-elevation); once WinUSB binds, the COM-port drivers stop claiming the ports - Skello never uses COM.

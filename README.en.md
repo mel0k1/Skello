@@ -53,6 +53,19 @@ The order can change along the way.
 
 Unlocking the bootloader wipes the whole device storage. Flashing a wrong image or a mid-way failure can leave the phone dead. Skello shows what is about to happen before every dangerous step, but the person pressing the button owns the operation. Check that the image is built for your exact model.
 
+## Ports
+
+The core opens the bootloader ports directly over USB (bulk endpoints), so without preparation only root has access.
+
+Linux - udev rules ship in the release archive (`udev/40-skello.rules`):
+
+    sudo cp 40-skello.rules /etc/udev/rules.d/
+    sudo udevadm control --reload && sudo udevadm trigger
+
+The rules give access to MediaTek BROM/preloader/DA (0e8d), EDL 9008 (05c6), Unisoc BROM (1782) and fastboot/adb (18d1), and bind qcserial to 9008 for the serial tools. Unplug and plug the phone back in after installing.
+
+Windows - the WinUSB driver package (`windows/skello_winusb.inf`, `windows/install_winusb.cmd`): run the script as administrator or `pnputil /add-driver skello_winusb.inf /install`. The transport goes through WinUSB, so without the package Windows keeps Skello away from the ports. Once WinUSB binds, the old COM-port drivers (usbser for the MediaTek CDC ports, QDLoader for 9008) stop claiming these devices - Skello never uses COM ports; serial tools do, roll back through Device Manager for them.
+
 ## Development
 
 You need Rust stable and Flutter stable (verified on Flutter 3.50).
