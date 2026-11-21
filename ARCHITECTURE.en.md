@@ -42,17 +42,19 @@ This file collects what came out of the AOSP and reference-project sources, and 
 
 ### Bootloader unlock
 
-1. Reboot to bootloader: over adb (reboot bootloader) or by buttons
-2. getvar:unlocked - if already unlocked, the step is skipped
-3. The standard path is flashing:unlock with confirmation on the phone screen
-4. MediaTek and Unisoc have their own paths (seccfg with HACC, Identifier Token signing) - see [CHIPSETS.en.md](CHIPSETS.en.md)
-5. A warning in the interface: the storage gets wiped completely, no exceptions
+Implemented in the wizard (screen opened from the fastboot device card menu): a wipe warning with a mandatory checkbox, getvar:unlocked check, fastboot flashing unlock with a 120 second timeout and confirmation on the phone screen, a repeated getvar check afterwards. The rest is the plan.
+
+1. Reboot to bootloader: over adb (reboot bootloader) - already in the card menu; or by buttons
+2. MediaTek and Unisoc have their own paths (seccfg with HACC, Identifier Token signing) - see [CHIPSETS.en.md](CHIPSETS.en.md), not implemented yet
+3. Xiaomi requires Mi Unlock with a queue wait - outside the standard path
 
 ### Image flashing
 
-1. Checks before sending: battery-soc-ok reports "yes", bootloader unlocked, image size within max-download-size
+Right now boot is flashed through the system fastboot: the button on the Root screen is active only after the image header check, getvar:unlocked = yes and a dialog confirmation; the command output is shown when it finishes. Next - the own transport:
+
+1. Checks before sending: battery-soc-ok reports "yes", image size within max-download-size
 2. download:<size in hex>, then the image in 1024-byte chunks
-3. flash:<partition>; INFO lines are collected between steps and shown as progress
+3. flash:<partition>; INFO lines are collected between steps and shown as live progress
 4. Reboot and verify the device came back
 
 ### Root

@@ -21,8 +21,9 @@ adb и fastboot работают из терминала: нужно помни�
 - crates/skello-fastboot: строки команд fastboot (getvar, download, flash, erase, set_active, reboot-*) и разбор ответов OKAY / FAIL / INFO / TEXT / DATA
 - crates/skello-bootimg: разбор заголовка Android boot image (v0-v4): размеры ядра и ramdisk, размер страницы, версия Android и патч безопасности, наличие AVB-футера
 - app: мост Flutter и Rust через flutter_rust_bridge (крейт app/rust собирается cargokit-ом вместе с приложением), DeviceRepository зовёт ядро и при недоступности FFI переключается на системные adb и fastboot
-- app: живой список устройств из adb-сервера и fastboot с карточками состояний, тема Material 3 Expressive, i18n на русский и английский
-- app: Root-экран: выбор Magisk / KernelSU / APatch, выбор boot.img и проверка его заголовка через Rust-ядро до любых действий с телефоном
+- app: живой список устройств из adb-сервера и fastboot с карточками состояний, меню перезагрузки (system / bootloader / recovery) и запуском мастера разблокировки; тема Material 3 Expressive, i18n на русский и английский
+- app: мастер разблокировки загрузчика: предупреждение о стирании с обязательным подтверждением, fastboot getvar unlocked, flashing unlock с ожиданием подтверждения на телефоне и повторной проверкой
+- app: Root-экран: выбор Magisk / KernelSU / APatch, выбор boot.img, проверка заголовка через Rust-ядро и прошивка boot через fastboot после всех проверок
 - CI на GitHub Actions: fmt, clippy, тесты Rust на Linux и Windows, analyze и тесты Flutter; релизные сборки Windows и Linux по тегу
 
 Разбор протоколов и исходников AOSP - в [ARCHITECTURE.md](ARCHITECTURE.md), работа с чипсетами - в [CHIPSETS.md](CHIPSETS.md).
