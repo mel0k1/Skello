@@ -1,0 +1,9 @@
+[package]
+name = "skello-chipsets"
+description = "Chipset-specific formats and flows for Skello: MediaTek seccfg, Unisoc, Qualcomm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+aes = "0.8"
