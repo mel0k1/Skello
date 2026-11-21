@@ -3,6 +3,7 @@
 //! GPT reader.
 
 pub mod brom;
+pub mod carbonara;
 pub mod daldr;
 pub mod exploit;
 pub mod gpt;
@@ -12,6 +13,7 @@ pub mod xflash;
 pub mod xml;
 
 pub use brom::{Brom, BromError};
+pub use carbonara::{calc_da_hash, check_carbonara_patched, compute_hash_pos, fix_hash, patch_da2, patch_da2_vendor, HashMode};
 pub use carbonara::{
     calc_da_hash, check_carbonara_patched, compute_hash_pos, fix_hash, patch_da2, patch_da2_vendor,
     HashMode,
