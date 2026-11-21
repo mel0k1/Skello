@@ -215,86 +215,90 @@ pub(crate) fn read_exact_t(
     read_exact_timeout(link, buf, timeout)
 }
 
+/// Device side of the BROM: inverted handshake echo, hardware code,
+/// DA upload with XOR16 checksum, jump echo. Shared with the XFlash
+/// and XML DA tests through `mock_brom()`.
+#[cfg(test)]
+pub(crate) fn mock_brom() -> crate::transport::MockLink {
+    use crate::transport::MockLink;
+    use std::cell::RefCell;
+    let mut link = MockLink::new();
+    let state = RefCell::new((0usize, 0u8, 0u8, 0usize, Vec::new()));
+    link.device = Some(Box::new(move |out, input| {
+        let mut st = state.borrow_mut();
+        let (hs_pos, last_cmd, step, pending_size, payload) = &mut *st;
+        if input.is_empty() {
+            return;
+        }
+        // Handshake bytes arrive one per write, inverted echo back.
+        if input.len() == 1 && *hs_pos < HANDSHAKE.len() && HANDSHAKE[*hs_pos] == input[0] {
+            out.push_back(!input[0]);
+            *hs_pos += 1;
+            return;
+        }
+        *hs_pos = 0;
+        // Echo stages of SEND_DA: cmd, address, size, sig_len.
+        // The size parameter (stage 1) is remembered for the
+        // payload checksum answer.
+        if *last_cmd == CMD_SEND_DA && input.len() == 4 && *step < 3 {
+            if *step == 1 {
+                *pending_size = u32::from_be_bytes(input.try_into().unwrap()) as usize;
+            }
+            out.extend(input);
+            *step += 1;
+            if *step == 3 {
+                out.extend(0u16.to_be_bytes());
+                *step = 4;
+            }
+            return;
+        }
+        match input[0] {
+            CMD_GET_HW_CODE => {
+                *last_cmd = 0;
+                out.extend([CMD_GET_HW_CODE]);
+                out.extend([0x65, 0x72, 0x00, 0x02]);
+            }
+            CMD_SEND_DA => {
+                *last_cmd = CMD_SEND_DA;
+                *step = 0;
+                payload.clear();
+                out.extend([CMD_SEND_DA]);
+            }
+            CMD_JUMP_DA => {
+                *last_cmd = CMD_JUMP_DA;
+                *step = 0;
+                out.extend([CMD_JUMP_DA]);
+            }
+            _ => {
+                match *last_cmd {
+                    CMD_SEND_DA if *step == 4 => {
+                        // DA payload upload
+                        payload.extend_from_slice(input);
+                        if payload.len() == *pending_size {
+                            out.extend(xor16(payload).to_be_bytes());
+                            out.extend(0u16.to_be_bytes());
+                            *last_cmd = 0;
+                        }
+                    }
+                    CMD_JUMP_DA => {
+                        // address echo + status
+                        out.extend(input);
+                        out.extend(0u16.to_be_bytes());
+                        *last_cmd = 0;
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }));
+    link
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::transport::MockLink;
     use std::cell::RefCell;
-
-    /// Device side of the BROM: inverted handshake echo, hardware code,
-    /// DA upload with XOR16 checksum, jump echo.
-    fn mock_brom() -> MockLink {
-        let mut link = MockLink::new();
-        let state = RefCell::new((0usize, 0u8, 0u8, 0usize, Vec::new()));
-        link.device = Some(Box::new(move |out, input| {
-            let mut st = state.borrow_mut();
-            let (hs_pos, last_cmd, step, pending_size, payload) = &mut *st;
-            if input.is_empty() {
-                return;
-            }
-            // Handshake bytes arrive one per write, inverted echo back.
-            if input.len() == 1 && *hs_pos < HANDSHAKE.len() && HANDSHAKE[*hs_pos] == input[0] {
-                out.push_back(!input[0]);
-                *hs_pos += 1;
-                return;
-            }
-            *hs_pos = 0;
-            // Echo stages of SEND_DA: cmd, address, size, sig_len.
-            // The size parameter (stage 1) is remembered for the
-            // payload checksum answer.
-            if *last_cmd == CMD_SEND_DA && input.len() == 4 && *step < 3 {
-                if *step == 1 {
-                    *pending_size = u32::from_be_bytes(input.try_into().unwrap()) as usize;
-                }
-                out.extend(input);
-                *step += 1;
-                if *step == 3 {
-                    out.extend(0u16.to_be_bytes());
-                    *step = 4;
-                }
-                return;
-            }
-            match input[0] {
-                CMD_GET_HW_CODE => {
-                    *last_cmd = 0;
-                    out.extend([CMD_GET_HW_CODE]);
-                    out.extend([0x65, 0x72, 0x00, 0x02]);
-                }
-                CMD_SEND_DA => {
-                    *last_cmd = CMD_SEND_DA;
-                    *step = 0;
-                    payload.clear();
-                    out.extend([CMD_SEND_DA]);
-                }
-                CMD_JUMP_DA => {
-                    *last_cmd = CMD_JUMP_DA;
-                    *step = 0;
-                    out.extend([CMD_JUMP_DA]);
-                }
-                _ => {
-                    match *last_cmd {
-                        CMD_SEND_DA if *step == 4 => {
-                            // DA payload upload
-                            payload.extend_from_slice(input);
-                            if payload.len() == *pending_size {
-                                out.extend(xor16(payload).to_be_bytes());
-                                out.extend(0u16.to_be_bytes());
-                                *last_cmd = 0;
-                            }
-                        }
-                        CMD_JUMP_DA => {
-                            // address echo + status
-                            out.extend(input);
-                            out.extend(0u16.to_be_bytes());
-                            *last_cmd = 0;
-                        }
-                        _ => {}
-                    }
-                }
-            }
-        }));
-        link
-    }
 
     #[test]
     fn handshake_echoes_inverted() {

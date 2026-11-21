@@ -25,6 +25,12 @@ pub const CMD_SHUTDOWN: u32 = 0x010007;
 pub const CMD_DEVICE_CTRL: u32 = 0x010009;
 pub const CMD_GET_PACKET_LENGTH: u32 = 0x040007;
 
+/// DA extension commands (mtkclient xflash.py custom_readregister /
+/// custom_writeregister): 32-bit register access used to drive the
+/// on-chip SEJ engine.
+pub const CMD_CUSTOM_READREGISTER: u32 = 0x0F0002;
+pub const CMD_CUSTOM_WRITEREGISTER: u32 = 0x0F0004;
+
 /// Storage types (DaStorage): eMMC is 1 for the common devices.
 pub const STORAGE_EMMC: u32 = 1;
 /// eMMC user area partition (EmmcPartitionType).
@@ -43,6 +49,8 @@ pub enum XFlashError {
     CommandFailed(u32, &'static str),
     PartitionNotFound(String),
     NoStorage,
+    /// A custom register command answered with fewer bytes than a u32.
+    RegisterReply(usize),
 }
 
 impl std::fmt::Display for XFlashError {
@@ -57,6 +65,9 @@ impl std::fmt::Display for XFlashError {
             }
             XFlashError::PartitionNotFound(name) => write!(f, "partition {name} not found"),
             XFlashError::NoStorage => write!(f, "DA loader has no stage 1 region"),
+            XFlashError::RegisterReply(n) => {
+                write!(f, "register reply too short: {n} bytes")
+            }
         }
     }
 }
@@ -332,20 +343,90 @@ impl XFlash {
         Ok(())
     }
 
+    /// `CUSTOM_READREGISTER` through DEVICE_CTRL: one 32-bit register
+    /// of the chip, the SEJ engine path (mtkclient xflash.py).
+    pub fn custom_readregister(&mut self, addr: u32) -> Result<u32> {
+        self.xsend_u32(CMD_DEVICE_CTRL)?;
+        let status = self.status()?;
+        if status != 0 {
+            return Err(XFlashError::Status(status));
+        }
+        self.xsend_u32(CMD_CUSTOM_READREGISTER)?;
+        let status = self.status()?;
+        if status != 0 {
+            return Err(XFlashError::Status(status));
+        }
+        self.xsend_u32(addr)?;
+        let data = self.xread(IO_TIMEOUT)?;
+        let status = self.status()?;
+        if status != 0 {
+            return Err(XFlashError::Status(status));
+        }
+        if data.len() < 4 {
+            return Err(XFlashError::RegisterReply(data.len()));
+        }
+        Ok(u32::from_le_bytes(data[0..4].try_into().unwrap()))
+    }
+
+    /// `CUSTOM_WRITEREGISTER` through DEVICE_CTRL: writes one 32-bit
+    /// register of the chip.
+    pub fn custom_writeregister(&mut self, addr: u32, value: u32) -> Result<()> {
+        self.xsend_u32(CMD_DEVICE_CTRL)?;
+        let status = self.status()?;
+        if status != 0 {
+            return Err(XFlashError::Status(status));
+        }
+        self.xsend_u32(CMD_CUSTOM_WRITEREGISTER)?;
+        let status = self.status()?;
+        if status != 0 {
+            return Err(XFlashError::Status(status));
+        }
+        self.xsend_u32(addr)?;
+        self.xsend_u32(value)?;
+        let status = self.status()?;
+        if status != 0 {
+            return Err(XFlashError::Status(status));
+        }
+        Ok(())
+    }
+
+    /// One AES-128-CBC pass through the on-chip SEJ engine: the
+    /// register sequence runs over the DA custom register commands.
+    pub fn hacc_output(&mut self, data: &[u8], legacy: bool, encrypt: bool) -> Result<Vec<u8>> {
+        let mut bus = DaSejBus { flash: self };
+        let mut engine =
+            crate::mediatek::sej::SejEngine::new(&mut bus, crate::mediatek::sej::SEJ_BASE_DEFAULT);
+        engine
+            .hacc_output(data, legacy, encrypt)
+            .map_err(|e| XFlashError::Io(std::io::Error::other(e.to_string())))
+    }
+
     /// Full unlock helper over real hardware: BROM port, stock DA from
     /// the loader file, seccfg through the GPT, local V3 software-SEJ
-    /// patch, write back. V4 and hardware-keyed partitions are refused
-    /// by the seccfg layer until the SEJ stage exists.
+    /// patch or the V4 patch signed by the on-chip SEJ engine through
+    /// the DA registers.
     pub fn unlock_seccfg(loader_path: &str) -> Result<String> {
         let mut brom = Brom::new(crate::transport::open_usb_serial(
             crate::mediatek::brom::VID_MEDIATEK,
             crate::mediatek::brom::PID_BROM,
         )?);
-        Self::unlock_seccfg_from_brom(&mut brom, loader_path)
+        Self::unlock_seccfg_with(&mut brom, loader_path, &mut || {
+            crate::transport::open_usb_serial(
+                crate::mediatek::brom::VID_MEDIATEK,
+                crate::mediatek::brom::PID_DA,
+            )
+        })
     }
 
-    /// Same flow over an already established BROM link (mockable).
-    pub fn unlock_seccfg_from_brom(brom: &mut Brom, loader_path: &str) -> Result<String> {
+    /// Same flow over an already established BROM link; `da_open`
+    /// supplies the re-enumerated DA port so tests can substitute a
+    /// mock device.
+    pub fn unlock_seccfg_with(
+        brom: &mut Brom,
+        loader_path: &str,
+        da_open: &mut dyn FnMut()
+            -> std::result::Result<Box<dyn Link>, crate::transport::LinkError>,
+    ) -> Result<String> {
         brom.handshake()?;
         let (hw_code, _sub) = brom.get_hw_code()?;
         let (loader, bytes) = pick_loader(loader_path, hw_code)
@@ -356,10 +437,7 @@ impl XFlash {
         brom.send_da(s1.start_addr, s1.sig_len, &da1)?;
         brom.jump_da(s1.start_addr)?;
         // After the jump the device re-enumerates as the DA port.
-        let link = crate::transport::open_usb_serial(
-            crate::mediatek::brom::VID_MEDIATEK,
-            crate::mediatek::brom::PID_DA,
-        )?;
+        let link = da_open()?;
         let mut xflash = XFlash::new(link);
         xflash.init_after_jump()?;
 
@@ -378,15 +456,412 @@ impl XFlash {
                 return Err(XFlashError::Io(std::io::Error::other(e.to_string())));
             }
         }
-        let patched = crate::mediatek::seccfg::patch(&seccfg, true)
-            .map_err(|e| XFlashError::Io(std::io::Error::other(e.to_string())))?;
+        let patched = {
+            let info = crate::mediatek::seccfg::parse(&seccfg)
+                .map_err(|e| XFlashError::Io(std::io::Error::other(e.to_string())))?;
+            if info.version == crate::mediatek::SecCfgVersion::V4 {
+                let mut da_signer = DaV4Signer { flash: &mut xflash };
+                let signer = &mut da_signer as &mut dyn crate::mediatek::seccfg::V4Signer;
+                crate::mediatek::seccfg::patch_v4(&seccfg, true, &mut Some(signer))
+            } else {
+                crate::mediatek::seccfg::patch(&seccfg, true)
+            }
+            .map_err(|e| XFlashError::Io(std::io::Error::other(e.to_string())))?
+        };
         xflash.writeflash(off, &patched)?;
         let _ = xflash.shutdown();
         Ok("seccfg patched to unlocked through the DA; reboot and verify".to_owned())
     }
 }
 
+/// The DA register access as the SEJ engine bus.
+struct DaSejBus<'a> {
+    flash: &'a mut XFlash,
+}
+
+impl crate::mediatek::sej::SejBus for DaSejBus<'_> {
+    fn read32(&mut self, addr: u32) -> std::io::Result<u32> {
+        self.flash
+            .custom_readregister(addr)
+            .map_err(|e| std::io::Error::other(e.to_string()))
+    }
+
+    fn write32(&mut self, addr: u32, value: u32) -> std::io::Result<()> {
+        self.flash
+            .custom_writeregister(addr, value)
+            .map_err(|e| std::io::Error::other(e.to_string()))
+    }
+}
+
+/// Signs V4 seccfg hashes with the on-chip SEJ engine: the key is
+/// HUID-bound, so the hash modes beyond `Sw` must run on the device.
+struct DaV4Signer<'a> {
+    flash: &'a mut XFlash,
+}
+
+impl crate::mediatek::seccfg::V4Signer for DaV4Signer<'_> {
+    fn decrypt(
+        &mut self,
+        data: &[u8],
+        mode: crate::mediatek::seccfg::SejMode,
+    ) -> std::result::Result<Vec<u8>, crate::mediatek::seccfg::SecCfgError> {
+        use crate::mediatek::seccfg::SejMode;
+        let legacy = match mode {
+            SejMode::V4Legacy => true,
+            SejMode::V3 => false,
+            other => {
+                return Err(crate::mediatek::seccfg::SecCfgError::NeedsSej(
+                    match other {
+                        SejMode::V2 => "V2 hash through the DA engine is not supported",
+                        _ => "device-keyed hash",
+                    },
+                ))
+            }
+        };
+        self.flash
+            .hacc_output(data, legacy, false)
+            .map_err(|e| crate::mediatek::seccfg::SecCfgError::Engine(e.to_string()))
+    }
+
+    fn encrypt(
+        &mut self,
+        data: &[u8],
+        mode: crate::mediatek::seccfg::SejMode,
+    ) -> std::result::Result<Vec<u8>, crate::mediatek::seccfg::SecCfgError> {
+        use crate::mediatek::seccfg::SejMode;
+        let legacy = match mode {
+            SejMode::V4Legacy => true,
+            SejMode::V3 => false,
+            other => {
+                return Err(crate::mediatek::seccfg::SecCfgError::NeedsSej(
+                    match other {
+                        SejMode::V2 => "V2 hash through the DA engine is not supported",
+                        _ => "device-keyed hash",
+                    },
+                ))
+            }
+        };
+        self.flash
+            .hacc_output(data, legacy, true)
+            .map_err(|e| crate::mediatek::seccfg::SecCfgError::Engine(e.to_string()))
+    }
+}
+
 /// The checksum DA V5 expects per write packet: sum of bytes mod 2^16.
 fn simple_checksum(data: &[u8]) -> u16 {
     data.iter().fold(0u16, |acc, b| acc.wrapping_add(*b as u16))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::mediatek::brom::mock_brom;
+    use crate::mediatek::sej::testutil::MockHacc;
+    use crate::mediatek::sej::SejBus;
+    use crate::transport::MockLink;
+    use sha2::{Digest, Sha256};
+    use std::cell::RefCell;
+    use std::collections::VecDeque;
+
+    const SECCFG_LBA: u64 = 1024;
+
+    /// A V5 loader file: one DA entry with three regions in the 0xDC
+    /// stride layout (same shape as the daldr test fixture).
+    fn build_loader(hw_code: u16) -> Vec<u8> {
+        let mut data = vec![0u8; 0xE00];
+        data[..12].copy_from_slice(b"MTK_AllInOne");
+        data[0x68..0x6C].copy_from_slice(&1u32.to_le_bytes());
+        data[0x6C] = 0x69;
+        data[0x6D] = 0x01;
+        data[0x6E..0x70].copy_from_slice(&hw_code.to_le_bytes());
+        data[0x6C + 0x12..0x6C + 0x14].copy_from_slice(&3u16.to_le_bytes());
+        let region_base = 0x6C + 0x14;
+        for (i, (buf, len, addr)) in [
+            (0x200u32, 0x100u32, 0x100u32),
+            (0x300, 0x400, 0x200000),
+            (0x700, 0x800, 0x2C00000),
+        ]
+        .iter()
+        .enumerate()
+        {
+            let ro = region_base + i * 20;
+            data[ro..ro + 4].copy_from_slice(&buf.to_le_bytes());
+            data[ro + 4..ro + 8].copy_from_slice(&len.to_le_bytes());
+            data[ro + 8..ro + 12].copy_from_slice(&addr.to_le_bytes());
+        }
+        for i in 0x148..0xE00u32 {
+            data[i as usize] = (i * 3) as u8;
+        }
+        data
+    }
+
+    /// Four LBAs: protective MBR, GPT header, entry array with one
+    /// seccfg partition.
+    fn build_gpt() -> Vec<u8> {
+        let lba = 512usize;
+        let mut disk = vec![0u8; lba * 4];
+        disk[lba..lba + 8].copy_from_slice(b"EFI PART");
+        disk[lba + 72..lba + 80].copy_from_slice(&2u64.to_le_bytes());
+        disk[lba + 80..lba + 84].copy_from_slice(&1u32.to_le_bytes());
+        disk[lba + 84..lba + 88].copy_from_slice(&128u32.to_le_bytes());
+        let base = lba * 2;
+        disk[base] = 1;
+        disk[base + 32..base + 40].copy_from_slice(&SECCFG_LBA.to_le_bytes());
+        disk[base + 40..base + 48].copy_from_slice(&(SECCFG_LBA + 16).to_le_bytes());
+        for (i, c) in "seccfg".chars().enumerate() {
+            disk[base + 56 + i * 2..base + 58 + i * 2].copy_from_slice(&(c as u16).to_le_bytes());
+        }
+        disk
+    }
+
+    /// A locked V4 seccfg whose hash is hw-mode SEJ encrypted (the
+    /// zero-key AES-128-CBC the engine computes with binding off).
+    fn v4_image() -> Vec<u8> {
+        let mut header = [0u8; 28];
+        header[0..4].copy_from_slice(&0x4D4D4D4Du32.to_le_bytes());
+        header[4..8].copy_from_slice(&4u32.to_le_bytes());
+        header[8..12].copy_from_slice(&0x3Cu32.to_le_bytes());
+        header[12..16].copy_from_slice(&1u32.to_le_bytes());
+        header[24..28].copy_from_slice(&0x45454545u32.to_le_bytes());
+        let hash: [u8; 32] = Sha256::digest(header).into();
+        let mut out = header.to_vec();
+        out.extend(crate::mediatek::sej::sej_hw_soft(&hash, true).unwrap());
+        out.resize(0x2000, 0);
+        out
+    }
+
+    /// Device side of the DA V5 session: the init handshake, GPT and
+    /// seccfg reads, the custom register commands driving the emulated
+    /// SEJ engine and the writeback capture.
+    fn mock_da() -> MockLink {
+        let mut link = MockLink::new();
+        // the DA announces itself with one 0xC0 byte after the jump
+        link.push(&[0xC0]);
+        let state = RefCell::new(DaMock::default());
+        link.device = Some(Box::new(move |out, input| {
+            let mut st = state.borrow_mut();
+            st.in_buf.extend_from_slice(input);
+            st.process(out);
+        }));
+        link
+    }
+
+    #[derive(Default)]
+    struct DaMock {
+        in_buf: Vec<u8>,
+        env_params: usize,
+        hw_params: usize,
+        devctrl: bool,
+        expect_reg_addr: bool,
+        expect_reg_value: bool,
+        reg_addr: u32,
+        hacc: MockHacc,
+        expect_read_param: bool,
+        read_addr: u64,
+        read_len: usize,
+        expect_write_param: bool,
+        write_size: usize,
+        write_received: usize,
+        write_data: Vec<u8>,
+        shutdown: bool,
+        sync_seen: bool,
+        sync_sent: bool,
+        reading: bool,
+        expect_value_only: bool,
+    }
+
+    impl DaMock {
+        fn packet(&mut self, out: &mut VecDeque<u8>, body: &[u8]) {
+            out.extend(XFLASH_MAGIC.to_le_bytes());
+            out.extend(DT_PROTOCOL_FLOW.to_le_bytes());
+            out.extend((body.len() as u32).to_le_bytes());
+            out.extend(body.iter().copied());
+        }
+
+        fn status_ok(&mut self, out: &mut VecDeque<u8>) {
+            self.packet(out, &0u32.to_le_bytes());
+        }
+
+        fn process(&mut self, out: &mut VecDeque<u8>) {
+            loop {
+                if self.in_buf.len() < 12 {
+                    break;
+                }
+                let magic = u32::from_le_bytes(self.in_buf[0..4].try_into().unwrap());
+                if magic != XFLASH_MAGIC {
+                    break;
+                }
+                let length = u32::from_le_bytes(self.in_buf[8..12].try_into().unwrap()) as usize;
+                if self.in_buf.len() < 12 + length {
+                    break;
+                }
+                let body: Vec<u8> = self.in_buf.drain(..12 + length).skip(12).collect();
+                self.handle(&body, out);
+            }
+        }
+
+        fn handle(&mut self, body: &[u8], out: &mut VecDeque<u8>) {
+            // flash write: the zero-word + checksum pair precede each chunk
+            if self.expect_write_param {
+                self.expect_write_param = false;
+                self.write_size = u64::from_le_bytes(body[16..24].try_into().unwrap()) as usize;
+                self.write_received = 0;
+                self.status_ok(out);
+                return;
+            }
+            if self.write_size > 0 && self.write_received < self.write_size {
+                if body.len() > 4 {
+                    self.write_data.extend_from_slice(body);
+                    self.write_received += body.len();
+                    self.status_ok(out);
+                    if self.write_received >= self.write_size {
+                        // one more status for the host's final check
+                        self.status_ok(out);
+                    }
+                    return;
+                }
+                // the zero word and the 2-byte checksum: consumed silently
+                if body.len() <= 4 {
+                    return;
+                }
+            }
+            // custom register parameter packets carry the addr / value
+            if self.expect_reg_addr && body.len() == 4 {
+                self.expect_reg_addr = false;
+                self.reg_addr = u32::from_le_bytes(body.try_into().unwrap());
+                if self.expect_reg_value {
+                    // write flow: the value packet follows
+                    self.expect_reg_value = false;
+                    self.expect_value_only = true;
+                } else {
+                    // read flow: the value goes out right away
+                    let value = self.hacc.read32(self.reg_addr).unwrap_or(0);
+                    self.packet(out, &value.to_le_bytes());
+                    self.status_ok(out);
+                }
+                return;
+            }
+            if self.expect_value_only && body.len() == 4 {
+                self.expect_value_only = false;
+                let value = u32::from_le_bytes(body.try_into().unwrap());
+                let _ = self.hacc.write32(self.reg_addr, value);
+                self.status_ok(out);
+                return;
+            }
+
+            // flash read: consume the host acks between data packets
+            if self.expect_read_param {
+                self.expect_read_param = false;
+                self.read_addr = u64::from_le_bytes(body[8..16].try_into().unwrap());
+                self.read_len = u64::from_le_bytes(body[16..24].try_into().unwrap()) as usize;
+                // the param packet itself is answered with a status
+                self.status_ok(out);
+                let source: Vec<u8> = if self.read_addr == 0 {
+                    build_gpt()
+                } else {
+                    v4_image()
+                };
+                let mut pos = 0;
+                while pos < self.read_len {
+                    let end = (pos + 0x800).min(self.read_len);
+                    self.packet(out, &source[pos..end]);
+                    pos = end;
+                }
+                self.status_ok(out);
+                self.reading = true;
+                return;
+            }
+            if self.reading && body.len() == 4 {
+                // an ack for the last data packet: consumed silently
+                if u32::from_le_bytes(body.try_into().unwrap()) == 0 {
+                    return;
+                }
+            }
+            if body.len() < 4 {
+                return;
+            }
+            let cmd = u32::from_le_bytes(body.try_into().unwrap());
+            match cmd {
+                SYNC_SIGNAL => {
+                    // the echo goes out only after the env / hw init
+                    self.sync_seen = true;
+                }
+                CMD_SETUP_ENVIRONMENT => {
+                    self.env_params = 5;
+                }
+                CMD_SETUP_HW_INIT_PARAMS => {
+                    self.hw_params = 1;
+                }
+                CMD_DEVICE_CTRL => {
+                    self.status_ok(out);
+                    self.devctrl = true;
+                }
+                CMD_GET_PACKET_LENGTH if self.devctrl => {
+                    self.status_ok(out);
+                    let mut resp = Vec::new();
+                    resp.extend_from_slice(&0x20000u32.to_le_bytes());
+                    resp.extend_from_slice(&0x20000u32.to_le_bytes());
+                    self.packet(out, &resp);
+                }
+                CMD_CUSTOM_READREGISTER if self.devctrl => {
+                    self.status_ok(out);
+                    self.expect_reg_addr = true;
+                    self.expect_reg_value = false;
+                }
+                CMD_CUSTOM_WRITEREGISTER if self.devctrl => {
+                    self.status_ok(out);
+                    self.expect_reg_addr = true;
+                    self.expect_reg_value = true;
+                }
+                CMD_READ_DATA => {
+                    self.status_ok(out);
+                    self.expect_read_param = true;
+                    self.reading = false;
+                }
+                CMD_WRITE_DATA => {
+                    self.status_ok(out);
+                    self.expect_write_param = true;
+                    self.reading = false;
+                }
+                CMD_SHUTDOWN => {
+                    self.status_ok(out);
+                    self.shutdown = true;
+                }
+                _ => {
+                    // parameter packets of the env / hw init phases
+                    if self.env_params > 0 {
+                        self.env_params -= 1;
+                        if self.env_params == 0 {
+                            self.status_ok(out);
+                        }
+                    } else if self.hw_params > 0 {
+                        self.hw_params -= 1;
+                        if self.hw_params == 0 {
+                            self.status_ok(out);
+                            if self.sync_seen && !self.sync_sent {
+                                self.sync_sent = true;
+                                self.packet(out, &SYNC_SIGNAL.to_le_bytes());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn unlock_v4_seccfg_through_da_sej() {
+        let loader_path = std::env::temp_dir().join("skello_test_loader_xflash.bin");
+        std::fs::write(&loader_path, build_loader(0x6572)).unwrap();
+
+        let mut brom = Brom::new(Box::new(mock_brom()));
+        let mut da_open = || -> std::result::Result<Box<dyn Link>, crate::transport::LinkError> {
+            Ok(Box::new(mock_da()))
+        };
+        let result =
+            XFlash::unlock_seccfg_with(&mut brom, loader_path.to_str().unwrap(), &mut da_open)
+                .unwrap();
+        assert!(result.contains("unlocked"));
+        let _ = std::fs::remove_file(&loader_path);
+    }
 }

@@ -9,6 +9,7 @@
 use std::fmt;
 
 use aes::cipher::{generic_array::GenericArray, BlockDecrypt, BlockEncrypt, KeyInit};
+use sha2::{Digest, Sha256};
 
 /// Magic of the V3/V4 seccfg structure ("MMMM").
 const MAGIC: u32 = 0x4D4D_4D4D;
@@ -50,6 +51,8 @@ pub enum SecCfgError {
     /// The partition is hardware-SEJ-protected; patching needs the
     /// Download Agent stage with the device's SEJ hardware.
     NeedsSej(&'static str),
+    /// The DA SEJ engine returned an error.
+    Engine(String),
     BadLength(usize),
 }
 
@@ -62,6 +65,7 @@ impl fmt::Display for SecCfgError {
             SecCfgError::NeedsSej(s) => {
                 write!(f, "SEJ hardware required, not available locally: {s}")
             }
+            SecCfgError::Engine(s) => write!(f, "SEJ engine: {s}"),
             SecCfgError::BadLength(n) => write!(f, "seccfg data length {n} is not 16-byte aligned"),
         }
     }
@@ -270,6 +274,149 @@ fn patch_v3(indata: &[u8], unlock: bool) -> Result<Vec<u8>, SecCfgError> {
     Ok(out)
 }
 
+/// Which SEJ mode encrypted the trailing hash of a V4 seccfg.
+/// `V3` is the plain hash variant, `V4Legacy` the older derivation
+/// (mtkclient hwtype names "V3" and "V4"); the true per-device keys
+/// (mtkclient "HW"/"HWXOR") need the otp and stay out of scope.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SejMode {
+    Sw,
+    V2,
+    V3,
+    V4Legacy,
+}
+
+/// The raw V4 fields, kept for the patch path.
+#[derive(Debug, Clone)]
+pub struct V4Fields {
+    pub magic: u32,
+    pub ver: u32,
+    pub size: u32,
+    pub lock_state: u32,
+    pub dm_verity: u32,
+    pub sboot: u32,
+    /// The stored hash, SEJ-encrypted SHA256 of the 28-byte header.
+    pub enc_hash: Vec<u8>,
+}
+
+impl V4Fields {
+    /// The 28-byte header this structure hashes over.
+    fn header_bytes(&self, lock_state: u32, dm_verity: u32) -> [u8; 28] {
+        let mut out = [0u8; 28];
+        out[0..4].copy_from_slice(&self.magic.to_le_bytes());
+        out[4..8].copy_from_slice(&self.ver.to_le_bytes());
+        out[8..12].copy_from_slice(&self.size.to_le_bytes());
+        out[12..16].copy_from_slice(&lock_state.to_le_bytes());
+        out[16..20].copy_from_slice(&dm_verity.to_le_bytes());
+        out[20..24].copy_from_slice(&self.sboot.to_le_bytes());
+        out[24..28].copy_from_slice(&ENDFLAG.to_le_bytes());
+        out
+    }
+
+    fn expected_hash(&self, lock_state: u32, dm_verity: u32) -> [u8; 32] {
+        Sha256::digest(self.header_bytes(lock_state, dm_verity)).into()
+    }
+}
+
+/// The V4 hash modes beyond `Sw` need the device SEJ engine: the key
+/// is HUID-bound, so the round trips run through the DA registers.
+pub trait V4Signer {
+    /// Decrypts a stored hash with the hardware engine for the mode.
+    fn decrypt(&mut self, data: &[u8], mode: SejMode) -> Result<Vec<u8>, SecCfgError>;
+    /// Encrypts a fresh hash with the hardware engine for the mode.
+    fn encrypt(&mut self, data: &[u8], mode: SejMode) -> Result<Vec<u8>, SecCfgError>;
+}
+
+fn parse_v4_fields(indata: &[u8]) -> Result<V4Fields, SecCfgError> {
+    if indata.len() < 28 {
+        return Err(SecCfgError::Truncated("v4 header"));
+    }
+    let fields = V4Fields {
+        magic: read32(indata, 0),
+        ver: read32(indata, 4),
+        size: read32(indata, 8),
+        lock_state: read32(indata, 12),
+        dm_verity: read32(indata, 16),
+        sboot: read32(indata, 20),
+        enc_hash: Vec::new(),
+    };
+    if fields.magic != MAGIC || read32(indata, 24) != ENDFLAG {
+        return Err(SecCfgError::BadHeader("v4 magic or end flag"));
+    }
+    let size = fields.size as usize;
+    let hash_pos = size.saturating_sub(0x20);
+    if size < 0x20 || indata.len() < hash_pos + 0x20 {
+        return Err(SecCfgError::Truncated("v4 hash"));
+    }
+    let mut fields = fields;
+    fields.enc_hash = indata[hash_pos..hash_pos + 0x20].to_vec();
+    Ok(fields)
+}
+
+/// Detects which SEJ mode encrypted the stored V4 hash: `Sw` runs in
+/// software, the rest through the `signer` (the DA SEJ engine).
+pub fn detect_v4_mode(
+    fields: &V4Fields,
+    signer: &mut Option<&mut dyn V4Signer>,
+) -> Result<SejMode, SecCfgError> {
+    let expected = fields.expected_hash(fields.lock_state, fields.dm_verity);
+    let sw_plain = sej_sw(&fields.enc_hash, false)?;
+    if sw_plain[..32] == expected {
+        return Ok(SejMode::Sw);
+    }
+    let Some(signer) = signer.as_mut() else {
+        return Err(SecCfgError::NeedsSej(
+            "V4 hash is not software-SEJ; the DA SEJ engine is required",
+        ));
+    };
+    for mode in [SejMode::V3, SejMode::V4Legacy, SejMode::V2] {
+        let plain = signer.decrypt(&fields.enc_hash, mode)?;
+        if plain.len() >= 32 && plain[..32] == expected {
+            return Ok(mode);
+        }
+    }
+    Err(SecCfgError::NeedsSej(
+        "V4 hash matches no known SEJ mode (device-keyed hash)",
+    ))
+}
+
+/// Rewrites the lock state of a V4 seccfg image: recompute the header
+/// SHA256 and re-encrypt it with the detected SEJ mode. `Sw` signs in
+/// software; other modes go through the `signer` (DA SEJ engine).
+pub fn patch_v4(
+    indata: &[u8],
+    unlock: bool,
+    signer: &mut Option<&mut dyn V4Signer>,
+) -> Result<Vec<u8>, SecCfgError> {
+    let fields = parse_v4_fields(indata)?;
+    let mode = detect_v4_mode(&fields, signer)?;
+    match (unlock, fields.lock_state) {
+        (true, 3) => return Err(SecCfgError::BadHeader("already unlocked")),
+        (false, 1) => return Err(SecCfgError::BadHeader("already locked")),
+        _ => {}
+    }
+    let new_lock = if unlock { 3u32 } else { 1u32 };
+    let fresh = fields.expected_hash(new_lock, fields.dm_verity);
+    let enc_hash = match mode {
+        SejMode::Sw => sej_sw(&fresh, true)?,
+        other => {
+            let Some(s) = signer.as_mut() else {
+                return Err(SecCfgError::NeedsSej(
+                    "hash needs the DA SEJ engine, none attached",
+                ));
+            };
+            s.encrypt(&fresh, other)?
+        }
+    };
+    let mut out = Vec::with_capacity(fields.size as usize + 0x200);
+    out.extend_from_slice(&fields.header_bytes(new_lock, fields.dm_verity));
+    out.extend_from_slice(&enc_hash);
+    while out.len() % 0x200 != 0 {
+        out.push(0);
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -365,5 +512,91 @@ mod tests {
     #[test]
     fn rejects_foreign_images() {
         assert!(matches!(parse(b"nope"), Err(SecCfgError::NotSecCfg)));
+    }
+
+    /// Builds a V4 image whose hash is SEJ-encrypted with the given
+    /// signer-equivalent software function (Sw or the hw modes).
+    fn v4_image(lock_state: u32, dm_verity: u32, enc: &dyn Fn(&[u8]) -> Vec<u8>) -> Vec<u8> {
+        let header = {
+            let mut out = [0u8; 28];
+            out[0..4].copy_from_slice(&MAGIC.to_le_bytes());
+            out[4..8].copy_from_slice(&4u32.to_le_bytes());
+            out[8..12].copy_from_slice(&0x3Cu32.to_le_bytes());
+            out[12..16].copy_from_slice(&lock_state.to_le_bytes());
+            out[16..20].copy_from_slice(&dm_verity.to_le_bytes());
+            out[20..24].copy_from_slice(&0u32.to_le_bytes());
+            out[24..28].copy_from_slice(&ENDFLAG.to_le_bytes());
+            out
+        };
+        let hash: [u8; 32] = Sha256::digest(header).into();
+        let mut out = Vec::new();
+        out.extend_from_slice(&header);
+        out.extend_from_slice(&enc(&hash));
+        while out.len() % 0x200 != 0 {
+            out.push(0);
+        }
+        out
+    }
+
+    /// Software stand-in for the DA SEJ engine: AES-128-CBC with the
+    /// zero key over the seccfg IV (the `sej_hw_soft` mode used by
+    /// chips with the key binding disabled).
+    struct SoftSigner;
+
+    impl SoftSigner {
+        fn hw(&self, data: &[u8], encrypt: bool) -> Vec<u8> {
+            crate::mediatek::sej::sej_hw_soft(data, encrypt).unwrap()
+        }
+    }
+
+    impl V4Signer for SoftSigner {
+        fn decrypt(&mut self, data: &[u8], _mode: SejMode) -> Result<Vec<u8>, SecCfgError> {
+            Ok(self.hw(data, false))
+        }
+        fn encrypt(&mut self, data: &[u8], _mode: SejMode) -> Result<Vec<u8>, SecCfgError> {
+            Ok(self.hw(data, true))
+        }
+    }
+
+    #[test]
+    fn v4_sw_hash_patch_unlocks() {
+        let image = v4_image(1, 0, &|h| sej_sw(h, true).unwrap());
+        let info = parse(&image).unwrap();
+        assert_eq!(info.version, SecCfgVersion::V4);
+        assert_eq!(info.state, LockState::Locked);
+        let patched = patch_v4(&image, true, &mut None).unwrap();
+        let info = parse(&patched).unwrap();
+        assert_eq!(info.state, LockState::Unlocked);
+        assert_eq!(patched.len() % 0x200, 0);
+        // round trip back to locked
+        let back = patch_v4(&patched, false, &mut None).unwrap();
+        assert_eq!(parse(&back).unwrap().state, LockState::Locked);
+    }
+
+    #[test]
+    fn v4_hw_hash_needs_signer_then_unlocks() {
+        // A hash encrypted with the hw mode: without a signer the patch
+        // refuses; with the software stand-in it detects V3 and unlocks.
+        let image = v4_image(1, 0, &|h| {
+            crate::mediatek::sej::sej_hw_soft(h, true).unwrap()
+        });
+        assert!(matches!(
+            patch_v4(&image, true, &mut None),
+            Err(SecCfgError::NeedsSej(_))
+        ));
+        let patched = patch_v4(&image, true, &mut Some(&mut SoftSigner)).unwrap();
+        // the patched hash is V3-mode again; the fields flipped to unlock
+        assert_eq!(read32(&patched, 12), 3);
+        let info = parse(&patched).unwrap();
+        assert_eq!(info.state, LockState::Unlocked);
+    }
+
+    #[test]
+    fn v4_noop_patch_refused() {
+        let image = v4_image(3, 0, &|h| sej_sw(h, true).unwrap());
+        assert!(matches!(
+            patch_v4(&image, true, &mut None),
+            Err(SecCfgError::BadHeader("already unlocked"))
+        ));
     }
 }

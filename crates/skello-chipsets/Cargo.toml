@@ -7,4 +7,6 @@ license.workspace = true
 
 [dependencies]
 aes = "0.8"
+sha2 = "0.10"
+serial2 = "0.2"
 nusb = "0.2.9"
