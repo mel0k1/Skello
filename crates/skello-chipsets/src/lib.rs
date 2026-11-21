@@ -8,5 +8,8 @@ pub mod transport;
 pub mod unisoc;
 
 pub use mediatek::seccfg::{
-    parse, patch, sej_sw, LockState, SecCfgError, SecCfgInfo, SecCfgVersion,
+    detect_v4_mode, parse, patch, patch_v4, sej_sw, LockState, SecCfgError, SecCfgInfo,
+    SecCfgVersion, SejMode, V4Fields, V4Signer,
 };
+pub use mediatek::xml::XmlBootMode;
+pub use unisoc::{parse_partition_list, UniPartition};

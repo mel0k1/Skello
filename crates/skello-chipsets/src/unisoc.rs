@@ -33,6 +33,43 @@ pub const BSL_REP_INVALID_CMD: u16 = 0x82;
 pub const BSL_REP_UNKNOW_CMD: u16 = 0x83;
 pub const BSL_REP_OPERATION_FAILED: u16 = 0x84;
 pub const BSL_REP_READ_FLASH: u16 = 0x93;
+/// Reply kind to READ_PARTITION: the partition table dump.
+pub const BSL_REP_READ_PARTITION: u16 = 0xBA;
+
+/// One entry of the FDL2 partition table: the name is UTF-16 and the
+/// size is a raw sector count (the tools differ on the sector unit,
+/// so Skello reports the raw value without guessing).
+#[derive(Debug, Clone)]
+pub struct UniPartition {
+    pub name: String,
+    pub size_sectors: u64,
+}
+
+/// Parses the READ_PARTITION reply (spd_dump format): a run of 0x4C
+/// byte entries, the name UTF-16LE at 0x00 (up to 36 units) and the
+/// sector count u32LE at 0x48.
+pub fn parse_partition_list(data: &[u8]) -> Result<Vec<UniPartition>> {
+    if !data.len().is_multiple_of(0x4C) {
+        return Err(BslError::Unexpected("partition list is not a 0x4C run"));
+    }
+    let mut out = Vec::new();
+    for entry in data.chunks(0x4C) {
+        let mut name = String::new();
+        for unit in entry[..0x48].chunks(2) {
+            let v = u16::from_le_bytes([unit[0], unit[1]]);
+            if v == 0 {
+                break;
+            }
+            name.push(char::from_u32(v as u32).unwrap_or('\u{FFFD}'));
+        }
+        let size_sectors = u32::from_le_bytes(entry[0x48..0x4C].try_into().unwrap()) as u64;
+        if name.is_empty() && size_sectors == 0 {
+            continue;
+        }
+        out.push(UniPartition { name, size_sectors });
+    }
+    Ok(out)
+}
 
 /// VID of the Unisoc BROM/FDL USB port.
 pub const VID_UNISOC: u16 = 0x1782;
@@ -332,14 +369,29 @@ impl Bsl {
         Ok(out)
     }
 
-    /// Asks for the partition table (READ_PARTITION reply).
+    /// Asks for the partition table (READ_PARTITION reply, 0xBA).
     pub fn read_partition_list(&mut self) -> Result<Vec<u8>> {
         self.send(BSL_CMD_READ_PARTITION, &[])?;
         let pkt = self.recv()?;
-        if pkt.kind != BSL_REP_READ_FLASH {
+        if pkt.kind != BSL_REP_READ_PARTITION {
             return Err(BslError::Reply(pkt.kind, "read partition"));
         }
         Ok(pkt.data)
+    }
+
+    /// Boot + partition table in one call: the FDL session comes up,
+    /// the transcode goes off and the table is read back.
+    pub fn partition_table(
+        &mut self,
+        fdl1: &[u8],
+        fdl1_addr: u32,
+        fdl2: &[u8],
+        fdl2_addr: u32,
+    ) -> Result<Vec<UniPartition>> {
+        self.boot(fdl1, fdl1_addr, fdl2, fdl2_addr)?;
+        self.disable_transcode()?;
+        let raw = self.read_partition_list()?;
+        parse_partition_list(&raw)
     }
 
     pub fn erase_partition(&mut self, name: &str, size: u64) -> Result<()> {
@@ -406,6 +458,43 @@ mod tests {
     use super::*;
     use crate::transport::MockLink;
     use std::cell::RefCell;
+
+    /// Builds one 0x4C partition-table entry: UTF-16 name, size at 0x48.
+    fn uni_entry(name: &str, size_sectors: u32) -> Vec<u8> {
+        let mut e = vec![0u8; 0x4C];
+        for (i, c) in name.encode_utf16().enumerate() {
+            e[i * 2..i * 2 + 2].copy_from_slice(&c.to_le_bytes());
+        }
+        e[0x48..0x4C].copy_from_slice(&size_sectors.to_le_bytes());
+        e
+    }
+
+    #[test]
+    fn parses_partition_list() {
+        let mut raw = uni_entry("prod", 4_194_304);
+        raw.extend(uni_entry("misc", 2_048));
+        let parts = parse_partition_list(&raw).unwrap();
+        assert_eq!(parts.len(), 2);
+        assert_eq!(parts[0].name, "prod");
+        assert_eq!(parts[0].size_sectors, 4_194_304);
+        assert_eq!(parts[1].name, "misc");
+        // trailing zero entries are dropped
+        raw.extend(vec![0u8; 0x4C]);
+        assert_eq!(parse_partition_list(&raw).unwrap().len(), 2);
+        assert!(parse_partition_list(&[0u8; 10]).is_err());
+    }
+
+    #[test]
+    fn partition_table_over_fdl() {
+        let mut bsl = Bsl::new(Box::new(mock_bsl()), true);
+        let table = bsl
+            .partition_table(&[0u8; 16], 0x40000, &[0u8; 16], 0x50000000)
+            .unwrap();
+        assert_eq!(table.len(), 2);
+        assert_eq!(table[0].name, "prod");
+        // the transcode is off by the time the table is read
+        assert!(!bsl.transcode);
+    }
 
     #[test]
     fn transcode_roundtrip() {
@@ -482,12 +571,15 @@ mod tests {
                     *transcode_mode = false;
                 }
                 let reply_kind = match kind {
-                    BSL_CMD_READ_PARTITION => BSL_REP_READ_FLASH,
+                    BSL_CMD_READ_PARTITION => BSL_REP_READ_PARTITION,
                     BSL_CMD_READ_MIDST => BSL_REP_READ_FLASH,
                     _ => BSL_REP_ACK,
                 };
                 let data: Vec<u8> = if kind == BSL_CMD_READ_PARTITION {
-                    b"PROD eMMC 2048MB (0x80000000) nand ufs".to_vec()
+                    uni_entry("prod", 4_194_304)
+                        .into_iter()
+                        .chain(uni_entry("misc", 2_048))
+                        .collect()
                 } else if kind == BSL_CMD_READ_MIDST {
                     vec![0xAB; 16]
                 } else {
