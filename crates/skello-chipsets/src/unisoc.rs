@@ -1,0 +1,567 @@
+//! Unisoc BSL/FDL protocol: HDLC-style framing with 0x7e delimiters,
+//! the 0x7d transcode escaping, CRC16 and sum checksums, FDL1/FDL2
+//! download and partition access. Framing, commands and the boot flow
+//! follow spreadtrum_flash (public domain), NOTICE has the attribution.
+
+use std::time::Duration;
+
+use crate::transport::Link;
+
+pub const HDLC_HEADER: u8 = 0x7E;
+pub const HDLC_ESCAPE: u8 = 0x7D;
+
+pub const BSL_CMD_CONNECT: u16 = 0x00;
+pub const BSL_CMD_START_DATA: u16 = 0x01;
+pub const BSL_CMD_MIDST_DATA: u16 = 0x02;
+pub const BSL_CMD_END_DATA: u16 = 0x03;
+pub const BSL_CMD_EXEC_DATA: u16 = 0x04;
+pub const BSL_CMD_NORMAL_RESET: u16 = 0x05;
+pub const BSL_CMD_READ_FLASH: u16 = 0x06;
+pub const BSL_CMD_ERASE_FLASH: u16 = 0x0A;
+pub const BSL_CMD_READ_START: u16 = 0x10;
+pub const BSL_CMD_READ_MIDST: u16 = 0x11;
+pub const BSL_CMD_READ_END: u16 = 0x12;
+pub const BSL_CMD_KEEP_CHARGE: u16 = 0x13;
+pub const BSL_CMD_DISABLE_TRANSCODE: u16 = 0x21;
+pub const BSL_CMD_READ_PARTITION: u16 = 0x2D;
+pub const BSL_CMD_CHECK_BAUD: u16 = 0x7E;
+pub const BSL_CMD_POWER_OFF: u16 = 0x17;
+
+pub const BSL_REP_ACK: u16 = 0x80;
+pub const BSL_REP_VER: u16 = 0x81;
+pub const BSL_REP_INVALID_CMD: u16 = 0x82;
+pub const BSL_REP_UNKNOW_CMD: u16 = 0x83;
+pub const BSL_REP_OPERATION_FAILED: u16 = 0x84;
+pub const BSL_REP_READ_FLASH: u16 = 0x93;
+
+/// VID of the Unisoc BROM/FDL USB port.
+pub const VID_UNISOC: u16 = 0x1782;
+pub const PID_BROM: u16 = 0x4D00;
+
+/// FDL1 payload chunks go to SRAM; the address comes from the call
+/// site (per-model XML or the known defaults).
+pub const FDL_CHUNK: usize = 528;
+
+const BOOT_TIMEOUT: Duration = Duration::from_secs(30);
+
+#[derive(Debug)]
+pub enum BslError {
+    Io(std::io::Error),
+    /// Delimiter or checksum mismatch on a received packet.
+    BadFrame,
+    Unexpected(&'static str),
+    Reply(u16, &'static str),
+}
+
+impl std::fmt::Display for BslError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BslError::Io(e) => write!(f, "bsl io: {e}"),
+            BslError::BadFrame => write!(f, "bsl bad frame"),
+            BslError::Unexpected(s) => write!(f, "bsl unexpected response: {s}"),
+            BslError::Reply(t, s) => write!(f, "bsl reply {t:#04x}: {s}"),
+        }
+    }
+}
+
+impl std::error::Error for BslError {}
+
+impl From<std::io::Error> for BslError {
+    fn from(e: std::io::Error) -> Self {
+        BslError::Io(e)
+    }
+}
+
+type Result<T> = std::result::Result<T, BslError>;
+
+/// CRC16 with the polynomial 0x11021 (CCITT/XModem), MSB first, init 0.
+pub fn crc16(crc: u16, data: &[u8]) -> u16 {
+    let mut crc = crc;
+    for b in data {
+        crc ^= (*b as u16) << 8;
+        for _ in 0..8 {
+            let carry = crc & 0x8000;
+            crc <<= 1;
+            if carry != 0 {
+                crc ^= 0x1021;
+            }
+        }
+    }
+    crc
+}
+
+/// The sum checksum FDL1 and FDL2 use: LE u16 words added together
+/// with the odd trailing byte doubled into the high position.
+pub fn sum16(data: &[u8]) -> u16 {
+    let mut crc: u32 = 0;
+    let mut i = 0;
+    while i + 1 < data.len() {
+        crc += data[i] as u32 | ((data[i + 1] as u32) << 8);
+        crc &= 0xFFFF;
+        i += 2;
+    }
+    if data.len() & 1 != 0 {
+        crc += data[data.len() - 1] as u32;
+    }
+    crc as u16
+}
+
+/// Applies the transcode: 0x7e and 0x7d become 0x7d xor 0x20 pairs.
+pub fn transcode(data: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(data.len());
+    for a in data {
+        if *a == HDLC_HEADER || *a == HDLC_ESCAPE {
+            out.push(HDLC_ESCAPE);
+            out.push(a ^ 0x20);
+        } else {
+            out.push(*a);
+        }
+    }
+    out
+}
+
+/// Reverses the transcode on a full packet body (without delimiters).
+pub fn untranscode(data: &[u8]) -> Result<Vec<u8>> {
+    let mut out = Vec::with_capacity(data.len());
+    let mut esc = false;
+    for a in data {
+        if esc {
+            if *a != (HDLC_HEADER ^ 0x20) && *a != (HDLC_ESCAPE ^ 0x20) {
+                return Err(BslError::BadFrame);
+            }
+            out.push(a ^ 0x20);
+            esc = false;
+        } else if *a == HDLC_ESCAPE {
+            esc = true;
+        } else {
+            out.push(*a);
+        }
+    }
+    if esc {
+        return Err(BslError::BadFrame);
+    }
+    Ok(out)
+}
+
+#[derive(Debug)]
+pub struct BslPacket {
+    pub kind: u16,
+    pub data: Vec<u8>,
+}
+
+/// A BSL session over an open byte link; transcode is on until the
+/// device accepts DISABLE_TRANSCODE.
+pub struct Bsl {
+    link: Box<dyn Link>,
+    pub transcode: bool,
+    pub crc16: bool,
+}
+
+impl Bsl {
+    pub fn new(link: Box<dyn Link>, crc16: bool) -> Self {
+        Self {
+            link,
+            transcode: true,
+            crc16,
+        }
+    }
+
+    pub fn encode(&self, kind: u16, data: &[u8]) -> Vec<u8> {
+        let mut raw = Vec::with_capacity(4 + data.len() + 2);
+        raw.extend_from_slice(&kind.to_be_bytes());
+        raw.extend_from_slice(&(data.len() as u16).to_be_bytes());
+        raw.extend_from_slice(data);
+        let chk = if self.crc16 {
+            crc16(0, &raw)
+        } else {
+            sum16(&raw)
+        };
+        raw.extend_from_slice(&chk.to_be_bytes());
+        let mut out = vec![HDLC_HEADER];
+        if self.transcode {
+            out.extend_from_slice(&transcode(&raw));
+        } else {
+            out.extend_from_slice(&raw);
+        }
+        out.push(HDLC_HEADER);
+        out
+    }
+
+    /// Reads one packet: delimiters, transcode unfolding, checksum
+    /// validation. Extra leading 0x7e bytes (the CHECK_BAUD wake
+    /// pattern) are skipped.
+    pub fn recv(&mut self) -> Result<BslPacket> {
+        let mut raw = Vec::new();
+        loop {
+            let mut b = [0u8; 1];
+            read_byte(&mut *self.link, &mut b, BOOT_TIMEOUT)?;
+            if b[0] == HDLC_HEADER {
+                if raw.is_empty() {
+                    continue;
+                }
+                break;
+            }
+            raw.push(b[0]);
+        }
+        let body = if self.transcode {
+            untranscode(&raw)?
+        } else {
+            raw
+        };
+        if body.len() < 6 {
+            return Err(BslError::BadFrame);
+        }
+        let (payload, tail) = body.split_at(body.len() - 2);
+        let chk = u16::from_be_bytes([tail[0], tail[1]]);
+        let expect = if self.crc16 {
+            crc16(0, payload)
+        } else {
+            sum16(payload)
+        };
+        if chk != expect {
+            return Err(BslError::BadFrame);
+        }
+        let kind = u16::from_be_bytes([payload[0], payload[1]]);
+        let len = u16::from_be_bytes([payload[2], payload[3]]) as usize;
+        if payload.len() != len + 4 {
+            return Err(BslError::BadFrame);
+        }
+        Ok(BslPacket {
+            kind,
+            data: payload[4..].to_vec(),
+        })
+    }
+
+    fn send(&mut self, kind: u16, data: &[u8]) -> Result<()> {
+        let pkt = self.encode(kind, data);
+        self.link.write_all(&pkt)?;
+        Ok(())
+    }
+
+    fn send_and_check(&mut self, kind: u16, data: &[u8]) -> Result<BslPacket> {
+        self.send(kind, data)?;
+        let pkt = self.recv()?;
+        if pkt.kind == BSL_REP_ACK {
+            return Ok(pkt);
+        }
+        Err(BslError::Reply(pkt.kind, "command rejected"))
+    }
+
+    /// Wakes the BROM: CHECK_BAUD is a run of raw 0x7e bytes; the
+    /// device answers BSL_REP_VER with a version string.
+    pub fn wake(&mut self, header_bytes: usize) -> Result<String> {
+        let wake = vec![HDLC_HEADER; header_bytes];
+        self.link.write_all(&wake)?;
+        let pkt = self.recv()?;
+        if pkt.kind != BSL_REP_VER {
+            return Err(BslError::Unexpected("ver expected after wake"));
+        }
+        Ok(String::from_utf8_lossy(&pkt.data).to_string())
+    }
+
+    pub fn connect(&mut self) -> Result<()> {
+        self.send_and_check(BSL_CMD_CONNECT, &[]).map(|_| ())
+    }
+
+    /// Downloads one FDL image: START_DATA(addr, size), MIDST chunks,
+    /// END_DATA, EXEC_DATA.
+    pub fn send_fdl(&mut self, addr: u32, image: &[u8]) -> Result<()> {
+        let mut head = Vec::new();
+        head.extend_from_slice(&addr.to_le_bytes());
+        head.extend_from_slice(&(image.len() as u32).to_le_bytes());
+        self.send_and_check(BSL_CMD_START_DATA, &head)?;
+        for chunk in image.chunks(FDL_CHUNK) {
+            self.send_and_check(BSL_CMD_MIDST_DATA, chunk)?;
+        }
+        self.send_and_check(BSL_CMD_END_DATA, &[])?;
+        self.send_and_check(BSL_CMD_EXEC_DATA, &[])?;
+        Ok(())
+    }
+
+    /// Full boot: wake BROM, connect, FDL1 to SRAM, then re-wake FDL1
+    /// (sum checksum from there on), connect, FDL2.
+    pub fn boot(
+        &mut self,
+        fdl1: &[u8],
+        fdl1_addr: u32,
+        fdl2: &[u8],
+        fdl2_addr: u32,
+    ) -> Result<String> {
+        let ver = self.wake(1)?;
+        self.connect()?;
+        self.send_fdl(fdl1_addr, fdl1)?;
+        // FDL1 answers with the sum checksum from here on.
+        self.crc16 = false;
+        let ver2 = self.wake(4)?;
+        self.connect()?;
+        self.send_fdl(fdl2_addr, fdl2)?;
+        Ok(format!("{ver} | {ver2}"))
+    }
+
+    /// Writes `name` = UTF-16, size, then the data blocks.
+    pub fn write_partition(&mut self, name: &str, data: &[u8]) -> Result<()> {
+        let pkt = partition_request(name, data.len() as u64, false);
+        self.send_and_check(BSL_CMD_START_DATA, &pkt)?;
+        for chunk in data.chunks(0x800) {
+            self.send_and_check(BSL_CMD_MIDST_DATA, chunk)?;
+        }
+        self.send_and_check(BSL_CMD_END_DATA, &[])?;
+        Ok(())
+    }
+
+    /// Reads a partition by name via READ_START/READ_MIDST/READ_END.
+    pub fn read_partition(&mut self, name: &str, size: u64) -> Result<Vec<u8>> {
+        let pkt = partition_request(name, size, false);
+        self.send_and_check(BSL_CMD_READ_START, &pkt)?;
+        let mut out = Vec::new();
+        loop {
+            self.send(BSL_CMD_READ_MIDST, &[0u8; 8])?;
+            let pkt = self.recv()?;
+            if pkt.kind == BSL_REP_READ_FLASH {
+                out.extend_from_slice(&pkt.data);
+                if out.len() as u64 >= size {
+                    break;
+                }
+            } else if pkt.kind == BSL_REP_ACK {
+                break;
+            } else {
+                return Err(BslError::Reply(pkt.kind, "read midst"));
+            }
+        }
+        self.send_and_check(BSL_CMD_READ_END, &[])?;
+        Ok(out)
+    }
+
+    /// Asks for the partition table (READ_PARTITION reply).
+    pub fn read_partition_list(&mut self) -> Result<Vec<u8>> {
+        self.send(BSL_CMD_READ_PARTITION, &[])?;
+        let pkt = self.recv()?;
+        if pkt.kind != BSL_REP_READ_FLASH {
+            return Err(BslError::Reply(pkt.kind, "read partition"));
+        }
+        Ok(pkt.data)
+    }
+
+    pub fn erase_partition(&mut self, name: &str, size: u64) -> Result<()> {
+        let pkt = partition_request(name, size, false);
+        self.send_and_check(BSL_CMD_ERASE_FLASH, &pkt)?;
+        Ok(())
+    }
+
+    /// Disables the transcode; the link stops escaping after this.
+    pub fn disable_transcode(&mut self) -> Result<()> {
+        self.send_and_check(BSL_CMD_DISABLE_TRANSCODE, &[])?;
+        self.transcode = false;
+        Ok(())
+    }
+
+    pub fn keep_charge(&mut self, enable: u32) -> Result<()> {
+        self.send_and_check(BSL_CMD_KEEP_CHARGE, &enable.to_le_bytes())
+            .map(|_| ())
+    }
+
+    pub fn power_off(&mut self) -> Result<()> {
+        self.send_and_check(BSL_CMD_POWER_OFF, &[]).map(|_| ())
+    }
+
+    /// Reboots the device into the normal mode.
+    pub fn reset(&mut self) -> Result<()> {
+        self.send_and_check(BSL_CMD_NORMAL_RESET, &[]).map(|_| ())
+    }
+}
+
+fn read_byte(link: &mut dyn Link, buf: &mut [u8; 1], timeout: Duration) -> Result<()> {
+    let deadline = std::time::Instant::now() + timeout;
+    loop {
+        let left = deadline.saturating_duration_since(std::time::Instant::now());
+        if left.is_zero() {
+            return Err(BslError::Io(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "bsl read timeout",
+            )));
+        }
+        let n = link.read(buf, left)?;
+        if n == 1 {
+            return Ok(());
+        }
+    }
+}
+
+/// Partition request packet: name in UTF-16 (36 units), u32 size,
+/// u32 size_hi, u64 dummy.
+fn partition_request(name: &str, size: u64, mode64: bool) -> Vec<u8> {
+    let mut pkt = vec![0u8; 36 * 2 + 4 + 4 + 8];
+    for (i, unit) in name.chars().take(35).enumerate() {
+        pkt[i * 2..i * 2 + 2].copy_from_slice(&(unit as u16).to_le_bytes());
+    }
+    pkt[72..76].copy_from_slice(&(size as u32).to_le_bytes());
+    if mode64 {
+        pkt[76..80].copy_from_slice(&((size >> 32) as u32).to_le_bytes());
+    }
+    pkt
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::transport::MockLink;
+    use std::cell::RefCell;
+
+    #[test]
+    fn transcode_roundtrip() {
+        let data = vec![0x7e, 0x11, 0x7d, 0x22, 0x7e];
+        let enc = transcode(&data);
+        assert_eq!(enc, vec![0x7d, 0x5e, 0x11, 0x7d, 0x5d, 0x22, 0x7d, 0x5e]);
+        let dec = untranscode(&enc).unwrap();
+        assert_eq!(dec, data);
+        assert!(untranscode(&[0x7d, 0x41]).is_err());
+    }
+
+    #[test]
+    fn crc16_reference() {
+        // spreadtrum_flash spd_crc16(0, "123456789", 9) == 0x31c3
+        assert_eq!(crc16(0, b"123456789"), 0x31C3);
+    }
+
+    #[test]
+    fn sum16_reference() {
+        // two LE words 0x0201 + 0x0403
+        assert_eq!(sum16(&[1, 2, 3, 4]), 0x0604);
+        assert_eq!(sum16(&[1, 2, 3, 4, 5]), 0x0604 + 5);
+    }
+
+    /// Device side: parses one host packet and queues an ACK/VER.
+    /// Starts in CRC16 mode (BROM), switches to the sum checksum
+    /// after EXEC_DATA launches FDL1, tracks the transcode mode.
+    fn mock_bsl() -> MockLink {
+        let mut link = MockLink::new();
+        let state = RefCell::new((true, true, Vec::<u8>::new()));
+        link.device = Some(Box::new(move |out, input| {
+            let mut st = state.borrow_mut();
+            let (crc16_mode, transcode_mode, acc) = &mut *st;
+            acc.extend_from_slice(input);
+            loop {
+                // a short run of raw delimiters is the CHECK_BAUD wake
+                if !acc.is_empty() && acc.iter().all(|b| *b == HDLC_HEADER) && acc.len() < 8 {
+                    out.extend(encode_device_packet(
+                        BSL_REP_VER,
+                        b"FDL1 SP ResetReason=0 CHIP ID = 0x98180000",
+                        *crc16_mode,
+                        *transcode_mode,
+                    ));
+                    acc.clear();
+                    break;
+                }
+                if acc.is_empty() || acc[0] != HDLC_HEADER {
+                    break;
+                }
+                let Some(end) = find_frame_end(acc) else {
+                    break;
+                };
+                let frame: Vec<u8> = acc.drain(..end).collect();
+                let raw = &frame[1..frame.len() - 1];
+                let body: Vec<u8> = if *transcode_mode {
+                    untranscode(raw).unwrap_or_default()
+                } else {
+                    raw.to_vec()
+                };
+                if body.len() < 6 {
+                    continue;
+                }
+                let kind = u16::from_be_bytes([body[0], body[1]]);
+                let expect = if *crc16_mode {
+                    crc16(0, &body[..body.len() - 2])
+                } else {
+                    sum16(&body[..body.len() - 2])
+                };
+                let chk = u16::from_be_bytes([body[body.len() - 2], body[body.len() - 1]]);
+                if chk != expect {
+                    continue;
+                }
+                if kind == BSL_CMD_DISABLE_TRANSCODE {
+                    *transcode_mode = false;
+                }
+                let reply_kind = match kind {
+                    BSL_CMD_READ_PARTITION => BSL_REP_READ_FLASH,
+                    BSL_CMD_READ_MIDST => BSL_REP_READ_FLASH,
+                    _ => BSL_REP_ACK,
+                };
+                let data: Vec<u8> = if kind == BSL_CMD_READ_PARTITION {
+                    b"PROD eMMC 2048MB (0x80000000) nand ufs".to_vec()
+                } else if kind == BSL_CMD_READ_MIDST {
+                    vec![0xAB; 16]
+                } else {
+                    Vec::new()
+                };
+                let reply = encode_device_packet(reply_kind, &data, *crc16_mode, *transcode_mode);
+                out.extend(reply);
+                // after EXEC_DATA launches FDL1 the checksum mode changes
+                if kind == BSL_CMD_EXEC_DATA {
+                    *crc16_mode = false;
+                }
+            }
+        }));
+        link
+    }
+
+    fn find_frame_end(acc: &[u8]) -> Option<usize> {
+        // look for the closing delimiter after at least 2 bytes
+        (2..acc.len())
+            .find(|i| acc[*i] == HDLC_HEADER)
+            .map(|i| i + 1)
+    }
+
+    fn encode_device_packet(
+        kind: u16,
+        data: &[u8],
+        crc16_mode: bool,
+        transcode_mode: bool,
+    ) -> Vec<u8> {
+        let mut raw = Vec::new();
+        raw.extend_from_slice(&kind.to_be_bytes());
+        raw.extend_from_slice(&(data.len() as u16).to_be_bytes());
+        raw.extend_from_slice(data);
+        let chk = if crc16_mode {
+            crc16(0, &raw)
+        } else {
+            sum16(&raw)
+        };
+        raw.extend_from_slice(&chk.to_be_bytes());
+        let mut out = vec![HDLC_HEADER];
+        if transcode_mode {
+            out.extend(transcode(&raw));
+        } else {
+            out.extend(&raw);
+        }
+        out.push(HDLC_HEADER);
+        out
+    }
+
+    #[test]
+    fn wake_connect_and_fdl1_roundtrip() {
+        let mock = mock_bsl();
+        let mut bsl = Bsl::new(Box::new(mock), true);
+        let ver = bsl.wake(1).unwrap();
+        assert!(ver.contains("FDL1"));
+        bsl.connect().unwrap();
+        let image: Vec<u8> = (0..600).map(|i| (i % 251) as u8).collect();
+        bsl.send_fdl(0x00090000, &image).unwrap();
+    }
+
+    #[test]
+    fn full_boot_and_partition_ops() {
+        let mock = mock_bsl();
+        let mut bsl = Bsl::new(Box::new(mock), true);
+        let fdl1: Vec<u8> = vec![0x11; 400];
+        let fdl2: Vec<u8> = vec![0x22; 1200];
+        let ver = bsl.boot(&fdl1, 0x00090000, &fdl2, 0x50000000).unwrap();
+        assert!(ver.contains("FDL1"));
+        bsl.disable_transcode().unwrap();
+        bsl.write_partition("seccfg", &vec![0x5A; 1024]).unwrap();
+        let data = bsl.read_partition("seccfg", 16).unwrap();
+        assert_eq!(data, vec![0xAB; 16]);
+        bsl.erase_partition("seccfg", 1024).unwrap();
+        bsl.keep_charge(0).unwrap();
+        bsl.reset().unwrap();
+    }
+}
