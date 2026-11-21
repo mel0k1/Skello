@@ -8,6 +8,7 @@ pub mod gpt;
 pub mod seccfg;
 pub mod sej;
 pub mod xflash;
+pub mod xml;
 
 pub use brom::{Brom, BromError};
 pub use daldr::{DaLoader, DaLoaderError};
