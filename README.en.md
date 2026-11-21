@@ -27,6 +27,7 @@ adb and fastboot live in a terminal: you have to remember commands, keep the ter
 - app: the Root screen: choosing Magisk / KernelSU / APatch, picking boot.img, header verification through the Rust core, flashing boot / recovery / vendor_boot over USB with live progress and partition erase after the unlocked, battery-soc-ok and max-download-size checks; after flashing - a reboot waiting for the device in adb for up to 90 seconds
 - app: the Root screen flashes images larger than max-download-size: Android sparse is split along the chunks into a series of download+flash, a raw image without sparse layout is honestly refused
 - app: an adb shell terminal over USB on the device card and a MediaTek seccfg screen: lock state reading and unlock through root (dd + base64 over adb shell)
+- app: stage 1 vendor transports (skello-chipsets): MediaTek BROM/DA V5 with root-free seccfg unlock, Unisoc FDL with transcode escaping and partition writes, Qualcomm Sahara/Firehose with the rawprogram XML; chipset USB ports are visible at the API level
 - app: a command and device response journal in skello-commands.log (the app support directory) - written by both the Dart layer and the Rust core inside transactions
 - CI on GitHub Actions: fmt, clippy, Rust tests on Linux and Windows, Flutter analyze and tests; release builds for Windows and Linux on tags
 

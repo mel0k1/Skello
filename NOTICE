@@ -6,10 +6,10 @@ This project is dual licensed under MIT (LICENSE-MIT) and Apache-2.0 (LICENSE-AP
 
 Portions of this project reuse or follow code and protocol knowledge from these projects:
 
-- spreadtrum_flash by ilyakurdyukov - public domain (Unlicense), https://github.com/ilyakurdyukov/spreadtrum_flash
-- qdlrs by the qdl-rs contributors - BSD-3-Clause, https://github.com/qualcomm/qdlrs
+- spreadtrum_flash by ilyakurdyukov - public domain (Unlicense), https://github.com/ilyakurdyukov/spreadtrum_flash - the Unisoc BSL frame format, command codes, CRC16 and sum checksums, transcode escaping and the FDL boot flow (crates/skello-chipsets/src/unisoc.rs)
+- qdlrs by the qdl-rs contributors - BSD-3-Clause, https://github.com/qualcomm/qdlrs - the Sahara packet layout and the Firehose XML command set (crates/skello-chipsets/src/qualcomm.rs)
 - mtkclient-rs by WUNELEZI1 - Apache-2.0, https://github.com/WUNELEZI1/mtkclient-rs
-- mtkclient by bkerler and contributors - Apache-2.0, https://github.com/bkerler/mtkclient - the MediaTek seccfg V3/V4 partition format, lock-state constants and the software SEJ key/IV parameters (crates/skello-chipsets/src/mediatek.rs)
+- mtkclient by bkerler and contributors - Apache-2.0, https://github.com/bkerler/mtkclient - the MediaTek seccfg V3/V4 partition format, lock-state constants and the software SEJ key/IV parameters, the BROM handshake and DA command flow, the XFlash packet framing and the DA loader file format (crates/skello-chipsets/src/mediatek/)
 - qedl-rs by baiyao105 - MIT, https://github.com/baiyao105/qedl-rs
 
 Projects used as idea and protocol references only, without copying code:
