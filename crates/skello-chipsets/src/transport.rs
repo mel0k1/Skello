@@ -104,10 +104,14 @@ pub fn open_usb_serial(vid: u16, pid: u16) -> Result<Box<dyn Link>, LinkError> {
     Err(LinkError::Endpoints(format!("{vid:04x}:{pid:04x}")))
 }
 
-/// Opens the device and returns the handle plus the bulk link: for
-/// flows that drive control transfers on the side (the linecode
-/// exploit) while talking the byte protocol.
-pub fn open_device_with_link(vid: u16, pid: u16) -> Result<(Device, Box<dyn Link>), LinkError> {
+/// Opens the device and returns the handle, the claimed interface
+/// and the bulk link: control transfers go through the interface
+/// (the only way on Windows, nusb platform note), the byte protocol
+/// over the bulk endpoints.
+pub fn open_device_with_link(
+    vid: u16,
+    pid: u16,
+) -> Result<(Device, Interface, Box<dyn Link>), LinkError> {
     let mut list = nusb::list_devices()
         .wait()
         .map_err(|e| LinkError::Enumeration(e.to_string()))?;
@@ -143,6 +147,7 @@ pub fn open_device_with_link(vid: u16, pid: u16) -> Result<(Device, Box<dyn Link
                 .reader(64 * 1024);
             return Ok((
                 device.clone(),
+                interface.clone(),
                 Box::new(UsbSerialLink {
                     _device: device,
                     _interface: interface,
