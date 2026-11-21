@@ -1,9 +1,9 @@
 use crate::api::log;
-use skello_fastboot as skello_fastboot_lib;
 use skello_chipsets::mediatek::brom::{Brom, PID_BROM, PID_DA, VID_MEDIATEK};
 use skello_chipsets::mediatek::xflash::XFlash;
+use skello_chipsets::mediatek::xml::{XmlBootMode, XmlDa};
 use skello_chipsets::qualcomm::{Firehose, Sahara, PID_EDL, VID_QUALCOMM};
-use skello_chipsets::transport::{open_usb_serial, usb_serial_devices};
+use skello_chipsets::transport::{open_serial_link, open_usb_serial, serial_port_names, usb_serial_devices};
 use skello_chipsets::unisoc::{Bsl, PID_BROM as UNISOC_PID_BROM, VID_UNISOC};
 
 /// Bootloader ports visible right now, grouped by chipset family.
@@ -29,14 +29,104 @@ pub fn chipset_ports() -> anyhow::Result<ChipsetPorts> {
 }
 
 /// MediaTek unlock without root: BROM handshake, stock DA from the
-/// loader file, seccfg read through the DA, local V3 software-SEJ
-/// patch, write back. Hardware-keyed partitions are refused by the
-/// seccfg layer until the SEJ stage exists.
+/// loader file, seccfg read through the DA, V3 software-SEJ patch or
+/// the V4 patch signed by the on-chip SEJ engine through the DA
+/// registers.
 pub fn mediatek_da_unlock(loader_path: String) -> anyhow::Result<String> {
     let mut brom = Brom::new(open_usb_serial(VID_MEDIATEK, PID_BROM)?);
-    let result = XFlash::unlock_seccfg_from_brom(&mut brom, &loader_path)?;
+    let result = XFlash::unlock_seccfg_with(&mut brom, &loader_path, &mut || {
+        open_usb_serial(VID_MEDIATEK, PID_DA)
+    })?;
     log::core_log("mediatek-da", &format!("unlock: {result}"));
     Ok(result)
+}
+
+/// Boots a V6 XML Download Agent and moves the device into fastboot
+/// or meta: stage 1 over BROM, stage 2 through BOOT-TO, then the
+/// boot mode and a disconnecting reboot. The loader file must carry
+/// a V6 entry for the chip.
+pub fn mediatek_v6_boot(loader_path: String, mode: String) -> anyhow::Result<String> {
+    let boot_mode = match mode.as_str() {
+        "fastboot" => XmlBootMode::Fastboot,
+        "meta" => XmlBootMode::Meta,
+        other => anyhow::bail!("unknown boot mode: {other}"),
+    };
+    let result = XmlDa::boot_v6(&loader_path, boot_mode)?;
+    log::core_log("mediatek-v6", &format!("boot: {result}"));
+    Ok(result)
+}
+
+/// One row of the Unisoc partition table: the name and the raw size
+/// value the FDL2 reports (in its own sector units).
+#[derive(Clone)]
+pub struct UnisocPartition {
+    pub name: String,
+    pub size_sectors: u64,
+}
+
+/// Reads the partition table over the Unisoc FDL: boots FDL1/FDL2
+/// from the model firmware, turns the transcode off and parses the
+/// READ_PARTITION reply.
+pub fn unisoc_partition_list(
+    fdl1_path: String,
+    fdl2_path: String,
+    fdl1_addr: u32,
+    fdl2_addr: u32,
+) -> anyhow::Result<Vec<UnisocPartition>> {
+    let fdl1 = std::fs::read(&fdl1_path)?;
+    let fdl2 = std::fs::read(&fdl2_path)?;
+    let mut bsl = Bsl::new(open_usb_serial(VID_UNISOC, UNISOC_PID_BROM)?, true);
+    let table = bsl.partition_table(&fdl1, fdl1_addr, &fdl2, fdl2_addr)?;
+    log::core_log("unisoc", &format!("table: {} partitions", table.len()));
+    Ok(table
+        .into_iter()
+        .map(|p| UnisocPartition {
+            name: p.name,
+            size_sectors: p.size_sectors,
+        })
+        .collect())
+}
+
+/// Serial ports present on the system: the EDL-over-UART candidates.
+pub fn qualcomm_serial_ports() -> anyhow::Result<Vec<String>> {
+    Ok(serial_port_names().map_err(usb_err)?)
+}
+
+/// Qualcomm EDL flash over a serial port: Sahara with the silent
+/// HELLO workaround, Firehose rawprogram run - same as the USB path
+/// but on the UART link (115200 8N1, qdlrs setup).
+pub fn qualcomm_edl_flash_serial(
+    programmer_path: String,
+    entries: Vec<ProgramEntry>,
+    port_path: String,
+) -> anyhow::Result<String> {
+    let blob = std::fs::read(&programmer_path)?;
+    if blob.starts_with(b"<?xml") {
+        anyhow::bail!("the programmer file is an ELF or cpio archive, plain binary expected");
+    }
+    let link = open_serial_link(&port_path, 115_200).map_err(usb_err)?;
+    Sahara::boot_programmer_with(link, &[blob])?;
+    let link = open_serial_link(&port_path, 115_200).map_err(usb_err)?;
+    let mut fh = Firehose::new(link);
+    fh.configure("ufs")?;
+    for entry in &entries {
+        let mut data = std::fs::read(&entry.file_path)?;
+        if skello_fastboot::sparse::is_sparse(&data) {
+            data = skello_fastboot::sparse::sparse_expand(&data)
+                .map_err(|e| anyhow::anyhow!("sparse expansion failed: {e}"))?;
+        }
+        log::core_log(
+            "qualcomm",
+            &format!(
+                "serial program {} at sector {}, {} bytes",
+                entry.label, entry.start_sector,
+                data.len()
+            ),
+        );
+        fh.program(entry.phys_part, &entry.start_sector, &data)?;
+    }
+    fh.reset()?;
+    Ok(format!("{} entries flashed over serial", entries.len()))
 }
 
 /// Unisoc partition flash without root: wakes the BROM, boots FDL1

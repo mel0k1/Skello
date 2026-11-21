@@ -4,11 +4,12 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `program_entries`, `usb_err`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `RawEntry`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`
 
 /// Lists the MediaTek BROM/Preloader, Unisoc BROM and Qualcomm EDL
 /// USB ports without opening them.
@@ -16,41 +17,89 @@ Future<ChipsetPorts> chipsetPorts() =>
     RustLib.instance.api.crateApiChipsetsChipsetPorts();
 
 /// MediaTek unlock without root: BROM handshake, stock DA from the
-/// loader file, seccfg read through the DA, local V3 software-SEJ
-/// patch, write back. Hardware-keyed partitions are refused by the
-/// seccfg layer until the SEJ stage exists.
-Future<String> mediatekDaUnlock({required String loaderPath}) =>
-    RustLib.instance.api
-        .crateApiChipsetsMediatekDaUnlock(loaderPath: loaderPath);
+/// loader file, seccfg read through the DA, V3 software-SEJ patch or
+/// the V4 patch signed by the on-chip SEJ engine through the DA
+/// registers.
+Future<String> mediatekDaUnlock({required String loaderPath}) => RustLib
+    .instance
+    .api
+    .crateApiChipsetsMediatekDaUnlock(loaderPath: loaderPath);
+
+/// Boots a V6 XML Download Agent and moves the device into fastboot
+/// or meta: stage 1 over BROM, stage 2 through BOOT-TO, then the
+/// boot mode and a disconnecting reboot. The loader file must carry
+/// a V6 entry for the chip.
+Future<String> mediatekV6Boot({
+  required String loaderPath,
+  required String mode,
+}) => RustLib.instance.api.crateApiChipsetsMediatekV6Boot(
+  loaderPath: loaderPath,
+  mode: mode,
+);
+
+/// Reads the partition table over the Unisoc FDL: boots FDL1/FDL2
+/// from the model firmware, turns the transcode off and parses the
+/// READ_PARTITION reply.
+Future<List<UnisocPartition>> unisocPartitionList({
+  required String fdl1Path,
+  required String fdl2Path,
+  required int fdl1Addr,
+  required int fdl2Addr,
+}) => RustLib.instance.api.crateApiChipsetsUnisocPartitionList(
+  fdl1Path: fdl1Path,
+  fdl2Path: fdl2Path,
+  fdl1Addr: fdl1Addr,
+  fdl2Addr: fdl2Addr,
+);
+
+/// Serial ports present on the system: the EDL-over-UART candidates.
+Future<List<String>> qualcommSerialPorts() =>
+    RustLib.instance.api.crateApiChipsetsQualcommSerialPorts();
+
+/// Qualcomm EDL flash over a serial port: Sahara with the silent
+/// HELLO workaround, Firehose rawprogram run - same as the USB path
+/// but on the UART link (115200 8N1, qdlrs setup).
+Future<String> qualcommEdlFlashSerial({
+  required String programmerPath,
+  required List<ProgramEntry> entries,
+  required String portPath,
+}) => RustLib.instance.api.crateApiChipsetsQualcommEdlFlashSerial(
+  programmerPath: programmerPath,
+  entries: entries,
+  portPath: portPath,
+);
 
 /// Unisoc partition flash without root: wakes the BROM, boots FDL1
 /// and FDL2 from the model firmware, writes the partition. Sparse
 /// images are expanded to raw first (FDL2 takes raw data only).
-Future<String> unisocFlashPartition(
-        {required String fdl1Path,
-        required String fdl2Path,
-        required int fdl1Addr,
-        required int fdl2Addr,
-        required String partition,
-        required String imagePath}) =>
-    RustLib.instance.api.crateApiChipsetsUnisocFlashPartition(
-        fdl1Path: fdl1Path,
-        fdl2Path: fdl2Path,
-        fdl1Addr: fdl1Addr,
-        fdl2Addr: fdl2Addr,
-        partition: partition,
-        imagePath: imagePath);
+Future<String> unisocFlashPartition({
+  required String fdl1Path,
+  required String fdl2Path,
+  required int fdl1Addr,
+  required int fdl2Addr,
+  required String partition,
+  required String imagePath,
+}) => RustLib.instance.api.crateApiChipsetsUnisocFlashPartition(
+  fdl1Path: fdl1Path,
+  fdl2Path: fdl2Path,
+  fdl1Addr: fdl1Addr,
+  fdl2Addr: fdl2Addr,
+  partition: partition,
+  imagePath: imagePath,
+);
 
 /// Parses a rawprogram XML (firehose flasher layout) into entries.
 Future<List<ProgramEntry>> parseRawprogram({required String xmlPath}) =>
     RustLib.instance.api.crateApiChipsetsParseRawprogram(xmlPath: xmlPath);
 
 /// Flash every entry of an already parsed rawprogram list.
-Future<String> qualcommEdlFlash(
-        {required String programmerPath,
-        required List<ProgramEntry> entries}) =>
-    RustLib.instance.api.crateApiChipsetsQualcommEdlFlash(
-        programmerPath: programmerPath, entries: entries);
+Future<String> qualcommEdlFlash({
+  required String programmerPath,
+  required List<ProgramEntry> entries,
+}) => RustLib.instance.api.crateApiChipsetsQualcommEdlFlash(
+  programmerPath: programmerPath,
+  entries: entries,
+);
 
 /// Bootloader ports visible right now, grouped by chipset family.
 class ChipsetPorts {
@@ -114,4 +163,24 @@ class ProgramEntry {
           numSectors == other.numSectors &&
           physPart == other.physPart &&
           filePath == other.filePath;
+}
+
+/// One row of the Unisoc partition table: the name and the raw size
+/// value the FDL2 reports (in its own sector units).
+class UnisocPartition {
+  final String name;
+  final BigInt sizeSectors;
+
+  const UnisocPartition({required this.name, required this.sizeSectors});
+
+  @override
+  int get hashCode => name.hashCode ^ sizeSectors.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UnisocPartition &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          sizeSectors == other.sizeSectors;
 }
