@@ -1,6 +1,5 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -483,11 +482,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String chipsetsQualcommEntryLine(
-    String label,
-    String file,
-    String sector,
-    String sectors,
-  ) {
+      String label, String file, String sector, String sectors) {
     return '$label: $file @ sector $sector ($sectors)';
   }
 
@@ -518,6 +513,48 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chipsetsQualcommSerialDone => 'rawprogram finished over serial';
+
+  @override
+  String get chipsetsExploitTitle => 'Kamakiri2 exploits';
+
+  @override
+  String get chipsetsExploitHint =>
+      'Vulnerable chips only (MT6755..MT6785): BootROM dump, DA-auth bypass and the Carbonara patched stage 2.';
+
+  @override
+  String get chipsetsExploitDump => 'Dump BootROM';
+
+  @override
+  String get chipsetsExploitKamakiri => 'Kamakiri2 unlock';
+
+  @override
+  String get chipsetsExploitCarbonara => 'Carbonara unlock';
+
+  @override
+  String get chipsetsExploitDone => 'Exploit flow finished';
+
+  @override
+  String get chipsetsExploitConfirmTitle => 'Run the exploit?';
+
+  @override
+  String get chipsetsExploitConfirmBody =>
+      'The exploit talks to the bootrom in BROM mode. Continue only with the device connected in BROM.';
+
+  @override
+  String get chipsetsRpmbRead => 'Read RPMB block';
+
+  @override
+  String get chipsetsRpmbDone => 'RPMB block read';
+
+  @override
+  String get chipsetsUnisocUnlock => 'Unlock bootloader (T618)';
+
+  @override
+  String get chipsetsUnisocUnlockHint =>
+      'Signs the identifier token with the community T618 RSA key and runs flashing unlock_bootloader.';
+
+  @override
+  String get chipsetsUnisocUnlockDone => 'Unlock flow finished';
 
   @override
   String get cancelLabel => 'Cancel';

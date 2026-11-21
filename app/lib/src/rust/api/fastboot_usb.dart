@@ -4,7 +4,6 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
-
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`
@@ -12,13 +11,10 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Future<List<String>> fastbootUsbDevices() =>
     RustLib.instance.api.crateApiFastbootUsbFastbootUsbDevices();
 
-Future<String> fastbootUsbGetvar({
-  required String serial,
-  required String name,
-}) => RustLib.instance.api.crateApiFastbootUsbFastbootUsbGetvar(
-  serial: serial,
-  name: name,
-);
+Future<String> fastbootUsbGetvar(
+        {required String serial, required String name}) =>
+    RustLib.instance.api
+        .crateApiFastbootUsbFastbootUsbGetvar(serial: serial, name: name);
 
 Future<void> fastbootUsbReboot({required String serial}) =>
     RustLib.instance.api.crateApiFastbootUsbFastbootUsbReboot(serial: serial);
@@ -28,23 +24,17 @@ Future<void> fastbootUsbReboot({required String serial}) =>
 Future<String> fastbootUsbUnlock({required String serial}) =>
     RustLib.instance.api.crateApiFastbootUsbFastbootUsbUnlock(serial: serial);
 
-Future<String> fastbootUsbErase({
-  required String serial,
-  required String partition,
-}) => RustLib.instance.api.crateApiFastbootUsbFastbootUsbErase(
-  serial: serial,
-  partition: partition,
-);
+Future<String> fastbootUsbErase(
+        {required String serial, required String partition}) =>
+    RustLib.instance.api.crateApiFastbootUsbFastbootUsbErase(
+        serial: serial, partition: partition);
 
-Stream<FlashProgress> fastbootFlashUsb({
-  required String serial,
-  required String partition,
-  required String imagePath,
-}) => RustLib.instance.api.crateApiFastbootUsbFastbootFlashUsb(
-  serial: serial,
-  partition: partition,
-  imagePath: imagePath,
-);
+Stream<FlashProgress> fastbootFlashUsb(
+        {required String serial,
+        required String partition,
+        required String imagePath}) =>
+    RustLib.instance.api.crateApiFastbootUsbFastbootFlashUsb(
+        serial: serial, partition: partition, imagePath: imagePath);
 
 /// Progress event for the USB flash stream; `phase` is "download" while the
 /// image streams to the device and "done" with the final message at the end.

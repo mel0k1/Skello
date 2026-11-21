@@ -244,5 +244,18 @@
   "chipsetsQualcommSerialNone": "Serial-порты не найдены",
   "chipsetsQualcommSerialFlash": "Прошить по serial",
   "chipsetsQualcommSerialDone": "rawprogram завершён по serial",
+  "chipsetsExploitTitle": "Эксплойты Kamakiri2",
+  "chipsetsExploitHint": "Только уязвимые чипы (MT6755..MT6785): дамп BootROM, обход авторизации DA и Carbonara с патченым stage 2.",
+  "chipsetsExploitDump": "Сдампить BootROM",
+  "chipsetsExploitKamakiri": "Kamakiri2 разблокировка",
+  "chipsetsExploitCarbonara": "Carbonara разблокировка",
+  "chipsetsExploitDone": "Эксплойт отработал",
+  "chipsetsExploitConfirmTitle": "Запустить эксплойт?",
+  "chipsetsExploitConfirmBody": "Эксплойт работает с BootROM в режиме BROM. Продолжайте только при устройстве в BROM.",
+  "chipsetsRpmbRead": "Прочитать RPMB",
+  "chipsetsRpmbDone": "RPMB прочитан",
+  "chipsetsUnisocUnlock": "Разблокировать загрузчик (T618)",
+  "chipsetsUnisocUnlockHint": "Подписывает identifier token известным ключом T618 и запускает flashing unlock_bootloader.",
+  "chipsetsUnisocUnlockDone": "Разблокировка завершена",
   "cancelLabel": "Отмена"
 }

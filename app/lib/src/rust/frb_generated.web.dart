@@ -14,12 +14,9 @@ import 'api/fastboot.dart';
 import 'api/fastboot_usb.dart';
 import 'api/log.dart';
 import 'api/mediatek.dart';
-
 import 'dart:async';
 import 'dart:convert';
-
 import 'frb_generated.dart';
-
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_web.dart';
 
 abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
@@ -35,8 +32,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RustStreamSink<FlashProgress> dco_decode_StreamSink_flash_progress_Sse(
-    dynamic raw,
-  );
+      dynamic raw);
 
   @protected
   String dco_decode_String(dynamic raw);
@@ -64,6 +60,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<AdbUsbStatus> dco_decode_list_adb_usb_status(dynamic raw);
+
+  @protected
+  List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
@@ -106,8 +105,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RustStreamSink<FlashProgress> sse_decode_StreamSink_flash_progress_Sse(
-    SseDeserializer deserializer,
-  );
+      SseDeserializer deserializer);
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
@@ -135,21 +133,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<AdbUsbStatus> sse_decode_list_adb_usb_status(
-    SseDeserializer deserializer,
-  );
+      SseDeserializer deserializer);
+
+  @protected
+  List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
   List<ProgramEntry> sse_decode_list_program_entry(
-    SseDeserializer deserializer,
-  );
+      SseDeserializer deserializer);
 
   @protected
   List<UnisocPartition> sse_decode_list_unisoc_partition(
-    SseDeserializer deserializer,
-  );
+      SseDeserializer deserializer);
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
@@ -183,15 +181,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_AnyhowException(
-    AnyhowException self,
-    SseSerializer serializer,
-  );
+      AnyhowException self, SseSerializer serializer);
 
   @protected
   void sse_encode_StreamSink_flash_progress_Sse(
-    RustStreamSink<FlashProgress> self,
-    SseSerializer serializer,
-  );
+      RustStreamSink<FlashProgress> self, SseSerializer serializer);
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
@@ -219,27 +213,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_adb_usb_status(
-    List<AdbUsbStatus> self,
-    SseSerializer serializer,
-  );
+      List<AdbUsbStatus> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_prim_u_8_strict(
-    Uint8List self,
-    SseSerializer serializer,
-  );
+      Uint8List self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_program_entry(
-    List<ProgramEntry> self,
-    SseSerializer serializer,
-  );
+      List<ProgramEntry> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_unisoc_partition(
-    List<UnisocPartition> self,
-    SseSerializer serializer,
-  );
+      List<UnisocPartition> self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
@@ -264,9 +253,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unisoc_partition(
-    UnisocPartition self,
-    SseSerializer serializer,
-  );
+      UnisocPartition self, SseSerializer serializer);
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);

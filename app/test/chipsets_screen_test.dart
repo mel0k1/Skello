@@ -14,6 +14,15 @@ class FakeSelector extends FileSelectorPlatform {
 
   final String path;
 
+
+  @override
+  Future<FileSaveLocation?> getSaveLocation({
+    List<XTypeGroup>? acceptedTypeGroups,
+    SaveDialogOptions options = const SaveDialogOptions(),
+  }) async {
+    return FileSaveLocation(path);
+  }
+
   @override
   Future<XFile?> openFile({
     List<XTypeGroup>? acceptedTypeGroups,
@@ -306,5 +315,84 @@ void main() {
     );
     expect(find.text('rawprogram finished over serial'), findsOneWidget);
     expect(find.text('flash OKAY over serial'), findsOneWidget);
+  });
+
+  testWidgets('brom dump saves through the save dialog', (tester) async {
+    FileSelectorPlatform.instance = FakeSelector('/fw/DA.bin');
+    final repository = FakeRepository();
+    repository.mtkPorts = ['BROM_123'];
+    await pumpChipsets(tester, repository);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Dump BootROM'));
+    await tester.pumpAndSettle();
+
+    expect(
+      repository.calls.where((c) => c.startsWith('exploit-dump')),
+      ['exploit-dump /fw/DA.bin'],
+    );
+    expect(find.text('Exploit flow finished'), findsOneWidget);
+    expect(find.text('bootrom dumped (MT6768, 131072 bytes)'), findsOneWidget);
+  });
+
+  testWidgets('kamakiri2 unlock runs after the confirmation', (tester) async {
+    FileSelectorPlatform.instance = FakeSelector('/fw/DA.bin');
+    final repository = FakeRepository();
+    repository.mtkPorts = ['BROM_123'];
+    await pumpChipsets(tester, repository);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Choose DA loader'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Kamakiri2 unlock'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Run it'));
+    await tester.pumpAndSettle();
+
+    expect(
+      repository.calls.where((c) => c.startsWith('exploit-unlock')),
+      ['exploit-unlock /fw/DA.bin'],
+    );
+    expect(find.text('Exploit flow finished'), findsOneWidget);
+    expect(find.text('seccfg patched via exploit'), findsOneWidget);
+  });
+
+  testWidgets('rpmb read shows the hex preview', (tester) async {
+    FileSelectorPlatform.instance = FakeSelector('/fw/DA.bin');
+    final repository = FakeRepository();
+    repository.mtkPorts = ['BROM_123'];
+    await pumpChipsets(tester, repository);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Choose DA loader'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Read RPMB block'));
+    await tester.pumpAndSettle();
+
+    expect(
+      repository.calls.where((c) => c.startsWith('rpmb-read')),
+      ['rpmb-read 0 256'],
+    );
+    expect(find.text('RPMB block read'), findsOneWidget);
+    // the first 32 bytes rendered as hex
+    expect(find.textContaining('00 01 02'), findsOneWidget);
+  });
+
+  testWidgets('unisoc unlock drives the fastboot flow', (tester) async {
+    FileSelectorPlatform.instance = FakeSelector('/fw/fdl.bin');
+    final repository = FakeRepository();
+    repository.unisocPorts = ['SPD'];
+    await pumpChipsets(tester, repository);
+
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'Unlock bootloader (T618)'),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Run it'));
+    await tester.pumpAndSettle();
+
+    expect(repository.calls, contains('unisoc-unlock'));
+    expect(find.text('Unlock flow finished'), findsOneWidget);
+    expect(
+      find.text('unlock sent; confirm on the device screen'),
+      findsOneWidget,
+    );
   });
 }

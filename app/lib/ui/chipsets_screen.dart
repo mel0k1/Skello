@@ -29,6 +29,12 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
   bool _v6Busy = false;
   String? _v6Result;
   String? _v6Error;
+  bool _exploitBusy = false;
+  String? _exploitResult;
+  String? _exploitError;
+  bool _rpmbBusy = false;
+  String? _rpmbResult;
+  String? _rpmbError;
 
   final _fdl1AddrCtrl = TextEditingController(text: '0x00090000');
   final _fdl2AddrCtrl = TextEditingController(text: '0x50000000');
@@ -42,6 +48,9 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
   bool _tableBusy = false;
   List<UnisocPartitionRow>? _tableRows;
   String? _tableError;
+  bool _unlockBusy = false;
+  String? _unlockResult;
+  String? _unlockError;
 
   String? _programmerPath;
   String? _xmlPath;
@@ -285,6 +294,123 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
       setState(() {
         _v6Error = e.toString();
         _v6Busy = false;
+      });
+    }
+  }
+
+  /// The bootrom dump goes to a file the user picks.
+  Future<void> _runBromDump() async {
+    final strings = AppLocalizations.of(context)!;
+    final location = await getSaveLocation(
+      suggestedName: 'brom_dump.bin',
+      acceptedTypeGroups: [
+        XTypeGroup(label: strings.chipsetsPickType, extensions: const ['bin']),
+      ],
+    );
+    if (location == null) return;
+    setState(() {
+      _exploitBusy = true;
+      _exploitResult = null;
+      _exploitError = null;
+    });
+    try {
+      final message = await widget.repository
+          .mediatekExploitDumpBrom(location.path);
+      if (!mounted) return;
+      setState(() {
+        _exploitResult = message;
+        _exploitBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _exploitError = e.toString();
+        _exploitBusy = false;
+      });
+    }
+  }
+
+  Future<void> _runExploitUnlock(bool carbonara) async {
+    final strings = AppLocalizations.of(context)!;
+    final go = await _confirm(
+      strings.chipsetsExploitConfirmTitle,
+      strings.chipsetsExploitConfirmBody,
+    );
+    if (!go) return;
+    setState(() {
+      _exploitBusy = true;
+      _exploitResult = null;
+      _exploitError = null;
+    });
+    try {
+      final message = carbonara
+          ? await widget.repository.mediatekCarbonaraUnlock(_loaderPath!)
+          : await widget.repository.mediatekExploitUnlock(_loaderPath!);
+      if (!mounted) return;
+      setState(() {
+        _exploitResult = message;
+        _exploitBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _exploitError = e.toString();
+        _exploitBusy = false;
+      });
+    }
+  }
+
+  Future<void> _runRpmbRead() async {
+    setState(() {
+      _rpmbBusy = true;
+      _rpmbResult = null;
+      _rpmbError = null;
+    });
+    try {
+      final data = await widget.repository
+          .mediatekRpmbRead(_loaderPath!, 0, 256);
+      if (!mounted) return;
+      final hex = data
+          .take(32)
+          .map((b) => b.toRadixString(16).padLeft(2, '0'))
+          .join(' ');
+      setState(() {
+        _rpmbResult = '$hex${data.length > 32 ? ' ...' : ''}';
+        _rpmbBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _rpmbError = e.toString();
+        _rpmbBusy = false;
+      });
+    }
+  }
+
+  Future<void> _runUnisocUnlock() async {
+    final strings = AppLocalizations.of(context)!;
+    final go = await _confirm(
+      strings.chipsetsExploitConfirmTitle,
+      strings.chipsetsExploitConfirmBody,
+    );
+    if (!go) return;
+    setState(() {
+      _unlockBusy = true;
+      _unlockResult = null;
+      _unlockError = null;
+    });
+    try {
+      final message = await widget.repository.unisocUnlockBootloader();
+      if (!mounted) return;
+      setState(() {
+        _unlockResult = message;
+        _unlockBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _unlockError = e.toString();
+        _unlockBusy = false;
       });
     }
   }
@@ -591,6 +717,64 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                   error: _v6Error,
                   successText: strings.chipsetsMtkV6Done,
                 ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    strings.chipsetsExploitTitle,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  strings.chipsetsExploitHint,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 4),
+                OutlinedButton(
+                  onPressed: !_exploitBusy ? _runBromDump : null,
+                  child: Text(strings.chipsetsExploitDump),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _loaderPath != null && !_exploitBusy
+                            ? () => _runExploitUnlock(false)
+                            : null,
+                        child: Text(strings.chipsetsExploitKamakiri),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _loaderPath != null && !_exploitBusy
+                            ? () => _runExploitUnlock(true)
+                            : null,
+                        child: Text(strings.chipsetsExploitCarbonara),
+                      ),
+                    ),
+                  ],
+                ),
+                _resultLine(
+                  context,
+                  result: _exploitResult,
+                  error: _exploitError,
+                  successText: strings.chipsetsExploitDone,
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: _loaderPath != null && !_rpmbBusy
+                      ? _runRpmbRead
+                      : null,
+                  child: Text(strings.chipsetsRpmbRead),
+                ),
+                _resultLine(
+                  context,
+                  result: _rpmbResult,
+                  error: _rpmbError,
+                  successText: strings.chipsetsRpmbDone,
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -703,6 +887,30 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                     ),
                 ],
                 _resultLine(context, error: _tableError),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    strings.chipsetsUnisocUnlock,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  strings.chipsetsUnisocUnlockHint,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 4),
+                FilledButton.icon(
+                  onPressed: !_unlockBusy ? _runUnisocUnlock : null,
+                  icon: const Icon(Icons.lock_open),
+                  label: Text(strings.chipsetsUnisocUnlock),
+                ),
+                _resultLine(
+                  context,
+                  result: _unlockResult,
+                  error: _unlockError,
+                  successText: strings.chipsetsUnisocUnlockDone,
+                ),
               ],
             ),
             const SizedBox(height: 12),

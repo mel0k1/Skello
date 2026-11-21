@@ -200,4 +200,48 @@ class FakeRepository implements DeviceRepository {
     if (failChipsetCalls) throw Exception('sahara failed');
     return serialFlashMessage;
   }
+
+  String bromDumpMessage = 'bootrom dumped (MT6768, 131072 bytes)';
+  String exploitUnlockMessage = 'seccfg patched via exploit';
+  String unisocUnlockMessage = 'unlock sent; confirm on the device screen';
+  List<int> rpmbData = List.generate(256, (i) => i);
+
+  @override
+  Future<String> mediatekExploitDumpBrom(String outputPath) async {
+    calls.add('exploit-dump $outputPath');
+    if (failChipsetCalls) throw Exception('no kamakiri2 config');
+    return bromDumpMessage;
+  }
+
+  @override
+  Future<String> mediatekExploitUnlock(String loaderPath) async {
+    calls.add('exploit-unlock $loaderPath');
+    if (failChipsetCalls) throw Exception('payload ack mismatch');
+    return exploitUnlockMessage;
+  }
+
+  @override
+  Future<String> mediatekCarbonaraUnlock(String loaderPath) async {
+    calls.add('carbonara-unlock $loaderPath');
+    if (failChipsetCalls) throw Exception('loader is patched against carbonara');
+    return exploitUnlockMessage;
+  }
+
+  @override
+  Future<List<int>> mediatekRpmbRead(
+    String loaderPath,
+    int addr,
+    int length,
+  ) async {
+    calls.add('rpmb-read $addr $length');
+    if (failChipsetCalls) throw Exception('da refused rpmb');
+    return rpmbData.take(length).toList();
+  }
+
+  @override
+  Future<String> unisocUnlockBootloader() async {
+    calls.add('unisoc-unlock');
+    if (failChipsetCalls) throw Exception('no fastboot device found');
+    return unisocUnlockMessage;
+  }
 }

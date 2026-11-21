@@ -244,5 +244,18 @@
   "chipsetsQualcommSerialNone": "No serial port found",
   "chipsetsQualcommSerialFlash": "Flash over serial",
   "chipsetsQualcommSerialDone": "rawprogram finished over serial",
+  "chipsetsExploitTitle": "Kamakiri2 exploits",
+  "chipsetsExploitHint": "Vulnerable chips only (MT6755..MT6785): BootROM dump, DA-auth bypass and the Carbonara patched stage 2.",
+  "chipsetsExploitDump": "Dump BootROM",
+  "chipsetsExploitKamakiri": "Kamakiri2 unlock",
+  "chipsetsExploitCarbonara": "Carbonara unlock",
+  "chipsetsExploitDone": "Exploit flow finished",
+  "chipsetsExploitConfirmTitle": "Run the exploit?",
+  "chipsetsExploitConfirmBody": "The exploit talks to the bootrom in BROM mode. Continue only with the device connected in BROM.",
+  "chipsetsRpmbRead": "Read RPMB block",
+  "chipsetsRpmbDone": "RPMB block read",
+  "chipsetsUnisocUnlock": "Unlock bootloader (T618)",
+  "chipsetsUnisocUnlockHint": "Signs the identifier token with the community T618 RSA key and runs flashing unlock_bootloader.",
+  "chipsetsUnisocUnlockDone": "Unlock flow finished",
   "cancelLabel": "Cancel"
 }

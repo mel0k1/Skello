@@ -63,7 +63,7 @@ import 'app_localizations_ru.dart';
 /// property.
 abstract class AppLocalizations {
   AppLocalizations(String locale)
-    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+      : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -86,16 +86,16 @@ abstract class AppLocalizations {
   /// of delegates is preferred or required.
   static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
       <LocalizationsDelegate<dynamic>>[
-        delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ];
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
-    Locale('ru'),
+    Locale('ru')
   ];
 
   /// No description provided for @appName.
@@ -961,11 +961,7 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{label}: {file} @ sector {sector} ({sectors})'**
   String chipsetsQualcommEntryLine(
-    String label,
-    String file,
-    String sector,
-    String sectors,
-  );
+      String label, String file, String sector, String sectors);
 
   /// No description provided for @chipsetsQualcommFlash.
   ///
@@ -1021,6 +1017,84 @@ abstract class AppLocalizations {
   /// **'rawprogram finished over serial'**
   String get chipsetsQualcommSerialDone;
 
+  /// No description provided for @chipsetsExploitTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Kamakiri2 exploits'**
+  String get chipsetsExploitTitle;
+
+  /// No description provided for @chipsetsExploitHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Vulnerable chips only (MT6755..MT6785): BootROM dump, DA-auth bypass and the Carbonara patched stage 2.'**
+  String get chipsetsExploitHint;
+
+  /// No description provided for @chipsetsExploitDump.
+  ///
+  /// In en, this message translates to:
+  /// **'Dump BootROM'**
+  String get chipsetsExploitDump;
+
+  /// No description provided for @chipsetsExploitKamakiri.
+  ///
+  /// In en, this message translates to:
+  /// **'Kamakiri2 unlock'**
+  String get chipsetsExploitKamakiri;
+
+  /// No description provided for @chipsetsExploitCarbonara.
+  ///
+  /// In en, this message translates to:
+  /// **'Carbonara unlock'**
+  String get chipsetsExploitCarbonara;
+
+  /// No description provided for @chipsetsExploitDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Exploit flow finished'**
+  String get chipsetsExploitDone;
+
+  /// No description provided for @chipsetsExploitConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Run the exploit?'**
+  String get chipsetsExploitConfirmTitle;
+
+  /// No description provided for @chipsetsExploitConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The exploit talks to the bootrom in BROM mode. Continue only with the device connected in BROM.'**
+  String get chipsetsExploitConfirmBody;
+
+  /// No description provided for @chipsetsRpmbRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Read RPMB block'**
+  String get chipsetsRpmbRead;
+
+  /// No description provided for @chipsetsRpmbDone.
+  ///
+  /// In en, this message translates to:
+  /// **'RPMB block read'**
+  String get chipsetsRpmbDone;
+
+  /// No description provided for @chipsetsUnisocUnlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock bootloader (T618)'**
+  String get chipsetsUnisocUnlock;
+
+  /// No description provided for @chipsetsUnisocUnlockHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Signs the identifier token with the community T618 RSA key and runs flashing unlock_bootloader.'**
+  String get chipsetsUnisocUnlockHint;
+
+  /// No description provided for @chipsetsUnisocUnlockDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock flow finished'**
+  String get chipsetsUnisocUnlockDone;
+
   /// No description provided for @cancelLabel.
   ///
   /// In en, this message translates to:
@@ -1055,9 +1129,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-    'an issue with the localizations generation tool. Please file an issue '
-    'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.',
-  );
+      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+      'an issue with the localizations generation tool. Please file an issue '
+      'on GitHub with a reproducible sample app and the gen-l10n configuration '
+      'that was used.');
 }

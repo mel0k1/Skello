@@ -722,6 +722,109 @@ class DeviceRepository {
     }
   }
 
+
+  /// Kamakiri2 bootrom dump for offline analysis.
+  Future<String> mediatekExploitDumpBrom(String outputPath) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('chipsets', '>> exploit: brom dump');
+    try {
+      final message = await chipsets_api.mediatekExploitDumpBrom(
+        outputPath: outputPath,
+      );
+      await CommandLog.instance.write(
+        'chipsets',
+        '<< ${message.replaceAll('\n', ' | ')}',
+      );
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Kamakiri2 bypass plus the stock seccfg unlock.
+  Future<String> mediatekExploitUnlock(String loaderPath) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('chipsets', '>> exploit: kamakiri2 unlock');
+    try {
+      final message = await chipsets_api.mediatekExploitUnlock(
+        loaderPath: loaderPath,
+      );
+      await CommandLog.instance.write(
+        'chipsets',
+        '<< ${message.replaceAll('\n', ' | ')}',
+      );
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Kamakiri2 bypass, Carbonara patched stage 2, then the unlock.
+  Future<String> mediatekCarbonaraUnlock(String loaderPath) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('chipsets', '>> exploit: carbonara unlock');
+    try {
+      final message = await chipsets_api.mediatekCarbonaraUnlock(
+        loaderPath: loaderPath,
+      );
+      await CommandLog.instance.write(
+        'chipsets',
+        '<< ${message.replaceAll('\n', ' | ')}',
+      );
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Reads the RPMB block through the DA.
+  Future<List<int>> mediatekRpmbRead(String loaderPath, int addr, int length) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('chipsets', '>> rpmb read $addr $length');
+    try {
+      final data = await chipsets_api.mediatekRpmbRead(
+        loaderPath: loaderPath,
+        addr: BigInt.from(addr),
+        length: length,
+      );
+      await CommandLog.instance.write('chipsets', '<< ${data.length} bytes');
+      return data;
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Unisoc bootloader unlock (T618 key): token, signature, flash.
+  Future<String> unisocUnlockBootloader() async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('chipsets', '>> unisoc unlock');
+    try {
+      final message = await chipsets_api.unisocUnlockBootloader();
+      await CommandLog.instance.write(
+        'chipsets',
+        '<< ${message.replaceAll('\n', ' | ')}',
+      );
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
   Future<String> _usbFlash(
     String serial,
     String partition,
