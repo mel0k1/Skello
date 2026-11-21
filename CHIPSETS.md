@@ -13,7 +13,7 @@ Skello работает с тремя платформами: MediaTek, Unisoc �
 - penumbra (AGPL-3.0): прошивка и чтение разделов, протоколы DA двух поколений - V5 (XFlash) и V6 (XML), разблокировка загрузчика на уязвимых устройствах, операции с RPMB, произвольное чтение и запись памяти, прошивка по scatter-файлам
 - mtkclient-rs (Apache-2.0): чистый Rust без рантайм-зависимостей, повторное использование DA-сессии и продолжение чтения или записи после обрыва, разблокировка через раздел seccfg с HACC-шифрованием (V3/V4), патч vbmeta для отключения AVB, таблица чипов в рантайме (sdata.json), автоматическая установка WinUSB-драйвера на Windows
 
-План Skello: этап 1 - транспорт BROM и Preloader, загрузка DA V5, чтение GPT и разделов (реализовано в crates/skello-chipsets/src/mediatek: BROM-хендшейк и SEND_DA/JUMP_DA, загрузка стокового DA из файла загрузчика, XFlash-фрейминг и readflash/writeflash, seccfg-разблокировка без root); этап 2 - DA V6 (XML), разблокировка через seccfg на уязвимых чипах, эксплойты linecode (Kamakiri2) и Carbonara, RPMB.
+План Skello: этап 1 - транспорт BROM и Preloader, загрузка DA V5, чтение GPT и разделов (реализовано в crates/skello-chipsets/src/mediatek: BROM-хендшейк и SEND_DA/JUMP_DA, загрузка стокового DA из файла загрузчика, XFlash-фрейминг и readflash/writeflash, seccfg-разблокировка без root); этап 2 - DA V6 (XML), разблокировка через seccfg на уязвимых чипах, эксплойты linecode (Kamakiri2) и Carbonara, RPMB (реализовано в этапе 2: seccfg V4 с аппаратным ключом - HACC-движок по кастомным регистрам DA V5 (CUSTOM_READREGISTER/WRITEREGISTER) в sej.rs, режимы V3/V4-legacy в patch_v4; DA V6 - XML-сессия xml.rs с SET-RUNTIME-PARAMETER, HOST-SUPPORTED-COMMANDS, NOTIFY-INIT-HW, BOOT-TO stage 2, SET-BOOT-MODE и перезагрузкой; эксплойты и RPMB - дальше).
 
 ## Unisoc
 
@@ -24,7 +24,7 @@ BROM включается boot-кнопкой (у каждой модели св
 - spreadtrum_flash (public domain): загрузка FDL, keep_charge, disable_transcode, список разделов, чтение и запись разделов, переразбивка, выключение после работы; FDL-бинари берутся из прошивки конкретной модели (.pac), общий их набор невозможен
 - unisoc-unlock (без лицензии): порядок шагов разблокировки через fastboot и подпись токена; тестировалось на T618
 
-План Skello: этап 1 - обмен с BROM, загрузка FDL, запись разделов (реализовано в crates/skello-chipsets/src/unisoc: BSL-фрейминг с CRC16 и суммой, transcode-экранирование и его отключение, загрузка FDL1/FDL2 из прошивки модели, запись и чтение разделов по имени); этап 2 - чтение GPT, разблокировка подписью токена для чипов с известным ключом.
+План Skello: этап 1 - обмен с BROM, загрузка FDL, запись разделов (реализовано в crates/skello-chipsets/src/unisoc: BSL-фрейминг с CRC16 и суммой, transcode-экранирование и его отключение, загрузка FDL1/FDL2 из прошивки модели, запись и чтение разделов по имени); этап 2 - чтение GPT, разблокировка подписью токена для чипов с известным ключом (таблица разделов реализована: READ_PARTITION/0x2D с ответом 0xBA, записи по 0x4C - имя UTF-16 и размер в секторах; разблокировка токеном - дальше).
 
 ## Qualcomm
 
@@ -35,7 +35,7 @@ Emergency Download Mode (EDL, «9008») поднимается самим boot R
 - qdlrs (BSD-3): Rust-реализация Sahara и Firehose, бекенды USB и serial, flasher с rawprogram, dump, write, erase, print-gpt, выбор LUN, обход отсутствия HELLO-пакета
 - qedl-rs (MIT): модульный стек крейтов (ядро, транспорт, Sahara, Firehose, хранилище, образы, задачи), распаковка Android sparse-образов, проверка SHA256, автоматический переход DIAG в EDL, перекачка rawprogram.xml в свои команды
 
-План Skello: этап 1 - Sahara с serial-транспортом и USB, загрузка программиста, этап 2 - Firehose XML и sparse-образы (частично реализовано в crates/skello-chipsets/src/qualcomm: Sahara по USB с загрузкой программиста и переключением в командный режим, Firehose configure/program/read/reboot, rawprogram-XML и развёртка sparse в raw; serial-транспорт - следующий шаг).xml, sparse-образы.
+План Skello: этап 1 - Sahara с serial-транспортом и USB, загрузка программиста, этап 2 - Firehose XML и sparse-образы (реализовано в crates/skello-chipsets/src/qualcomm: Sahara по USB и serial - serial-линк 115200 8N1 через serial2, HELLO_RESP вслепую после паузы, если устройство молчит, Firehose configure/program/read/reboot, rawprogram-XML и развёртка sparse в raw; прошивка rawprogram по serial доступна на экране «Чипсеты»).
 
 ## Уровень доступа на Linux
 

@@ -29,6 +29,7 @@ adb и fastboot работают из терминала: нужно помни�
 - app: терминал adb shell по USB на карточке устройства и экран MediaTek seccfg: чтение состояния блокировки и разблокировка через root (dd + base64 через adb shell)
 - app: вендорские транспорты этапа 1 (skello-chipsets): MediaTek BROM/DA V5 с разблокировкой seccfg без root, Unisoc FDL с transcode-экранированием и записью разделов, Qualcomm Sahara/Firehose с rawprogram XML; USB-порты чипсетов видны на уровне API
 - app: экран «Чипсеты» для путей этапа 1: порты BROM / FDL / EDL с серийниками, разблокировка MediaTek через заводской Download Agent (без root), прошивка раздела Unisoc через FDL1/FDL2 с hex-адресами, Qualcomm EDL с программатором Firehose и разбором rawprogram XML; перед каждой операцией - подтверждение, всё пишется в журнал
+- app: этап 2 чипсетов: SEJ-железо через DA V5 - HACC-движок по кастомным регистрам DA, seccfg V4 с аппаратным ключом разблокируется без root; DA V6 (XML) - сессия с BOOT-TO stage 2 и выходом в fastboot или meta; Qualcomm EDL по serial (115200, Sahara с обходом молчащего HELLO + Firehose); Unisoc - таблица разделов через FDL2; всё доступно на экране «Чипсеты»
 - app: журнал команд и ответов устройства в skello-commands.log (каталог поддержки приложения) - пишут и Dart, и Rust-ядро внутри транзакций
 - CI на GitHub Actions: fmt, clippy, тесты Rust на Linux и Windows, analyze и тесты Flutter; релизные сборки Windows и Linux по тегу
 
