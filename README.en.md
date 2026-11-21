@@ -28,6 +28,7 @@ adb and fastboot live in a terminal: you have to remember commands, keep the ter
 - app: the Root screen flashes images larger than max-download-size: Android sparse is split along the chunks into a series of download+flash, a raw image without sparse layout is honestly refused
 - app: an adb shell terminal over USB on the device card and a MediaTek seccfg screen: lock state reading and unlock through root (dd + base64 over adb shell)
 - app: stage 1 vendor transports (skello-chipsets): MediaTek BROM/DA V5 with root-free seccfg unlock, Unisoc FDL with transcode escaping and partition writes, Qualcomm Sahara/Firehose with the rawprogram XML; chipset USB ports are visible at the API level
+- app: a Chipsets screen for the stage 1 paths: BROM / FDL / EDL ports with serials, MediaTek unlock through the stock Download Agent (no root), Unisoc partition flash through FDL1/FDL2 with hex addresses, Qualcomm EDL with a Firehose programmer and rawprogram XML parsing; every operation needs a confirmation and lands in the journal
 - app: a command and device response journal in skello-commands.log (the app support directory) - written by both the Dart layer and the Rust core inside transactions
 - CI on GitHub Actions: fmt, clippy, Rust tests on Linux and Windows, Flutter analyze and tests; release builds for Windows and Linux on tags
 

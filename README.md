@@ -28,6 +28,7 @@ adb и fastboot работают из терминала: нужно помни�
 - app: Root-экран прошивает образы больше max-download-size: Android sparse разбивается по чанкам на серию download+flash, сырой образ без sparse-разметки честно отклоняется
 - app: терминал adb shell по USB на карточке устройства и экран MediaTek seccfg: чтение состояния блокировки и разблокировка через root (dd + base64 через adb shell)
 - app: вендорские транспорты этапа 1 (skello-chipsets): MediaTek BROM/DA V5 с разблокировкой seccfg без root, Unisoc FDL с transcode-экранированием и записью разделов, Qualcomm Sahara/Firehose с rawprogram XML; USB-порты чипсетов видны на уровне API
+- app: экран «Чипсеты» для путей этапа 1: порты BROM / FDL / EDL с серийниками, разблокировка MediaTek через заводской Download Agent (без root), прошивка раздела Unisoc через FDL1/FDL2 с hex-адресами, Qualcomm EDL с программатором Firehose и разбором rawprogram XML; перед каждой операцией - подтверждение, всё пишется в журнал
 - app: журнал команд и ответов устройства в skello-commands.log (каталог поддержки приложения) - пишут и Dart, и Rust-ядро внутри транзакций
 - CI на GitHub Actions: fmt, clippy, тесты Rust на Linux и Windows, analyze и тесты Flutter; релизные сборки Windows и Linux по тегу
 
