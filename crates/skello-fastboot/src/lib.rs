@@ -1,6 +1,7 @@
 use std::fmt;
 
 pub mod size;
+pub mod sparse;
 pub mod usb;
 
 pub use size::parse_download_size;
