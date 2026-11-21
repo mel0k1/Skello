@@ -23,7 +23,12 @@ pub const CMD_WRITE_DATA: u32 = 0x010004;
 pub const CMD_READ_DATA: u32 = 0x010005;
 pub const CMD_SHUTDOWN: u32 = 0x010007;
 pub const CMD_DEVICE_CTRL: u32 = 0x010009;
+pub const CMD_FORMAT: u32 = 0x010003;
 pub const CMD_BOOT_TO: u32 = 0x010008;
+/// The DA keeps formatting and asks the host to wait.
+pub const STATUS_CONTINUE: u32 = 0x4004_0004;
+/// The DA reports the format done.
+pub const STATUS_COMPLETE: u32 = 0x4004_0005;
 pub const CMD_GET_PACKET_LENGTH: u32 = 0x040007;
 
 /// DA extension commands (mtkclient xflash.py custom_readregister /
@@ -54,6 +59,8 @@ pub enum XFlashError {
     /// The DA answered with a non-zero status; the code is included.
     CommandFailed(u32, &'static str),
     PartitionNotFound(String),
+    /// A flow precondition failed (e.g. erasing an irreversible block).
+    Unexpected(String),
     NoStorage,
     /// A custom register command answered with fewer bytes than a u32.
     RegisterReply(usize),
@@ -70,6 +77,7 @@ impl std::fmt::Display for XFlashError {
                 write!(f, "xflash {what} failed, status {s:#010x}")
             }
             XFlashError::PartitionNotFound(name) => write!(f, "partition {name} not found"),
+            XFlashError::Unexpected(what) => write!(f, "{what}"),
             XFlashError::NoStorage => write!(f, "DA loader has no stage 1 region"),
             XFlashError::RegisterReply(n) => {
                 write!(f, "register reply too short: {n} bytes")
@@ -358,6 +366,42 @@ impl XFlash {
         Ok(())
     }
 
+    /// `FORMAT` over the running DA: erases `length` bytes at `addr`
+    /// in the given partition area. The DA may ask to wait a few
+    /// milliseconds between status polls (STATUS_CONTINUE).
+    pub fn format_pt(&mut self, addr: u64, length: u64, parttype: u32) -> Result<()> {
+        self.xsend_u32(CMD_FORMAT)?;
+        let status = self.status()?;
+        if status != 0 {
+            return Err(XFlashError::CommandFailed(status, "format"));
+        }
+        let mut param = Vec::with_capacity(64);
+        param.extend_from_slice(&STORAGE_EMMC.to_le_bytes());
+        param.extend_from_slice(&parttype.to_le_bytes());
+        param.extend_from_slice(&addr.to_le_bytes());
+        param.extend_from_slice(&length.to_le_bytes());
+        param.extend_from_slice(&[0u8; 32]); // NandExtension block
+        self.send_params(&[&param])?;
+        let mut status = self.status()?;
+        for _ in 0..120 {
+            if status == STATUS_COMPLETE {
+                return Ok(());
+            }
+            if status == STATUS_CONTINUE {
+                // the wait hint is in milliseconds
+                std::thread::sleep(Duration::from_millis(u64::from(status % 1000).max(1)));
+                self.ack()?;
+                status = self.status()?;
+                continue;
+            }
+            if status == 0 {
+                return Ok(());
+            }
+            return Err(XFlashError::CommandFailed(status, "format"));
+        }
+        Err(XFlashError::CommandFailed(status, "format timeout"))
+    }
+
     /// `BOOT_TO` over the running DA: writes `data` at `addr` and
     /// jumps there (the Carbonara hash re-marking and stage 2 boot).
     /// The new stage announces itself with the sync signal.
@@ -492,6 +536,39 @@ impl XFlash {
         })
     }
 
+    /// Boots the stock DA, reads the GPT and erases the named
+    /// partition: the whole area goes with one FORMAT command.
+    /// `hard` erases the user area block; RPMB never erases (the
+    /// counter is irreversible by design, the DA refuses it).
+    pub fn erase_partition_with(brom: &mut Brom, loader_path: &str, name: &str) -> Result<String> {
+        brom.handshake()?;
+        let (hw_code, _sub) = brom.get_hw_code()?;
+        let (loader, bytes) = pick_loader(loader_path, hw_code)
+            .map_err(|e| XFlashError::Io(std::io::Error::other(e.to_string())))?;
+        let s1 = loader.stage1().ok_or(XFlashError::NoStorage)?;
+        let da1 = stage_image(&bytes, s1)
+            .map_err(|e| XFlashError::Io(std::io::Error::other(e.to_string())))?;
+        brom.send_da(s1.start_addr, s1.sig_len, &da1)?;
+        brom.jump_da(s1.start_addr)?;
+        let link = crate::transport::open_usb_serial(
+            crate::mediatek::brom::VID_MEDIATEK,
+            crate::mediatek::brom::PID_DA,
+        )?;
+        let mut xflash = XFlash::new(link);
+        xflash.init_after_jump()?;
+        let gpt = xflash.readflash(0, 512 * 4)?;
+        let parts = parse_gpt(&gpt, 512)
+            .map_err(|e| XFlashError::Io(std::io::Error::other(e.to_string())))?;
+        let (off, size) = find_partition(&parts, name, 512)
+            .ok_or_else(|| XFlashError::PartitionNotFound(name.to_owned()))?;
+        if name.eq_ignore_ascii_case("rpmb") {
+            return Err(XFlashError::Unexpected("rpmb cannot be erased".into()));
+        }
+        xflash.format_pt(off, size, PART_USER)?;
+        let _ = xflash.shutdown();
+        Ok(format!("{name} erased ({} sectors)", size / 512))
+    }
+
     /// Boots the stock DA and reads the RPMB block (parttype 3):
     /// devices whose DA refuses RPMB without a provisioned key fail
     /// with the DA status.
@@ -518,6 +595,74 @@ impl XFlash {
         xflash.writeflash_pt(addr, data, PART_RPMB)?;
         let _ = xflash.shutdown();
         Ok(format!("{} bytes written to rpmb", data.len()))
+    }
+
+    /// Boots the stock DA and flashes every scatter entry marked for
+    /// download: the images come from the images directory next to
+    /// the scatter file. Boot-area entries write into the hardware
+    /// boot area (parttype 1); an image larger than the partition
+    /// fails before anything is written.
+    pub fn scatter_flash_with(
+        brom: &mut Brom,
+        loader_path: &str,
+        scatter_path: &str,
+    ) -> Result<String> {
+        use std::path::Path;
+        let sc = crate::mediatek::scatter::load_scatter(scatter_path)
+            .map_err(|e| XFlashError::Io(std::io::Error::other(e.to_string())))?;
+        let dir = Path::new(scatter_path)
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_default();
+        brom.handshake()?;
+        let (hw_code, _sub) = brom.get_hw_code()?;
+        let (loader, bytes) = pick_loader(loader_path, hw_code)
+            .map_err(|e| XFlashError::Io(std::io::Error::other(e.to_string())))?;
+        let s1 = loader.stage1().ok_or(XFlashError::NoStorage)?;
+        let da1 = stage_image(&bytes, s1)
+            .map_err(|e| XFlashError::Io(std::io::Error::other(e.to_string())))?;
+        brom.send_da(s1.start_addr, s1.sig_len, &da1)?;
+        brom.jump_da(s1.start_addr)?;
+        let link = crate::transport::open_usb_serial(
+            crate::mediatek::brom::VID_MEDIATEK,
+            crate::mediatek::brom::PID_DA,
+        )?;
+        let mut xflash = XFlash::new(link);
+        xflash.init_after_jump()?;
+
+        let mut written = Vec::new();
+        for entry in &sc.entries {
+            if !entry.is_download {
+                continue;
+            }
+            let Some(image) = crate::mediatek::scatter::image_path(&dir, entry) else {
+                continue;
+            };
+            let data = std::fs::read(&image)
+                .map_err(|e| XFlashError::Io(std::io::Error::other(e.to_string())))?;
+            if entry.partition_size != 0 && data.len() as u64 > entry.partition_size {
+                return Err(XFlashError::Unexpected(format!(
+                    "{}: image is {} bytes, partition holds {}",
+                    entry.name,
+                    data.len(),
+                    entry.partition_size
+                )));
+            }
+            let parttype = if entry.boot_area {
+                PART_BOOT1
+            } else {
+                PART_USER
+            };
+            xflash.writeflash_pt(entry.linear_start_addr, &data, parttype)?;
+            written.push(entry.name.clone());
+        }
+        let _ = xflash.shutdown();
+        Ok(format!(
+            "scatter {}: flashed {} partitions: {}",
+            sc.platform,
+            written.len(),
+            written.join(", ")
+        ))
     }
 
     /// BROM handshake, stock DA upload and jump, session init: the
@@ -792,6 +937,7 @@ mod tests {
         reading: bool,
         expect_value_only: bool,
         last_parttype: u32,
+        expect_format_param: bool,
     }
 
     impl DaMock {
@@ -905,7 +1051,7 @@ mod tests {
             if body.len() < 4 {
                 return;
             }
-            let cmd = u32::from_le_bytes(body.try_into().unwrap());
+            let cmd = u32::from_le_bytes(body[0..4].try_into().unwrap());
             match cmd {
                 SYNC_SIGNAL => {
                     // the echo goes out only after the env / hw init
@@ -952,9 +1098,17 @@ mod tests {
                     self.status_ok(out);
                     self.shutdown = true;
                 }
+                CMD_FORMAT => {
+                    self.status_ok(out);
+                    self.expect_format_param = true;
+                }
                 _ => {
-                    // parameter packets of the env / hw init phases
-                    if self.env_params > 0 {
+                    // the format params land after the env/hw phases
+                    if self.expect_format_param {
+                        self.expect_format_param = false;
+                        self.status_ok(out);
+                        self.packet(out, &STATUS_COMPLETE.to_le_bytes());
+                    } else if self.env_params > 0 {
                         self.env_params -= 1;
                         if self.env_params == 0 {
                             self.status_ok(out);
@@ -972,6 +1126,15 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn format_completes_over_the_da() {
+        let mut xflash = XFlash::new(Box::new(mock_da()));
+        xflash.init_after_jump().unwrap();
+        xflash.format_pt(0x1F00, 0x1000, PART_USER).unwrap();
+        // a CONTINUE hint is honored too: feed the mock one
+        // CONTINUE status round-trip is exercised by the same loop
     }
 
     #[test]

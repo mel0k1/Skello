@@ -7,6 +7,7 @@ pub mod carbonara;
 pub mod daldr;
 pub mod exploit;
 pub mod gpt;
+pub mod scatter;
 pub mod seccfg;
 pub mod sej;
 pub mod xflash;
