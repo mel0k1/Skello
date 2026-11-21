@@ -459,6 +459,64 @@ impl Firehose {
         Ok(out)
     }
 
+    /// Erases the LBA range through the `<erase>` command: the
+    /// programmer wipes the blocks without streaming zeros.
+    pub fn erase(&mut self, phys_part: u8, first_lba: u64, last_lba: u64) -> Result<()> {
+        let resp = self.xml_command(
+            "erase",
+            &[
+                ("SECTOR_SIZE_IN_BYTES", &self.sector_size.to_string()),
+                ("first_lba", &first_lba.to_string()),
+                ("last_lba", &last_lba.to_string()),
+                ("PHYSICAL_PARTITION_NUM", &phys_part.to_string()),
+            ],
+        )?;
+        if resp.contains("value=\"ACK\"") {
+            Ok(())
+        } else {
+            Err(EdlError::Nack("erase".to_owned()))
+        }
+    }
+
+    /// Patches device storage: `value` bytes (hex) land at
+    /// `byte_offset` inside `start_sector`. Used by patch0.xml to fix
+    /// GPT backup pointers and similar.
+    pub fn patch(
+        &mut self,
+        phys_part: u8,
+        byte_offset: u64,
+        size: u64,
+        start_sector: &str,
+        value: &str,
+    ) -> Result<()> {
+        let resp = self.xml_command(
+            "patch",
+            &[
+                ("SECTOR_SIZE_IN_BYTES", &self.sector_size.to_string()),
+                ("byte_offset", &byte_offset.to_string()),
+                ("filename", "DISK"),
+                ("physical_partition_number", &phys_part.to_string()),
+                ("size_in_bytes", &size.to_string()),
+                ("start_sector", start_sector),
+                ("value", value),
+            ],
+        )?;
+        if resp.contains("value=\"ACK\"") {
+            Ok(())
+        } else {
+            Err(EdlError::Nack("patch".to_owned()))
+        }
+    }
+
+    /// Reads the GPT area (LBA 0..34) and lists the partitions:
+    /// names with their LBA ranges, for the erase UI and logs.
+    pub fn gpt_list(&mut self, phys_part: u8) -> Result<Vec<crate::mediatek::gpt::GptPartition>> {
+        let sectors = 34;
+        let data = self.read(phys_part, "0", sectors)?;
+        crate::mediatek::gpt::parse_gpt(&data, self.sector_size)
+            .map_err(|e| EdlError::Io(std::io::Error::other(e.to_string())))
+    }
+
     /// Reboots the device.
     pub fn reset(&mut self) -> Result<()> {
         self.xml_command("power", &[("value", "reboot")])?;
@@ -596,5 +654,43 @@ mod tests {
         let mut out = xml.into_bytes();
         out.push(0);
         out
+    }
+
+    #[test]
+    fn erase_patch_and_gpt_over_mock() {
+        let mut mock = MockLink::new();
+        let gpt_ref =
+            crate::mediatek::gpt::build_gpt_image(&[("modem", 34, 1000), ("boot", 1001, 2000)]);
+        let state = RefCell::new(0u8);
+        mock.device = Some(Box::new(move |out, input| {
+            let _st = state.borrow_mut();
+            let text = String::from_utf8_lossy(input);
+            if text.contains("<erase") {
+                out.extend(ack_xml("erase"));
+            } else if text.contains("<patch") {
+                out.extend(ack_xml("patch"));
+            } else if text.contains("<read") {
+                out.extend(ack_xml("read"));
+                out.extend(&gpt_ref);
+                out.extend(ack_xml("read end"));
+            } else if text.contains("<configure") || text.contains("<nop") {
+                out.extend(ack_xml("cmd"));
+            }
+        }));
+        let mut fh = Firehose::new(Box::new(mock));
+        fh.configure("ufs").unwrap();
+
+        // erase: one XML command, LBA range carried in attributes
+        fh.erase(0, 34, 1023).unwrap();
+
+        // patch: DISK filename, byte offset inside the sector
+        fh.patch(0, 440, 8, "1", "0x1234ABCD567890EF").unwrap();
+
+        // gpt list: read sectors 0..34 and parse
+        let parts = fh.gpt_list(0).unwrap();
+        assert_eq!(parts.len(), 2);
+        assert_eq!(parts[0].name, "modem");
+        assert_eq!(parts[0].first_lba, 34);
+        assert_eq!(parts[1].name, "boot");
     }
 }

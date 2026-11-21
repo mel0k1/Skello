@@ -89,6 +89,29 @@ pub fn find_partition(parts: &[GptPartition], name: &str, lba_size: usize) -> Op
         .map(|p| (p.first_lba * lba, (p.last_lba - p.first_lba + 1) * lba))
 }
 
+/// Builds a GPT disk image for tests: protective MBR, header at LBA 1
+/// and entries laid out at LBA 2, all sectors 512 bytes.
+#[cfg(test)]
+pub(crate) fn build_gpt_image(entries: &[(&str, u64, u64)]) -> Vec<u8> {
+    let lba = 512usize;
+    let mut disk = vec![0u8; lba * 34];
+    disk[lba..lba + 8].copy_from_slice(b"EFI PART");
+    // entry array at LBA 2, count and size
+    disk[lba + 72..lba + 80].copy_from_slice(&2u64.to_le_bytes());
+    disk[lba + 80..lba + 84].copy_from_slice(&(entries.len() as u32).to_le_bytes());
+    disk[lba + 84..lba + 88].copy_from_slice(&128u32.to_le_bytes());
+    for (i, (name, first, last)) in entries.iter().enumerate() {
+        let base = 2 * lba + i * 128;
+        disk[base..base + 16].fill(0x11); // non-zero type GUID
+        disk[base + 32..base + 40].copy_from_slice(&first.to_le_bytes());
+        disk[base + 40..base + 48].copy_from_slice(&last.to_le_bytes());
+        for (j, c) in name.encode_utf16().enumerate() {
+            disk[base + 56 + j * 2..base + 58 + j * 2].copy_from_slice(&c.to_le_bytes());
+        }
+    }
+    disk
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
