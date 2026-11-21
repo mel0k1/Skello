@@ -1,9 +1,13 @@
 [package]
 name = "skello-adb"
-description = "ADB wire protocol and adb-server client for Skello"
+description = "ADB wire protocol, USB transport and adb-server client for Skello"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
-crc32fast = { workspace = true }
+base64 = "0.22"
+nusb = "0.2.9"
+rand = "0.8"
+rsa = { version = "0.9", features = ["sha1"] }
+sha1 = "0.10"

@@ -139,6 +139,12 @@ impl UsbFastboot {
         })
     }
 
+    /// Overrides the response read timeout, e.g. for `flashing:unlock`
+    /// where the device waits for an on-phone confirmation.
+    pub fn set_read_timeout(&mut self, timeout: Duration) {
+        self.read.set_read_timeout(timeout);
+    }
+
     fn send_raw(&mut self, data: &[u8]) -> Result<(), UsbError> {
         self.write
             .write_all(data)

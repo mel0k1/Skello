@@ -1,6 +1,11 @@
 use std::fmt;
 
+pub mod auth;
 pub mod server;
+pub mod usb;
+
+pub use auth::{android_pubkey_encode, AdbKeys};
+pub use usb::{adb_usb_device_state, adb_usb_serials, load_adb_keys, AdbError, UsbAdb};
 
 pub const A_SYNC: u32 = 0x434e_5953;
 pub const A_CNXN: u32 = 0x4e58_4e43;
@@ -14,12 +19,23 @@ pub const A_STLS: u32 = 0x534c_5453;
 pub const A_VERSION: u32 = 0x0100_0001;
 pub const A_VERSION_MIN: u32 = 0x0100_0000;
 
+pub const AUTH_TOKEN: u32 = 1;
+pub const AUTH_SIGNATURE: u32 = 2;
+pub const AUTH_RSAPUBLICKEY: u32 = 3;
+
 pub const MAX_PAYLOAD_V1: u32 = 4 * 1024;
 pub const MAX_PAYLOAD: u32 = 1024 * 1024;
 
 pub const TOKEN_SIZE: usize = 20;
 
 pub const HEADER_SIZE: usize = 24;
+
+/// adb wire checksum: the sum of all payload bytes modulo 2^32.
+pub fn data_checksum(payload: &[u8]) -> u32 {
+    payload
+        .iter()
+        .fold(0u32, |acc, b| acc.wrapping_add(*b as u32))
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Message {
@@ -38,7 +54,7 @@ impl Message {
             arg0,
             arg1,
             data_length: payload.len().min(u32::MAX as usize) as u32,
-            data_check: crc32fast::hash(payload),
+            data_check: data_checksum(payload),
             magic: !command,
         }
     }
@@ -140,6 +156,16 @@ mod tests {
             Message::decode(&[0u8; 8]),
             Err(DecodeError::TooShort(8))
         ));
+    }
+
+    #[test]
+    fn checksum_is_a_byte_sum() {
+        assert_eq!(data_checksum(&[1, 2, 3]), 6);
+        let msg = Message::new(A_WRTE, 1, 2, &[1, 2, 3]);
+        assert_eq!(msg.data_check, 6);
+        let decoded = Message::decode(&msg.encode()).unwrap();
+        assert_eq!(decoded.data_check, 6);
+        assert_eq!(Message::new(A_CNXN, 0, 0, &[]).data_check, 0);
     }
 
     #[test]
