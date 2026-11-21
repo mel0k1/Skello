@@ -23,6 +23,7 @@ pub const CMD_WRITE_DATA: u32 = 0x010004;
 pub const CMD_READ_DATA: u32 = 0x010005;
 pub const CMD_SHUTDOWN: u32 = 0x010007;
 pub const CMD_DEVICE_CTRL: u32 = 0x010009;
+pub const CMD_BOOT_TO: u32 = 0x010008;
 pub const CMD_GET_PACKET_LENGTH: u32 = 0x040007;
 
 /// DA extension commands (mtkclient xflash.py custom_readregister /
@@ -33,8 +34,13 @@ pub const CMD_CUSTOM_WRITEREGISTER: u32 = 0x0F0004;
 
 /// Storage types (DaStorage): eMMC is 1 for the common devices.
 pub const STORAGE_EMMC: u32 = 1;
-/// eMMC user area partition (EmmcPartitionType).
+/// eMMC partition areas (EmmcPartitionType): user area plus the
+/// hardware partitions the DA can address.
 pub const PART_USER: u32 = 0;
+pub const PART_BOOT1: u32 = 1;
+pub const PART_BOOT2: u32 = 2;
+/// The Replay Protected Memory Block (parttype 3, mtkclient).
+pub const PART_RPMB: u32 = 3;
 
 const IO_TIMEOUT: Duration = Duration::from_secs(10);
 const BOOT_TIMEOUT: Duration = Duration::from_secs(30);
@@ -99,6 +105,8 @@ pub struct XFlash {
     link: Box<dyn Link>,
     pub write_packet_length: usize,
     pub read_packet_length: usize,
+    #[cfg(test)]
+    last_parttype: std::cell::Cell<u32>,
 }
 
 impl XFlash {
@@ -107,6 +115,8 @@ impl XFlash {
             link,
             write_packet_length: 0x20000,
             read_packet_length: 0x20000,
+            #[cfg(test)]
+            last_parttype: std::cell::Cell::new(0),
         }
     }
 
@@ -246,7 +256,9 @@ impl XFlash {
         Ok(())
     }
 
-    fn cmd_read_data(&mut self, addr: u64, length: usize) -> Result<()> {
+    fn cmd_read_data(&mut self, addr: u64, length: usize, parttype: u32) -> Result<()> {
+        #[cfg(test)]
+        self.last_parttype.set(parttype);
         self.xsend_u32(CMD_READ_DATA)?;
         let status = self.status()?;
         if status != 0 {
@@ -254,14 +266,16 @@ impl XFlash {
         }
         let mut param = Vec::new();
         param.extend_from_slice(&STORAGE_EMMC.to_le_bytes());
-        param.extend_from_slice(&PART_USER.to_le_bytes());
+        param.extend_from_slice(&parttype.to_le_bytes());
         param.extend_from_slice(&addr.to_le_bytes());
         param.extend_from_slice(&(length as u64).to_le_bytes());
         param.extend_from_slice(&[0u8; 32]); // NAND extension block
         self.send_params(&[&param])
     }
 
-    fn cmd_write_data(&mut self, addr: u64, size: usize) -> Result<()> {
+    fn cmd_write_data(&mut self, addr: u64, size: usize, parttype: u32) -> Result<()> {
+        #[cfg(test)]
+        self.last_parttype.set(parttype);
         self.xsend_u32(CMD_WRITE_DATA)?;
         let status = self.status()?;
         if status != 0 {
@@ -269,7 +283,7 @@ impl XFlash {
         }
         let mut param = Vec::new();
         param.extend_from_slice(&STORAGE_EMMC.to_le_bytes());
-        param.extend_from_slice(&PART_USER.to_le_bytes());
+        param.extend_from_slice(&parttype.to_le_bytes());
         param.extend_from_slice(&addr.to_le_bytes());
         param.extend_from_slice(&(size as u64).to_le_bytes());
         param.extend_from_slice(&[0u8; 32]);
@@ -278,7 +292,13 @@ impl XFlash {
 
     /// Reads `length` bytes at `addr` from the eMMC user area.
     pub fn readflash(&mut self, addr: u64, length: usize) -> Result<Vec<u8>> {
-        self.cmd_read_data(addr, length)?;
+        self.readflash_pt(addr, length, PART_USER)
+    }
+
+    /// Reads through the DA from any partition area: user, boot1 /
+    /// boot2 or the RPMB block (parttype 3, mtkclient).
+    pub fn readflash_pt(&mut self, addr: u64, length: usize, parttype: u32) -> Result<Vec<u8>> {
+        self.cmd_read_data(addr, length, parttype)?;
         let mut out = Vec::with_capacity(length);
         while out.len() < length {
             let mut hdr = [0u8; 12];
@@ -310,11 +330,16 @@ impl XFlash {
 
     /// Writes data to `addr` in the eMMC user area, padded to 512.
     pub fn writeflash(&mut self, addr: u64, data: &[u8]) -> Result<()> {
+        self.writeflash_pt(addr, data, PART_USER)
+    }
+
+    /// Writes to any partition area: user, boot1 / boot2 or RPMB.
+    pub fn writeflash_pt(&mut self, addr: u64, data: &[u8], parttype: u32) -> Result<()> {
         let mut payload = data.to_vec();
         if !payload.len().is_multiple_of(512) {
             payload.resize(payload.len() + (512 - payload.len() % 512), 0);
         }
-        self.cmd_write_data(addr, payload.len())?;
+        self.cmd_write_data(addr, payload.len(), parttype)?;
         let mut pos = 0;
         while pos < payload.len() {
             let dsize = (payload.len() - pos).min(self.write_packet_length);
@@ -329,6 +354,50 @@ impl XFlash {
         let status = self.status()?;
         if status != 0 {
             return Err(XFlashError::CommandFailed(status, "write end"));
+        }
+        Ok(())
+    }
+
+    /// `BOOT_TO` over the running DA: writes `data` at `addr` and
+    /// jumps there (the Carbonara hash re-marking and stage 2 boot).
+    /// The new stage announces itself with the sync signal.
+    pub fn boot_to(&mut self, addr: u32, data: &[u8]) -> Result<()> {
+        self.xsend_u32(CMD_BOOT_TO)?;
+        let status = self.status()?;
+        if status != 0 {
+            return Err(XFlashError::CommandFailed(status, "boot_to"));
+        }
+        let mut param = Vec::with_capacity(16);
+        param.extend_from_slice(&(addr as u64).to_le_bytes());
+        param.extend_from_slice(&(data.len() as u64).to_le_bytes());
+        self.xsend(&param)?;
+        self.send_data(data)?;
+        std::thread::sleep(Duration::from_millis(500));
+        let status = match self.status() {
+            Ok(status) => status,
+            Err(_) => return Err(XFlashError::CommandFailed(1, "boot_to stage")),
+        };
+        if status == SYNC_SIGNAL || status == 0 {
+            return Ok(());
+        }
+        Err(XFlashError::CommandFailed(status, "boot_to stage"))
+    }
+
+    /// One raw data stream after a command: the length goes out as a
+    /// packet header, the payload follows unframed, then the DA
+    /// answers with a status.
+    fn send_data(&mut self, data: &[u8]) -> Result<()> {
+        let mut hdr = Vec::with_capacity(12);
+        hdr.extend_from_slice(&XFLASH_MAGIC.to_le_bytes());
+        hdr.extend_from_slice(&DT_PROTOCOL_FLOW.to_le_bytes());
+        hdr.extend_from_slice(&(data.len() as u32).to_le_bytes());
+        self.link.write_all(&hdr)?;
+        for chunk in data.chunks(self.write_packet_length.max(1)) {
+            self.link.write_all(chunk)?;
+        }
+        let status = self.status()?;
+        if status != 0 {
+            return Err(XFlashError::CommandFailed(status, "send_data"));
         }
         Ok(())
     }
@@ -401,6 +470,11 @@ impl XFlash {
             .map_err(|e| XFlashError::Io(std::io::Error::other(e.to_string())))
     }
 
+    #[cfg(test)]
+    pub(crate) fn check_last_parttype(&self, pred: impl Fn(u32) -> bool) -> bool {
+        pred(self.last_parttype.get())
+    }
+
     /// Full unlock helper over real hardware: BROM port, stock DA from
     /// the loader file, seccfg through the GPT, local V3 software-SEJ
     /// patch or the V4 patch signed by the on-chip SEJ engine through
@@ -416,6 +490,55 @@ impl XFlash {
                 crate::mediatek::brom::PID_DA,
             )
         })
+    }
+
+    /// Boots the stock DA and reads the RPMB block (parttype 3):
+    /// devices whose DA refuses RPMB without a provisioned key fail
+    /// with the DA status.
+    pub fn rpmb_read_with(
+        brom: &mut Brom,
+        loader_path: &str,
+        addr: u64,
+        length: usize,
+    ) -> Result<Vec<u8>> {
+        let mut xflash = Self::session_from_brom(brom, loader_path)?;
+        let data = xflash.readflash_pt(addr, length, PART_RPMB)?;
+        let _ = xflash.shutdown();
+        Ok(data)
+    }
+
+    /// Boots the stock DA and writes to the RPMB block.
+    pub fn rpmb_write_with(
+        brom: &mut Brom,
+        loader_path: &str,
+        addr: u64,
+        data: &[u8],
+    ) -> Result<String> {
+        let mut xflash = Self::session_from_brom(brom, loader_path)?;
+        xflash.writeflash_pt(addr, data, PART_RPMB)?;
+        let _ = xflash.shutdown();
+        Ok(format!("{} bytes written to rpmb", data.len()))
+    }
+
+    /// BROM handshake, stock DA upload and jump, session init: the
+    /// common prefix of the parttype flows.
+    fn session_from_brom(brom: &mut Brom, loader_path: &str) -> Result<XFlash> {
+        brom.handshake()?;
+        let (hw_code, _sub) = brom.get_hw_code()?;
+        let (loader, bytes) = pick_loader(loader_path, hw_code)
+            .map_err(|e| XFlashError::Io(std::io::Error::other(e.to_string())))?;
+        let s1 = loader.stage1().ok_or(XFlashError::NoStorage)?;
+        let da1 = stage_image(&bytes, s1)
+            .map_err(|e| XFlashError::Io(std::io::Error::other(e.to_string())))?;
+        brom.send_da(s1.start_addr, s1.sig_len, &da1)?;
+        brom.jump_da(s1.start_addr)?;
+        let link = crate::transport::open_usb_serial(
+            crate::mediatek::brom::VID_MEDIATEK,
+            crate::mediatek::brom::PID_DA,
+        )?;
+        let mut xflash = XFlash::new(link);
+        xflash.init_after_jump()?;
+        Ok(xflash)
     }
 
     /// Same flow over an already established BROM link; `da_open`
@@ -668,6 +791,7 @@ mod tests {
         sync_sent: bool,
         reading: bool,
         expect_value_only: bool,
+        last_parttype: u32,
     }
 
     impl DaMock {
@@ -752,6 +876,7 @@ mod tests {
             // flash read: consume the host acks between data packets
             if self.expect_read_param {
                 self.expect_read_param = false;
+                self.last_parttype = u32::from_le_bytes(body[4..8].try_into().unwrap());
                 self.read_addr = u64::from_le_bytes(body[8..16].try_into().unwrap());
                 self.read_len = u64::from_le_bytes(body[16..24].try_into().unwrap()) as usize;
                 // the param packet itself is answered with a status
@@ -847,6 +972,27 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn rpmb_read_carries_the_partition_area() {
+        let loader_path = std::env::temp_dir().join("skello_test_loader_rpmb.bin");
+        std::fs::write(&loader_path, build_loader(0x6572)).unwrap();
+        let mut brom = Brom::new(Box::new(mock_brom()));
+        let da_open = || -> std::result::Result<Box<dyn Link>, crate::transport::LinkError> {
+            Ok(Box::new(mock_da()))
+        };
+        // drive the session manually: init, GPT, then an RPMB read
+        brom.handshake().unwrap();
+        let (hw_code, _sub) = brom.get_hw_code().unwrap();
+        assert_eq!(hw_code, 0x6572);
+        let link = da_open().unwrap();
+        let mut xflash = XFlash::new(link);
+        xflash.init_after_jump().unwrap();
+        let rpmb = xflash.readflash_pt(0, 0x400, PART_RPMB).unwrap();
+        assert_eq!(rpmb.len(), 0x400);
+        assert!(xflash.check_last_parttype(|t| t == PART_RPMB));
+        let _ = std::fs::remove_file(&loader_path);
     }
 
     #[test]
