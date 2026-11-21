@@ -256,7 +256,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-        find.text('The device did not come back in time — check it manually'),
-        findsOneWidget);
+      find.text('The device did not come back in time — check it manually'),
+      findsOneWidget,
+    );
   });
 }

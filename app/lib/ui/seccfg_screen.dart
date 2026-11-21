@@ -37,8 +37,9 @@ class _SeccfgScreenState extends State<SeccfgScreen> {
       _error = null;
     });
     try {
-      final status =
-          await widget.repository.mediatekSeccfgStatus(widget.serial);
+      final status = await widget.repository.mediatekSeccfgStatus(
+        widget.serial,
+      );
       if (!mounted) return;
       setState(() {
         _status = status;
@@ -83,8 +84,9 @@ class _SeccfgScreenState extends State<SeccfgScreen> {
       _error = null;
     });
     try {
-      final message =
-          await widget.repository.mediatekSeccfgUnlock(widget.serial);
+      final message = await widget.repository.mediatekSeccfgUnlock(
+        widget.serial,
+      );
       if (!mounted) return;
       setState(() {
         _result = message;
@@ -115,8 +117,10 @@ class _SeccfgScreenState extends State<SeccfgScreen> {
             if (_error != null) ...[
               Text(
                 strings.seccfgFailed,
-                style:
-                    TextStyle(color: scheme.error, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: scheme.error,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 8),
               SelectableText(
@@ -158,13 +162,12 @@ class _SeccfgScreenState extends State<SeccfgScreen> {
               Text(
                 strings.seccfgUnlockDone,
                 style: TextStyle(
-                    color: scheme.primary, fontWeight: FontWeight.w600),
+                  color: scheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 8),
-              SelectableText(
-                _result!,
-                style: const TextStyle(fontSize: 12),
-              ),
+              SelectableText(_result!, style: const TextStyle(fontSize: 12)),
             ],
             const SizedBox(height: 16),
             Text(

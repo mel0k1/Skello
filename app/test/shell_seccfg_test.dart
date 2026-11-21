@@ -73,8 +73,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Patch seccfg?'), findsOneWidget);
     expect(find.text('Cancel'), findsOneWidget);
-    await tester
-        .tap(find.widgetWithText(FilledButton, 'Unlock (seccfg)').last);
+    await tester.tap(find.widgetWithText(FilledButton, 'Unlock (seccfg)').last);
     await tester.pumpAndSettle();
 
     expect(find.text('seccfg patched to unlocked'), findsOneWidget);

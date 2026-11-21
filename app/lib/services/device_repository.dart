@@ -43,12 +43,17 @@ class DeviceRepository {
       try {
         final keysDir = await _keysDir();
         if (keysDir != null) {
-          await CommandLog.instance
-              .write('adb-usb', '>> enumerate + handshake');
-          for (final status
-              in await adb_usb_api.adbUsbStatus(keysDir: keysDir)) {
-            await CommandLog.instance
-                .write('adb-usb', '<< ${status.serial}: ${status.state}');
+          await CommandLog.instance.write(
+            'adb-usb',
+            '>> enumerate + handshake',
+          );
+          for (final status in await adb_usb_api.adbUsbStatus(
+            keysDir: keysDir,
+          )) {
+            await CommandLog.instance.write(
+              'adb-usb',
+              '<< ${status.serial}: ${status.state}',
+            );
             usb.add(AdbDevice(status.serial, status.state));
           }
         }
@@ -82,8 +87,10 @@ class DeviceRepository {
     if (rustCore.ready) {
       try {
         final serials = await fastboot_usb_api.fastbootUsbDevices();
-        await CommandLog.instance
-            .write('fastboot-usb', '<< ${serials.join(', ')}');
+        await CommandLog.instance.write(
+          'fastboot-usb',
+          '<< ${serials.join(', ')}',
+        );
         final seen = binary.map((d) => d.serial).toSet();
         for (final serial in serials) {
           if (!seen.contains(serial)) {
@@ -117,20 +124,26 @@ class DeviceRepository {
           serial: serial,
           name: name,
         );
-        await CommandLog.instance
-            .write('fastboot-usb', '>> getvar:$name << $value');
+        await CommandLog.instance.write(
+          'fastboot-usb',
+          '>> getvar:$name << $value',
+        );
         return value;
       } catch (e) {
-        await CommandLog.instance
-            .write('fastboot-usb', '>> getvar:$name << failed: $e');
+        await CommandLog.instance.write(
+          'fastboot-usb',
+          '>> getvar:$name << failed: $e',
+        );
       }
       try {
         final value = await fastboot_api.fastbootGetvar(
           serial: serial,
           name: name,
         );
-        await CommandLog.instance
-            .write('fastboot', '>> getvar:$name << $value');
+        await CommandLog.instance.write(
+          'fastboot',
+          '>> getvar:$name << $value',
+        );
         return value;
       } catch (_) {
         return _systemFastbootVar(serial, name);
@@ -218,8 +231,10 @@ class DeviceRepository {
   Future<void> fastbootUnlock(String serial) async {
     if (rustCore.ready) {
       try {
-        await CommandLog.instance
-            .write('fastboot-usb', '>> flashing:unlock on $serial');
+        await CommandLog.instance.write(
+          'fastboot-usb',
+          '>> flashing:unlock on $serial',
+        );
         await fastboot_usb_api.fastbootUsbUnlock(serial: serial);
         await CommandLog.instance.write('fastboot-usb', '<< ok');
         return;
@@ -258,8 +273,10 @@ class DeviceRepository {
     }
     if (rustCore.ready) {
       try {
-        await CommandLog.instance
-            .write('fastboot-usb', '>> erase:$partition on $serial');
+        await CommandLog.instance.write(
+          'fastboot-usb',
+          '>> erase:$partition on $serial',
+        );
         final output = await fastboot_usb_api.fastbootUsbErase(
           serial: serial,
           partition: partition,
@@ -285,8 +302,10 @@ class DeviceRepository {
       partition,
     ]);
     final output = '${result.stdout}${result.stderr}'.trim();
-    await CommandLog.instance
-        .write('fastboot', '<< exit ${result.exitCode}: $output');
+    await CommandLog.instance.write(
+      'fastboot',
+      '<< exit ${result.exitCode}: $output',
+    );
     if (result.exitCode != 0) {
       throw Exception('fastboot erase failed: $output');
     }
@@ -308,16 +327,20 @@ class DeviceRepository {
     }
     final socOk = await fastbootVar(serial, 'battery-soc-ok');
     if (socOk != null && socOk.toLowerCase() != 'yes') {
-      await CommandLog.instance
-          .write('flash', 'battery-soc-ok = $socOk, refuse');
+      await CommandLog.instance.write(
+        'flash',
+        'battery-soc-ok = $socOk, refuse',
+      );
       throw const BatteryNotReady();
     }
     final maxSize = await fastbootVar(serial, 'max-download-size');
     final maxBytes = maxSize == null ? null : parseDownloadSize(maxSize);
     final imageSize = await File(imagePath).length();
     if (maxBytes != null && imageSize > maxBytes) {
-      await CommandLog.instance
-          .write('flash', 'image $imageSize > max $maxBytes, refuse');
+      await CommandLog.instance.write(
+        'flash',
+        'image $imageSize > max $maxBytes, refuse',
+      );
       throw DownloadTooBig(maxBytes, imageSize);
     }
     if (rustCore.ready) {
@@ -335,8 +358,10 @@ class DeviceRepository {
       imagePath,
     ]);
     final output = '${result.stdout}${result.stderr}'.trim();
-    await CommandLog.instance
-        .write('flash', '<< exit ${result.exitCode}: $output');
+    await CommandLog.instance.write(
+      'flash',
+      '<< exit ${result.exitCode}: $output',
+    );
     if (result.exitCode != 0) {
       throw Exception('fastboot flash failed: $output');
     }
@@ -355,13 +380,17 @@ class DeviceRepository {
             keysDir: keysDir,
             command: command,
           );
-          await CommandLog.instance
-              .write('adb-usb', '>> shell:$command << ${out.length} bytes');
+          await CommandLog.instance.write(
+            'adb-usb',
+            '>> shell:$command << ${out.length} bytes',
+          );
           return out;
         }
       } catch (e) {
-        await CommandLog.instance
-            .write('adb-usb', '>> shell:$command << failed: $e');
+        await CommandLog.instance.write(
+          'adb-usb',
+          '>> shell:$command << failed: $e',
+        );
       }
     }
     final result = await Process.run('adb', ['-s', serial, 'shell', command]);
@@ -391,8 +420,10 @@ class DeviceRepository {
         serial: serial,
         keysDir: keysDir,
       );
-      await CommandLog.instance
-          .write('mediatek', '<< ${report.state} (${report.version})');
+      await CommandLog.instance.write(
+        'mediatek',
+        '<< ${report.state} (${report.version})',
+      );
       return SeccfgStatus(report.version, report.state, report.detail);
     } catch (e) {
       await CommandLog.instance.write('mediatek', '<< failed: $e');
@@ -458,17 +489,21 @@ class DeviceRepository {
         if (event.phase == 'done') {
           if (!done.isCompleted) {
             done.complete(event.message);
-            CommandLog.instance
-                .write('flash', '<< ${event.message.replaceAll('\n', ' | ')}');
+            CommandLog.instance.write(
+              'flash',
+              '<< ${event.message.replaceAll('\n', ' | ')}',
+            );
           }
         } else if (onProgress != null) {
           final sent = event.sent.toInt();
           final total = event.total.toInt();
-          onProgress(FlashProgressEvent(
-            sent,
-            total,
-            sent >= total && total > 0 ? 'flash' : event.phase,
-          ));
+          onProgress(
+            FlashProgressEvent(
+              sent,
+              total,
+              sent >= total && total > 0 ? 'flash' : event.phase,
+            ),
+          );
         }
       },
       onError: (Object error) {

@@ -26,8 +26,11 @@ class CommandLog {
     final stamp = DateTime.now().toUtc().toIso8601String();
     final flat = message.replaceAll('\n', r'\n');
     try {
-      await file.writeAsString('$stamp [$source] $flat\n',
-          mode: FileMode.append, flush: true);
+      await file.writeAsString(
+        '$stamp [$source] $flat\n',
+        mode: FileMode.append,
+        flush: true,
+      );
     } catch (_) {}
   }
 
@@ -36,9 +39,7 @@ class CommandLog {
     _resolved = true;
     try {
       final dir = await getApplicationSupportDirectory();
-      _file = File(
-        '${dir.path}${Platform.pathSeparator}skello-commands.log',
-      );
+      _file = File('${dir.path}${Platform.pathSeparator}skello-commands.log');
     } catch (_) {
       _file = null;
     }

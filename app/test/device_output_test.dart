@@ -3,7 +3,8 @@ import 'package:skello/services/device_output.dart';
 
 void main() {
   test('parses adb device lines', () {
-    const output = 'List of devices attached\n'
+    const output =
+        'List of devices attached\n'
         '* daemon started successfully\n'
         'R58N60ABCD\tsideload\n'
         'emulator-5554\toffline\n';

@@ -7,8 +7,9 @@ void main() {
   test('writes timestamped flattened lines to the log file', () async {
     final dir = await Directory.systemTemp.createTemp('skello-log');
     addTearDown(() => dir.delete(recursive: true));
-    final file =
-        File('${dir.path}${Platform.pathSeparator}skello-commands.log');
+    final file = File(
+      '${dir.path}${Platform.pathSeparator}skello-commands.log',
+    );
     final log = CommandLog();
     log.bindFileForTesting(file);
     await log.write('fastboot-usb', '>> getvar:unlocked << yes');

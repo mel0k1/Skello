@@ -9,6 +9,7 @@
 import 'api/adb.dart';
 import 'api/adb_usb.dart';
 import 'api/bootimg.dart';
+import 'api/chipsets.dart';
 import 'api/fastboot.dart';
 import 'api/fastboot_usb.dart';
 import 'api/log.dart';
@@ -49,6 +50,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
+  ChipsetPorts dco_decode_chipset_ports(dynamic raw);
+
+  @protected
   FlashProgress dco_decode_flash_progress(dynamic raw);
 
   @protected
@@ -61,10 +65,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  List<ProgramEntry> dco_decode_list_program_entry(dynamic raw);
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  ProgramEntry dco_decode_program_entry(dynamic raw);
 
   @protected
   SeccfgReport dco_decode_seccfg_report(dynamic raw);
@@ -104,6 +114,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
+  ChipsetPorts sse_decode_chipset_ports(SseDeserializer deserializer);
+
+  @protected
   FlashProgress sse_decode_flash_progress(SseDeserializer deserializer);
 
   @protected
@@ -117,10 +130,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  List<ProgramEntry> sse_decode_list_program_entry(
+      SseDeserializer deserializer);
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  ProgramEntry sse_decode_program_entry(SseDeserializer deserializer);
 
   @protected
   SeccfgReport sse_decode_seccfg_report(SseDeserializer deserializer);
@@ -164,6 +184,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
+  void sse_encode_chipset_ports(ChipsetPorts self, SseSerializer serializer);
+
+  @protected
   void sse_encode_flash_progress(FlashProgress self, SseSerializer serializer);
 
   @protected
@@ -178,10 +201,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       Uint8List self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_program_entry(
+      List<ProgramEntry> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_program_entry(ProgramEntry self, SseSerializer serializer);
 
   @protected
   void sse_encode_seccfg_report(SeccfgReport self, SseSerializer serializer);
