@@ -4,7 +4,6 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
-
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`
@@ -12,27 +11,19 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Future<List<AdbUsbStatus>> adbUsbStatus({required String keysDir}) =>
     RustLib.instance.api.crateApiAdbUsbAdbUsbStatus(keysDir: keysDir);
 
-Future<String> adbUsbShell({
-  required String serial,
-  required String keysDir,
-  required String command,
-}) =>
+Future<String> adbUsbShell(
+        {required String serial,
+        required String keysDir,
+        required String command}) =>
     RustLib.instance.api.crateApiAdbUsbAdbUsbShell(
-      serial: serial,
-      keysDir: keysDir,
-      command: command,
-    );
+        serial: serial, keysDir: keysDir, command: command);
 
-Future<void> adbUsbReboot({
-  required String serial,
-  required String keysDir,
-  required String target,
-}) =>
+Future<void> adbUsbReboot(
+        {required String serial,
+        required String keysDir,
+        required String target}) =>
     RustLib.instance.api.crateApiAdbUsbAdbUsbReboot(
-      serial: serial,
-      keysDir: keysDir,
-      target: target,
-    );
+        serial: serial, keysDir: keysDir, target: target);
 
 /// State of one adb device found over USB: "device" after a successful
 /// handshake, "unauthorized" while the key is not accepted, "offline"
@@ -41,7 +32,10 @@ class AdbUsbStatus {
   final String serial;
   final String state;
 
-  const AdbUsbStatus({required this.serial, required this.state});
+  const AdbUsbStatus({
+    required this.serial,
+    required this.state,
+  });
 
   @override
   int get hashCode => serial.hashCode ^ state.hashCode;

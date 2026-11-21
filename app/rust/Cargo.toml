@@ -7,6 +7,8 @@ edition = "2021"
 crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
+base64 = "0.22"
+skello-chipsets = { path = "../../crates/skello-chipsets" }
 anyhow = "1"
 flutter_rust_bridge = "=2.13.0"
 skello-adb = { path = "../../crates/skello-adb" }

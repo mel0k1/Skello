@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 2119740260;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1706749061;
 
 // Section: executor
 
@@ -299,6 +299,42 @@ fn wire__crate__api__bootimg__boot_image_info_impl(
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
+            }
+        },
+    )
+}
+fn wire__crate__api__log__core_log_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "core_log",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_source = <String>::sse_decode(&mut deserializer);
+            let api_message = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Ok::<_, ()>({
+                        crate::api::log::core_log(&api_source, &api_message);
+                    })?;
+                    std::result::Result::Ok(output_ok)
+                })())
             }
         },
     )
@@ -782,6 +818,115 @@ fn wire__crate__api__init_app_impl(
         },
     )
 }
+fn wire__crate__api__mediatek__mediatek_seccfg_status_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "mediatek_seccfg_status",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_serial = <String>::sse_decode(&mut deserializer);
+            let api_keys_dir = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::mediatek::mediatek_seccfg_status(api_serial, api_keys_dir)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__mediatek__mediatek_seccfg_unlock_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "mediatek_seccfg_unlock",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_serial = <String>::sse_decode(&mut deserializer);
+            let api_keys_dir = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::mediatek::mediatek_seccfg_unlock(api_serial, api_keys_dir)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__log__set_core_log_file_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_core_log_file",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Ok::<_, ()>({
+                        crate::api::log::set_core_log_file(api_path);
+                    })?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 
 // Section: dart2rust
 
@@ -933,6 +1078,20 @@ impl SseDecode for Option<u32> {
     }
 }
 
+impl SseDecode for crate::api::mediatek::SeccfgReport {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_version = <String>::sse_decode(deserializer);
+        let mut var_state = <String>::sse_decode(deserializer);
+        let mut var_detail = <String>::sse_decode(deserializer);
+        return crate::api::mediatek::SeccfgReport {
+            version: var_version,
+            state: var_state,
+            detail: var_detail,
+        };
+    }
+}
+
 impl SseDecode for u32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -982,54 +1141,68 @@ fn pde_ffi_dispatcher_primary_impl(
         5 => wire__crate__api__adb_usb__adb_usb_shell_impl(port, ptr, rust_vec_len, data_len),
         6 => wire__crate__api__adb_usb__adb_usb_status_impl(port, ptr, rust_vec_len, data_len),
         7 => wire__crate__api__bootimg__boot_image_info_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__fastboot__fastboot_devices_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__fastboot__fastboot_erase_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__fastboot__fastboot_flash_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__fastboot_usb__fastboot_flash_usb_impl(
+        8 => wire__crate__api__log__core_log_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__fastboot__fastboot_devices_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__fastboot__fastboot_erase_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__fastboot__fastboot_flash_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__fastboot_usb__fastboot_flash_usb_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        12 => wire__crate__api__fastboot__fastboot_flashing_unlock_impl(
+        13 => wire__crate__api__fastboot__fastboot_flashing_unlock_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        13 => wire__crate__api__fastboot__fastboot_getvar_impl(port, ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__fastboot__fastboot_reboot_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__fastboot_usb__fastboot_usb_devices_impl(
+        14 => wire__crate__api__fastboot__fastboot_getvar_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__fastboot__fastboot_reboot_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__fastboot_usb__fastboot_usb_devices_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        16 => wire__crate__api__fastboot_usb__fastboot_usb_erase_impl(
+        17 => wire__crate__api__fastboot_usb__fastboot_usb_erase_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        17 => wire__crate__api__fastboot_usb__fastboot_usb_getvar_impl(
+        18 => wire__crate__api__fastboot_usb__fastboot_usb_getvar_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        18 => wire__crate__api__fastboot_usb__fastboot_usb_reboot_impl(
+        19 => wire__crate__api__fastboot_usb__fastboot_usb_reboot_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        19 => wire__crate__api__fastboot_usb__fastboot_usb_unlock_impl(
+        20 => wire__crate__api__fastboot_usb__fastboot_usb_unlock_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        20 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__mediatek__mediatek_seccfg_status_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        23 => wire__crate__api__mediatek__mediatek_seccfg_unlock_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        24 => wire__crate__api__log__set_core_log_file_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1116,6 +1289,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::fastboot_usb::FlashProgress>
     for crate::api::fastboot_usb::FlashProgress
 {
     fn into_into_dart(self) -> crate::api::fastboot_usb::FlashProgress {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::mediatek::SeccfgReport {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.version.into_into_dart().into_dart(),
+            self.state.into_into_dart().into_dart(),
+            self.detail.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::mediatek::SeccfgReport
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::mediatek::SeccfgReport>
+    for crate::api::mediatek::SeccfgReport
+{
+    fn into_into_dart(self) -> crate::api::mediatek::SeccfgReport {
         self
     }
 }
@@ -1232,6 +1427,15 @@ impl SseEncode for Option<u32> {
         if let Some(value) = self {
             <u32>::sse_encode(value, serializer);
         }
+    }
+}
+
+impl SseEncode for crate::api::mediatek::SeccfgReport {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.version, serializer);
+        <String>::sse_encode(self.state, serializer);
+        <String>::sse_encode(self.detail, serializer);
     }
 }
 
