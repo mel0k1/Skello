@@ -127,5 +127,29 @@
   "rebootWaiting": "Rebooting… waiting for the device to come back",
   "rebootBack": "The device is back in the system",
   "rebootTimeout": "The device did not come back in time — check it manually",
+  "shellMenu": "Shell",
+  "shellTitle": "Shell",
+  "shellHint": "adb shell command",
+  "shellSend": "Run",
+  "shellFailed": "Command failed",
+  "mediatekMenu": "MediaTek seccfg",
+  "seccfgTitle": "seccfg",
+  "seccfgStateLabel": "Lock state",
+  "seccfgVersionLabel": "Format",
+  "seccfgDetailLabel": "Detail",
+  "seccfgUnlockButton": "Unlock (seccfg)",
+  "seccfgUnlockConfirmTitle": "Patch seccfg?",
+  "seccfgUnlockConfirmBody": "Skello will read seccfg on {serial}, patch the lock flag to unlocked and write it back. Root access is required. A bad write can break the boot.",
+  "@seccfgUnlockConfirmBody": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "seccfgUnlockDone": "seccfg patched to unlocked",
+  "seccfgRootHint": "Root access is required to read the seccfg block device.",
+  "seccfgNeedsSejHint": "Only V3 partitions with the software SEJ key are patched locally; hardware-keyed partitions need the Download Agent stage, not implemented yet.",
+  "seccfgFailed": "seccfg failed",
   "cancelLabel": "Cancel"
 }

@@ -6,11 +6,21 @@ import 'package:skello/src/rust/api/adb.dart' as adb_api;
 import 'package:skello/src/rust/api/adb_usb.dart' as adb_usb_api;
 import 'package:skello/src/rust/api/fastboot.dart' as fastboot_api;
 import 'package:skello/src/rust/api/fastboot_usb.dart' as fastboot_usb_api;
+import 'package:skello/src/rust/api/mediatek.dart' as mediatek_api;
 
 import 'command_log.dart';
 import 'core.dart';
 import 'device_output.dart';
 import 'flash_errors.dart';
+
+/// MediaTek seccfg partition state reported by the Rust core.
+class SeccfgStatus {
+  const SeccfgStatus(this.version, this.state, this.detail);
+
+  final String version;
+  final String state;
+  final String detail;
+}
 
 /// Progress of a USB flash: `phase` is "download" while the image streams
 /// to the device, then "flash" while the device writes the partition.
@@ -331,6 +341,86 @@ class DeviceRepository {
       throw Exception('fastboot flash failed: $output');
     }
     return output;
+  }
+
+  /// Runs one adb shell command: USB transport first, then the adb
+  /// server binary.
+  Future<String> adbShell(String serial, String command) async {
+    if (rustCore.ready) {
+      try {
+        final keysDir = await _keysDir();
+        if (keysDir != null) {
+          final out = await adb_usb_api.adbUsbShell(
+            serial: serial,
+            keysDir: keysDir,
+            command: command,
+          );
+          await CommandLog.instance
+              .write('adb-usb', '>> shell:$command << ${out.length} bytes');
+          return out;
+        }
+      } catch (e) {
+        await CommandLog.instance
+            .write('adb-usb', '>> shell:$command << failed: $e');
+      }
+    }
+    final result = await Process.run('adb', ['-s', serial, 'shell', command]);
+    final out = result.stdout.toString();
+    await CommandLog.instance.write(
+      'adb',
+      '>> shell:$command << exit ${result.exitCode}: $out',
+    );
+    if (result.exitCode != 0) {
+      throw Exception('adb shell failed: ${result.stderr}');
+    }
+    return out;
+  }
+
+  /// Reads the MediaTek seccfg partition and reports the lock state.
+  Future<SeccfgStatus> mediatekSeccfgStatus(String serial) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    final keysDir = await _keysDir();
+    if (keysDir == null) {
+      throw Exception('app support directory unavailable');
+    }
+    await CommandLog.instance.write('mediatek', '>> status on $serial');
+    try {
+      final report = await mediatek_api.mediatekSeccfgStatus(
+        serial: serial,
+        keysDir: keysDir,
+      );
+      await CommandLog.instance
+          .write('mediatek', '<< ${report.state} (${report.version})');
+      return SeccfgStatus(report.version, report.state, report.detail);
+    } catch (e) {
+      await CommandLog.instance.write('mediatek', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Patches seccfg to unlocked over adb (rooted device).
+  Future<String> mediatekSeccfgUnlock(String serial) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    final keysDir = await _keysDir();
+    if (keysDir == null) {
+      throw Exception('app support directory unavailable');
+    }
+    await CommandLog.instance.write('mediatek', '>> unlock on $serial');
+    try {
+      final message = await mediatek_api.mediatekSeccfgUnlock(
+        serial: serial,
+        keysDir: keysDir,
+      );
+      await CommandLog.instance.write('mediatek', '<< ok');
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('mediatek', '<< failed: $e');
+      rethrow;
+    }
   }
 
   /// Waits until the device reappears in adb after a reboot.

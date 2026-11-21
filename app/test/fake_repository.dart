@@ -12,6 +12,9 @@ class FakeRepository implements DeviceRepository {
   List<FastbootDevice> fastboot;
   String? unlockedValue;
   bool comesBack = true;
+  bool rooted = true;
+  String seccfgState = 'locked';
+  String? shellOutput;
   final List<String> calls = [];
 
   @override
@@ -59,6 +62,31 @@ class FakeRepository implements DeviceRepository {
   Future<String> fastbootErase(String serial, String partition) async {
     calls.add('erase $serial $partition');
     return 'Erasing OKAY';
+  }
+
+  @override
+  Future<String> adbShell(String serial, String command) async {
+    calls.add('shell $serial $command');
+    if (shellOutput != null) return shellOutput!;
+    return 'ok';
+  }
+
+  @override
+  Future<SeccfgStatus> mediatekSeccfgStatus(String serial) async {
+    calls.add('seccfg-status $serial');
+    if (!rooted) throw Exception('root access required');
+    return SeccfgStatus('V3', seccfgState, 'body attr default');
+  }
+
+  @override
+  Future<String> mediatekSeccfgUnlock(String serial) async {
+    calls.add('seccfg-unlock $serial');
+    if (!rooted) throw Exception('root access required');
+    if (seccfgState == 'unlocked') {
+      throw Exception('seccfg bad header: already unlocked');
+    }
+    seccfgState = 'unlocked';
+    return 'seccfg patched to unlocked; reboot and verify';
   }
 
   @override

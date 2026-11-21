@@ -127,5 +127,29 @@
   "rebootWaiting": "Перезагрузка… жду, когда устройство вернётся",
   "rebootBack": "Устройство вернулось в систему",
   "rebootTimeout": "Устройство не вернулось за отведённое время — проверьте вручную",
+  "shellMenu": "Терминал",
+  "shellTitle": "Терминал",
+  "shellHint": "команда adb shell",
+  "shellSend": "Выполнить",
+  "shellFailed": "Команда не удалась",
+  "mediatekMenu": "MediaTek seccfg",
+  "seccfgTitle": "seccfg",
+  "seccfgStateLabel": "Состояние блокировки",
+  "seccfgVersionLabel": "Формат",
+  "seccfgDetailLabel": "Детали",
+  "seccfgUnlockButton": "Разблокировать (seccfg)",
+  "seccfgUnlockConfirmTitle": "Пропатчить seccfg?",
+  "seccfgUnlockConfirmBody": "Skello прочитает seccfg на {serial}, пропатчит флаг блокировки на unlocked и запишет обратно. Нужен root. Ошибка записи может испортить загрузку.",
+  "@seccfgUnlockConfirmBody": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "seccfgUnlockDone": "seccfg пропатчен на unlocked",
+  "seccfgRootHint": "Для чтения блочного устройства seccfg нужен root.",
+  "seccfgNeedsSejHint": "Локально патчатся только разделы V3 с программным ключом SEJ; разделы с аппаратным ключом требуют этап Download Agent, пока не реализован.",
+  "seccfgFailed": "Не удалось",
   "cancelLabel": "Отмена"
 }

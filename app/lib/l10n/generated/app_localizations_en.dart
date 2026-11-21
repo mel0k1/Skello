@@ -286,5 +286,60 @@ class AppLocalizationsEn extends AppLocalizations {
       'The device did not come back in time — check it manually';
 
   @override
+  String get shellMenu => 'Shell';
+
+  @override
+  String get shellTitle => 'Shell';
+
+  @override
+  String get shellHint => 'adb shell command';
+
+  @override
+  String get shellSend => 'Run';
+
+  @override
+  String get shellFailed => 'Command failed';
+
+  @override
+  String get mediatekMenu => 'MediaTek seccfg';
+
+  @override
+  String get seccfgTitle => 'seccfg';
+
+  @override
+  String get seccfgStateLabel => 'Lock state';
+
+  @override
+  String get seccfgVersionLabel => 'Format';
+
+  @override
+  String get seccfgDetailLabel => 'Detail';
+
+  @override
+  String get seccfgUnlockButton => 'Unlock (seccfg)';
+
+  @override
+  String get seccfgUnlockConfirmTitle => 'Patch seccfg?';
+
+  @override
+  String seccfgUnlockConfirmBody(String serial) {
+    return 'Skello will read seccfg on $serial, patch the lock flag to unlocked and write it back. Root access is required. A bad write can break the boot.';
+  }
+
+  @override
+  String get seccfgUnlockDone => 'seccfg patched to unlocked';
+
+  @override
+  String get seccfgRootHint =>
+      'Root access is required to read the seccfg block device.';
+
+  @override
+  String get seccfgNeedsSejHint =>
+      'Only V3 partitions with the software SEJ key are patched locally; hardware-keyed partitions need the Download Agent stage, not implemented yet.';
+
+  @override
+  String get seccfgFailed => 'seccfg failed';
+
+  @override
   String get cancelLabel => 'Cancel';
 }

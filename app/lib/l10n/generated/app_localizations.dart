@@ -596,6 +596,108 @@ abstract class AppLocalizations {
   /// **'The device did not come back in time — check it manually'**
   String get rebootTimeout;
 
+  /// No description provided for @shellMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Shell'**
+  String get shellMenu;
+
+  /// No description provided for @shellTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shell'**
+  String get shellTitle;
+
+  /// No description provided for @shellHint.
+  ///
+  /// In en, this message translates to:
+  /// **'adb shell command'**
+  String get shellHint;
+
+  /// No description provided for @shellSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Run'**
+  String get shellSend;
+
+  /// No description provided for @shellFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Command failed'**
+  String get shellFailed;
+
+  /// No description provided for @mediatekMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'MediaTek seccfg'**
+  String get mediatekMenu;
+
+  /// No description provided for @seccfgTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'seccfg'**
+  String get seccfgTitle;
+
+  /// No description provided for @seccfgStateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock state'**
+  String get seccfgStateLabel;
+
+  /// No description provided for @seccfgVersionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Format'**
+  String get seccfgVersionLabel;
+
+  /// No description provided for @seccfgDetailLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Detail'**
+  String get seccfgDetailLabel;
+
+  /// No description provided for @seccfgUnlockButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock (seccfg)'**
+  String get seccfgUnlockButton;
+
+  /// No description provided for @seccfgUnlockConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Patch seccfg?'**
+  String get seccfgUnlockConfirmTitle;
+
+  /// No description provided for @seccfgUnlockConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Skello will read seccfg on {serial}, patch the lock flag to unlocked and write it back. Root access is required. A bad write can break the boot.'**
+  String seccfgUnlockConfirmBody(String serial);
+
+  /// No description provided for @seccfgUnlockDone.
+  ///
+  /// In en, this message translates to:
+  /// **'seccfg patched to unlocked'**
+  String get seccfgUnlockDone;
+
+  /// No description provided for @seccfgRootHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Root access is required to read the seccfg block device.'**
+  String get seccfgRootHint;
+
+  /// No description provided for @seccfgNeedsSejHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Only V3 partitions with the software SEJ key are patched locally; hardware-keyed partitions need the Download Agent stage, not implemented yet.'**
+  String get seccfgNeedsSejHint;
+
+  /// No description provided for @seccfgFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'seccfg failed'**
+  String get seccfgFailed;
+
   /// No description provided for @cancelLabel.
   ///
   /// In en, this message translates to:

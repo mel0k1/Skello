@@ -286,5 +286,60 @@ class AppLocalizationsRu extends AppLocalizations {
       'Устройство не вернулось за отведённое время — проверьте вручную';
 
   @override
+  String get shellMenu => 'Терминал';
+
+  @override
+  String get shellTitle => 'Терминал';
+
+  @override
+  String get shellHint => 'команда adb shell';
+
+  @override
+  String get shellSend => 'Выполнить';
+
+  @override
+  String get shellFailed => 'Команда не удалась';
+
+  @override
+  String get mediatekMenu => 'MediaTek seccfg';
+
+  @override
+  String get seccfgTitle => 'seccfg';
+
+  @override
+  String get seccfgStateLabel => 'Состояние блокировки';
+
+  @override
+  String get seccfgVersionLabel => 'Формат';
+
+  @override
+  String get seccfgDetailLabel => 'Детали';
+
+  @override
+  String get seccfgUnlockButton => 'Разблокировать (seccfg)';
+
+  @override
+  String get seccfgUnlockConfirmTitle => 'Пропатчить seccfg?';
+
+  @override
+  String seccfgUnlockConfirmBody(String serial) {
+    return 'Skello прочитает seccfg на $serial, пропатчит флаг блокировки на unlocked и запишет обратно. Нужен root. Ошибка записи может испортить загрузку.';
+  }
+
+  @override
+  String get seccfgUnlockDone => 'seccfg пропатчен на unlocked';
+
+  @override
+  String get seccfgRootHint =>
+      'Для чтения блочного устройства seccfg нужен root.';
+
+  @override
+  String get seccfgNeedsSejHint =>
+      'Локально патчатся только разделы V3 с программным ключом SEJ; разделы с аппаратным ключом требуют этап Download Agent, пока не реализован.';
+
+  @override
+  String get seccfgFailed => 'Не удалось';
+
+  @override
   String get cancelLabel => 'Отмена';
 }

@@ -4,6 +4,8 @@ import '../l10n/generated/app_localizations.dart';
 import '../services/device_output.dart';
 import '../services/device_repository.dart';
 import 'root_screen.dart';
+import 'seccfg_screen.dart';
+import 'shell_screen.dart';
 import 'unlock_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -66,6 +68,24 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _openShell(DeviceRow row) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            ShellScreen(serial: row.serial, repository: widget.repository),
+      ),
+    );
+  }
+
+  void _openSeccfg(DeviceRow row) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            SeccfgScreen(serial: row.serial, repository: widget.repository),
+      ),
+    );
+  }
+
   Future<void> _reboot(DeviceRow row, String target) async {
     final strings = AppLocalizations.of(context)!;
     final messenger = ScaffoldMessenger.of(context);
@@ -118,7 +138,13 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: EdgeInsets.fromLTRB(side, 24, side, 24),
             children: [
               for (final row in _rows)
-                _DeviceCard(row: row, onReboot: _reboot, onUnlock: _openUnlock),
+                _DeviceCard(
+                  row: row,
+                  onReboot: _reboot,
+                  onUnlock: _openUnlock,
+                  onShell: _openShell,
+                  onSeccfg: _openSeccfg,
+                ),
             ],
           );
         },
@@ -234,11 +260,15 @@ class _DeviceCard extends StatelessWidget {
     required this.row,
     required this.onReboot,
     required this.onUnlock,
+    required this.onShell,
+    required this.onSeccfg,
   });
 
   final DeviceRow row;
   final void Function(DeviceRow row, String target) onReboot;
   final void Function(DeviceRow row) onUnlock;
+  final void Function(DeviceRow row) onShell;
+  final void Function(DeviceRow row) onSeccfg;
 
   @override
   Widget build(BuildContext context) {
@@ -283,6 +313,10 @@ class _DeviceCard extends StatelessWidget {
                 onSelected: (value) {
                   if (value == 'unlock') {
                     onUnlock(row);
+                  } else if (value == 'shell') {
+                    onShell(row);
+                  } else if (value == 'seccfg') {
+                    onSeccfg(row);
                   } else {
                     onReboot(row, value == 'reboot' ? '' : value);
                   }
@@ -300,6 +334,14 @@ class _DeviceCard extends StatelessWidget {
                     PopupMenuItem(
                       value: 'recovery',
                       child: Text(strings.rebootMenuRecovery),
+                    ),
+                    PopupMenuItem(
+                      value: 'shell',
+                      child: Text(strings.shellMenu),
+                    ),
+                    PopupMenuItem(
+                      value: 'seccfg',
+                      child: Text(strings.mediatekMenu),
                     ),
                   ],
                   if (row.source == 'fastboot') ...[
