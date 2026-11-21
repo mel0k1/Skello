@@ -95,7 +95,7 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
-    Locale('ru'),
+    Locale('ru')
   ];
 
   /// No description provided for @appName.
@@ -548,6 +548,54 @@ abstract class AppLocalizations {
   /// **'Flash failed'**
   String get flashFailed;
 
+  /// No description provided for @erasePartitionButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Erase {partition}'**
+  String erasePartitionButton(String partition);
+
+  /// No description provided for @eraseConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Erase partition?'**
+  String get eraseConfirmTitle;
+
+  /// No description provided for @eraseConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Skello will run fastboot erase {partition} on {serial}. All data on the partition will be destroyed.'**
+  String eraseConfirmBody(String partition, String serial);
+
+  /// No description provided for @eraseDone.
+  ///
+  /// In en, this message translates to:
+  /// **'partition erased'**
+  String get eraseDone;
+
+  /// No description provided for @rebootCheckButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Reboot and wait for the device'**
+  String get rebootCheckButton;
+
+  /// No description provided for @rebootWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Rebooting… waiting for the device to come back'**
+  String get rebootWaiting;
+
+  /// No description provided for @rebootBack.
+  ///
+  /// In en, this message translates to:
+  /// **'The device is back in the system'**
+  String get rebootBack;
+
+  /// No description provided for @rebootTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'The device did not come back in time — check it manually'**
+  String get rebootTimeout;
+
   /// No description provided for @cancelLabel.
   ///
   /// In en, this message translates to:
@@ -582,9 +630,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-    'an issue with the localizations generation tool. Please file an issue '
-    'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.',
-  );
+      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+      'an issue with the localizations generation tool. Please file an issue '
+      'on GitHub with a reproducible sample app and the gen-l10n configuration '
+      'that was used.');
 }

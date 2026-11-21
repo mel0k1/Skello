@@ -102,5 +102,30 @@
   "flashDone": "образ прошит",
   "flashOutput": "вывод fastboot",
   "flashFailed": "Прошивка не удалась",
+  "erasePartitionButton": "Стереть {partition}",
+  "@erasePartitionButton": {
+    "placeholders": {
+      "partition": {
+        "type": "String"
+      }
+    }
+  },
+  "eraseConfirmTitle": "Стереть раздел?",
+  "eraseConfirmBody": "Skello выполнит fastboot erase {partition} на {serial}. Все данные раздела будут уничтожены.",
+  "@eraseConfirmBody": {
+    "placeholders": {
+      "partition": {
+        "type": "String"
+      },
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "eraseDone": "раздел стёрт",
+  "rebootCheckButton": "Перезагрузить и дождаться устройства",
+  "rebootWaiting": "Перезагрузка… жду, когда устройство вернётся",
+  "rebootBack": "Устройство вернулось в систему",
+  "rebootTimeout": "Устройство не вернулось за отведённое время — проверьте вручную",
   "cancelLabel": "Отмена"
 }

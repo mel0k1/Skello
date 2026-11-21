@@ -156,4 +156,107 @@ void main() {
     expect(find.text('Partition'), findsOneWidget);
     expect(find.text('boot'), findsOneWidget);
   });
+
+  testWidgets('erase button is gated on the unlock state', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final repository = FakeRepository(
+      fastboot: const [FastbootDevice('ABC123', 'fastboot')],
+      unlockedValue: 'no',
+    );
+    await tester.pumpWidget(
+      _wrap(RootScreen(reader: const FakeReader(), repository: repository)),
+    );
+    await tester.pumpAndSettle();
+
+    final eraseButton = tester.widget<OutlinedButton>(
+      find.widgetWithText(OutlinedButton, 'Erase boot'),
+    );
+    expect(eraseButton.onPressed, isNull);
+  });
+
+  testWidgets('erase asks for confirmation and reports the result', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final repository = FakeRepository(
+      fastboot: const [FastbootDevice('ABC123', 'fastboot')],
+      unlockedValue: 'yes',
+    );
+    await tester.pumpWidget(
+      _wrap(RootScreen(reader: const FakeReader(), repository: repository)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Erase boot'));
+    await tester.pumpAndSettle();
+    expect(find.text('Erase partition?'), findsOneWidget);
+    expect(
+      find.text(
+        'Skello will run fastboot erase boot on ABC123. '
+        'All data on the partition will be destroyed.',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Erase boot').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('partition erased'), findsOneWidget);
+    expect(find.text('Erasing OKAY'), findsOneWidget);
+    expect(repository.calls, contains('erase ABC123 boot'));
+  });
+
+  testWidgets('reboot check reports the device coming back', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final repository = FakeRepository(
+      fastboot: const [FastbootDevice('ABC123', 'fastboot')],
+      unlockedValue: 'yes',
+    );
+    await tester.pumpWidget(
+      _wrap(RootScreen(reader: const FakeReader(), repository: repository)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.widgetWithText(OutlinedButton, 'Reboot and wait for the device'),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('The device is back in the system'), findsOneWidget);
+    expect(repository.calls, contains('fastboot-reboot ABC123'));
+    expect(repository.calls, contains('wait-for-device ABC123'));
+  });
+
+  testWidgets('reboot check reports a timeout', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final repository = FakeRepository(
+      fastboot: const [FastbootDevice('ABC123', 'fastboot')],
+      unlockedValue: 'yes',
+    );
+    repository.comesBack = false;
+    await tester.pumpWidget(
+      _wrap(RootScreen(reader: const FakeReader(), repository: repository)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.widgetWithText(OutlinedButton, 'Reboot and wait for the device'),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+        find.text('The device did not come back in time — check it manually'),
+        findsOneWidget);
+  });
 }

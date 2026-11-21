@@ -102,5 +102,30 @@
   "flashDone": "image flashed",
   "flashOutput": "fastboot output",
   "flashFailed": "Flash failed",
+  "erasePartitionButton": "Erase {partition}",
+  "@erasePartitionButton": {
+    "placeholders": {
+      "partition": {
+        "type": "String"
+      }
+    }
+  },
+  "eraseConfirmTitle": "Erase partition?",
+  "eraseConfirmBody": "Skello will run fastboot erase {partition} on {serial}. All data on the partition will be destroyed.",
+  "@eraseConfirmBody": {
+    "placeholders": {
+      "partition": {
+        "type": "String"
+      },
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "eraseDone": "partition erased",
+  "rebootCheckButton": "Reboot and wait for the device",
+  "rebootWaiting": "Rebooting… waiting for the device to come back",
+  "rebootBack": "The device is back in the system",
+  "rebootTimeout": "The device did not come back in time — check it manually",
   "cancelLabel": "Cancel"
 }

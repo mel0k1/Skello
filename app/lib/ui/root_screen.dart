@@ -10,6 +10,8 @@ import '../services/flash_errors.dart';
 
 enum RootMethod { magisk, kernelsu, apatch }
 
+enum RebootCheck { none, waiting, back, timeout }
+
 const flashPartitions = ['boot', 'recovery', 'vendor_boot'];
 
 class RootScreen extends StatefulWidget {
@@ -39,6 +41,8 @@ class _RootScreenState extends State<RootScreen> {
   bool _flashing = false;
   String? _flashOutput;
   String? _flashError;
+  bool _lastActionErase = false;
+  RebootCheck _rebootCheck = RebootCheck.none;
 
   @override
   void initState() {
@@ -85,16 +89,21 @@ class _RootScreenState extends State<RootScreen> {
         !_flashing;
   }
 
-  Future<void> _flashPartition() async {
-    final serial = _selectedSerial;
-    final path = _imagePath;
-    if (serial == null || path == null) return;
-    final strings = AppLocalizations.of(context)!;
+  bool _canErase() {
+    return _selectedSerial != null && _unlocked == true && !_flashing;
+  }
+
+  Future<bool> _confirmDestructive(
+    AppLocalizations strings,
+    String title,
+    String body,
+    String confirmLabel,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(strings.flashConfirmTitle),
-        content: Text(strings.flashConfirmBody(_partition, serial)),
+        title: Text(title),
+        content: Text(body),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -106,10 +115,24 @@ class _RootScreenState extends State<RootScreen> {
               foregroundColor: Theme.of(dialogContext).colorScheme.onError,
             ),
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(strings.flashPartitionButton(_partition)),
+            child: Text(confirmLabel),
           ),
         ],
       ),
+    );
+    return confirmed == true;
+  }
+
+  Future<void> _flashPartition() async {
+    final serial = _selectedSerial;
+    final path = _imagePath;
+    if (serial == null || path == null) return;
+    final strings = AppLocalizations.of(context)!;
+    final confirmed = await _confirmDestructive(
+      strings,
+      strings.flashConfirmTitle,
+      strings.flashConfirmBody(_partition, serial),
+      strings.flashPartitionButton(_partition),
     );
     if (confirmed != true) return;
     setState(() {
@@ -117,6 +140,8 @@ class _RootScreenState extends State<RootScreen> {
       _progress = null;
       _flashOutput = null;
       _flashError = null;
+      _lastActionErase = false;
+      _rebootCheck = RebootCheck.none;
     });
     try {
       final output = await widget.repository.flashPartition(
@@ -140,6 +165,54 @@ class _RootScreenState extends State<RootScreen> {
         _flashError = _flashErrorText(e, strings);
       });
     }
+  }
+
+  Future<void> _erasePartition() async {
+    final serial = _selectedSerial;
+    if (serial == null) return;
+    final strings = AppLocalizations.of(context)!;
+    final confirmed = await _confirmDestructive(
+      strings,
+      strings.eraseConfirmTitle,
+      strings.eraseConfirmBody(_partition, serial),
+      strings.erasePartitionButton(_partition),
+    );
+    if (confirmed != true) return;
+    setState(() {
+      _flashing = true;
+      _flashOutput = null;
+      _flashError = null;
+      _lastActionErase = true;
+      _rebootCheck = RebootCheck.none;
+    });
+    try {
+      final output = await widget.repository.fastbootErase(serial, _partition);
+      if (!mounted) return;
+      setState(() {
+        _flashing = false;
+        _flashOutput = output;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _flashing = false;
+        _flashError = _flashErrorText(e, strings);
+      });
+    }
+  }
+
+  Future<void> _rebootAndCheck() async {
+    final serial = _selectedSerial;
+    if (serial == null) return;
+    setState(() => _rebootCheck = RebootCheck.waiting);
+    try {
+      await widget.repository.fastbootReboot(serial);
+    } catch (_) {}
+    final back = await widget.repository.waitForAdbDevice(serial);
+    if (!mounted) return;
+    setState(
+      () => _rebootCheck = back ? RebootCheck.back : RebootCheck.timeout,
+    );
   }
 
   String _flashErrorText(Object error, AppLocalizations strings) {
@@ -465,14 +538,32 @@ class _RootScreenState extends State<RootScreen> {
               ),
             ],
             const SizedBox(height: 16),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: scheme.error,
-                foregroundColor: scheme.onError,
-              ),
-              onPressed: _canFlash() ? _flashPartition : null,
-              icon: const Icon(Icons.flash_on),
-              label: Text(strings.flashPartitionButton(_partition)),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: scheme.error,
+                      foregroundColor: scheme.onError,
+                    ),
+                    onPressed: _canFlash() ? _flashPartition : null,
+                    icon: const Icon(Icons.flash_on),
+                    label: Text(strings.flashPartitionButton(_partition)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: scheme.error,
+                      side: BorderSide(color: scheme.error),
+                    ),
+                    onPressed: _canErase() ? _erasePartition : null,
+                    icon: const Icon(Icons.delete_outline),
+                    label: Text(strings.erasePartitionButton(_partition)),
+                  ),
+                ),
+              ],
             ),
             if (_flashing) ...[
               const SizedBox(height: 16),
@@ -488,7 +579,7 @@ class _RootScreenState extends State<RootScreen> {
             if (_flashOutput != null) ...[
               const SizedBox(height: 16),
               Text(
-                strings.flashDone,
+                _lastActionErase ? strings.eraseDone : strings.flashDone,
                 style: TextStyle(
                   color: scheme.primary,
                   fontWeight: FontWeight.w600,
@@ -519,6 +610,44 @@ class _RootScreenState extends State<RootScreen> {
                 _flashError!,
                 style: TextStyle(color: scheme.error, fontSize: 12),
               ),
+            ],
+            if (_unlocked == true && !_flashing) ...[
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: _rebootCheck == RebootCheck.waiting
+                    ? null
+                    : _rebootAndCheck,
+                icon: const Icon(Icons.restart_alt),
+                label: Text(strings.rebootCheckButton),
+              ),
+              if (_rebootCheck == RebootCheck.waiting) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(strings.rebootWaiting)),
+                  ],
+                ),
+              ],
+              if (_rebootCheck == RebootCheck.back) ...[
+                const SizedBox(height: 8),
+                Text(
+                  strings.rebootBack,
+                  style: TextStyle(color: scheme.primary),
+                ),
+              ],
+              if (_rebootCheck == RebootCheck.timeout) ...[
+                const SizedBox(height: 8),
+                Text(
+                  strings.rebootTimeout,
+                  style: TextStyle(color: scheme.error),
+                ),
+              ],
             ],
           ],
         ),

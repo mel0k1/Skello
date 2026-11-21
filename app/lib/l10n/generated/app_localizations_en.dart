@@ -1,6 +1,5 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -256,6 +255,35 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get flashFailed => 'Flash failed';
+
+  @override
+  String erasePartitionButton(String partition) {
+    return 'Erase $partition';
+  }
+
+  @override
+  String get eraseConfirmTitle => 'Erase partition?';
+
+  @override
+  String eraseConfirmBody(String partition, String serial) {
+    return 'Skello will run fastboot erase $partition on $serial. All data on the partition will be destroyed.';
+  }
+
+  @override
+  String get eraseDone => 'partition erased';
+
+  @override
+  String get rebootCheckButton => 'Reboot and wait for the device';
+
+  @override
+  String get rebootWaiting => 'Rebooting… waiting for the device to come back';
+
+  @override
+  String get rebootBack => 'The device is back in the system';
+
+  @override
+  String get rebootTimeout =>
+      'The device did not come back in time — check it manually';
 
   @override
   String get cancelLabel => 'Cancel';

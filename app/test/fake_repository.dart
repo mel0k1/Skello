@@ -11,6 +11,7 @@ class FakeRepository implements DeviceRepository {
   List<AdbDevice> adb;
   List<FastbootDevice> fastboot;
   String? unlockedValue;
+  bool comesBack = true;
   final List<String> calls = [];
 
   @override
@@ -52,5 +53,20 @@ class FakeRepository implements DeviceRepository {
     onProgress?.call(const FlashProgressEvent(50, 100, 'download'));
     onProgress?.call(const FlashProgressEvent(100, 100, 'flash'));
     return 'Sending OKAY\nWriting OKAY';
+  }
+
+  @override
+  Future<String> fastbootErase(String serial, String partition) async {
+    calls.add('erase $serial $partition');
+    return 'Erasing OKAY';
+  }
+
+  @override
+  Future<bool> waitForAdbDevice(
+    String serial, {
+    Duration timeout = const Duration(seconds: 90),
+  }) async {
+    calls.add('wait-for-device $serial');
+    return comesBack;
   }
 }
