@@ -1,9 +1,12 @@
-//! Chipset-specific formats and flows for Skello.
-//!
-//! Currently: MediaTek seccfg (V3 software-SEJ patching, V4 state read).
-//! Unisoc FDL transport and Qualcomm Sahara/Firehose follow the plan in
-//! CHIPSETS.md and live here once implemented.
+//! Chipset-specific transports and formats for Skello: the MediaTek
+//! BROM/DA V5 flow, the Unisoc FDL transport with transcode, the
+//! Qualcomm Sahara/Firehose pair and the seccfg format.
 
 pub mod mediatek;
+pub mod qualcomm;
+pub mod transport;
+pub mod unisoc;
 
-pub use mediatek::{parse, patch, sej_sw, LockState, SecCfgError, SecCfgInfo, SecCfgVersion};
+pub use mediatek::seccfg::{
+    parse, patch, sej_sw, LockState, SecCfgError, SecCfgInfo, SecCfgVersion,
+};

@@ -7,3 +7,4 @@ license.workspace = true
 
 [dependencies]
 aes = "0.8"
+nusb = "0.2.9"
