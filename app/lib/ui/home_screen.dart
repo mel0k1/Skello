@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../services/device_output.dart';
 import '../services/device_repository.dart';
+import 'chipsets_screen.dart';
 import 'root_screen.dart';
 import 'seccfg_screen.dart';
 import 'shell_screen.dart';
@@ -57,6 +58,14 @@ class _HomeScreenState extends State<HomeScreen> {
   void _openRoot() {
     Navigator.of(context)
         .push(MaterialPageRoute<void>(builder: (_) => const RootScreen()));
+  }
+
+  void _openChipsets() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ChipsetsScreen(repository: widget.repository),
+      ),
+    );
   }
 
   void _openUnlock(DeviceRow row) {
@@ -123,6 +132,11 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.security_outlined),
             tooltip: strings.rootTooltip,
             onPressed: _openRoot,
+          ),
+          IconButton(
+            icon: const Icon(Icons.memory),
+            tooltip: strings.chipsetsTooltip,
+            onPressed: _openChipsets,
           ),
         ],
       ),

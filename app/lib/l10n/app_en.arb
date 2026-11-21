@@ -151,5 +151,79 @@
   "seccfgRootHint": "Root access is required to read the seccfg block device.",
   "seccfgNeedsSejHint": "Only V3 partitions with the software SEJ key are patched locally; hardware-keyed partitions need the Download Agent stage, not implemented yet.",
   "seccfgFailed": "seccfg failed",
+  "chipsetsTitle": "Chipsets",
+  "chipsetsTooltip": "Vendor modes",
+  "chipsetsLoadFailed": "Could not list the USB ports",
+  "chipsetsPortsNone": "No port detected",
+  "chipsetsPickType": "Firmware files",
+  "chipsetsConfirmGo": "Run it",
+  "chipsetsAddrInvalid": "Addresses must be hex numbers, for example 0x00090000",
+  "chipsetsMtkTitle": "MediaTek: BROM + Download Agent",
+  "chipsetsMtkHint": "Power the phone off, hold BROM or let the battery drain; the BROM/Preloader port shows up when the cable is plugged in.",
+  "chipsetsMtkLoaderNone": "Stock Download Agent loader not chosen",
+  "chipsetsMtkLoaderPick": "Choose DA loader",
+  "chipsetsMtkUnlock": "Unlock bootloader (no root)",
+  "chipsetsMtkUnlockConfirmTitle": "Unlock via Download Agent?",
+  "chipsetsMtkUnlockConfirmBody": "Skello boots the stock loader over BROM, reads seccfg, patches the lock flag to unlocked and writes it back. Root is not needed, but the loader file of your model is. A bad write can break the boot.",
+  "chipsetsMtkDone": "seccfg patched over the Download Agent",
+  "chipsetsUnisocTitle": "Unisoc: FDL",
+  "chipsetsUnisocHint": "Choose FDL1 and FDL2 from the factory firmware of your model; the addresses below are the common defaults.",
+  "chipsetsUnisocPickFdl1": "Choose FDL1",
+  "chipsetsUnisocPickFdl2": "Choose FDL2",
+  "chipsetsUnisocAddr1Label": "FDL1 address",
+  "chipsetsUnisocAddr2Label": "FDL2 address",
+  "chipsetsUnisocAddrHint": "Hex, for example 0x00090000",
+  "chipsetsUnisocPartitionLabel": "Partition name",
+  "chipsetsUnisocImageNone": "Image not chosen",
+  "chipsetsUnisocImagePick": "Choose image",
+  "chipsetsUnisocFlash": "Flash partition",
+  "chipsetsUnisocConfirmTitle": "Flash over FDL?",
+  "chipsetsUnisocConfirmBody": "Skello boots the factory loaders and writes {image} into {partition}. Wrong addresses or a foreign image can break the boot.",
+  "@chipsetsUnisocConfirmBody": {
+    "placeholders": {
+      "image": {
+        "type": "String"
+      },
+      "partition": {
+        "type": "String"
+      }
+    }
+  },
+  "chipsetsUnisocDone": "Partition written over FDL2",
+  "chipsetsQualcommTitle": "Qualcomm: EDL (Sahara + Firehose)",
+  "chipsetsQualcommHint": "The EDL port appears when the phone is plugged in dead mode; the programmer and rawprogram XML come from your model's firmware package.",
+  "chipsetsQualcommProgrammerNone": "Firehose programmer not chosen",
+  "chipsetsQualcommProgrammerPick": "Choose programmer",
+  "chipsetsQualcommXmlPick": "Choose rawprogram XML",
+  "chipsetsQualcommParse": "Parse XML",
+  "chipsetsQualcommEntriesLabel": "{count} entries in the XML",
+  "@chipsetsQualcommEntriesLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chipsetsQualcommEntryLine": "{label}: {file} @ sector {sector} ({sectors})",
+  "@chipsetsQualcommEntryLine": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "file": {
+        "type": "String"
+      },
+      "sector": {
+        "type": "String"
+      },
+      "sectors": {
+        "type": "String"
+      }
+    }
+  },
+  "chipsetsQualcommFlash": "Flash all entries",
+  "chipsetsQualcommConfirmTitle": "Flash over EDL?",
+  "chipsetsQualcommConfirmBody": "Skello serves the programmer over Sahara and writes every rawprogram entry. Partitions are rewritten without a confirmation on the phone.",
+  "chipsetsQualcommDone": "rawprogram finished",
   "cancelLabel": "Cancel"
 }

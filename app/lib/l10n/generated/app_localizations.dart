@@ -95,7 +95,7 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
-    Locale('ru'),
+    Locale('ru')
   ];
 
   /// No description provided for @appName.
@@ -698,6 +698,253 @@ abstract class AppLocalizations {
   /// **'seccfg failed'**
   String get seccfgFailed;
 
+  /// No description provided for @chipsetsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Chipsets'**
+  String get chipsetsTitle;
+
+  /// No description provided for @chipsetsTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Vendor modes'**
+  String get chipsetsTooltip;
+
+  /// No description provided for @chipsetsLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not list the USB ports'**
+  String get chipsetsLoadFailed;
+
+  /// No description provided for @chipsetsPortsNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No port detected'**
+  String get chipsetsPortsNone;
+
+  /// No description provided for @chipsetsPickType.
+  ///
+  /// In en, this message translates to:
+  /// **'Firmware files'**
+  String get chipsetsPickType;
+
+  /// No description provided for @chipsetsConfirmGo.
+  ///
+  /// In en, this message translates to:
+  /// **'Run it'**
+  String get chipsetsConfirmGo;
+
+  /// No description provided for @chipsetsAddrInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Addresses must be hex numbers, for example 0x00090000'**
+  String get chipsetsAddrInvalid;
+
+  /// No description provided for @chipsetsMtkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'MediaTek: BROM + Download Agent'**
+  String get chipsetsMtkTitle;
+
+  /// No description provided for @chipsetsMtkHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Power the phone off, hold BROM or let the battery drain; the BROM/Preloader port shows up when the cable is plugged in.'**
+  String get chipsetsMtkHint;
+
+  /// No description provided for @chipsetsMtkLoaderNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock Download Agent loader not chosen'**
+  String get chipsetsMtkLoaderNone;
+
+  /// No description provided for @chipsetsMtkLoaderPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose DA loader'**
+  String get chipsetsMtkLoaderPick;
+
+  /// No description provided for @chipsetsMtkUnlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock bootloader (no root)'**
+  String get chipsetsMtkUnlock;
+
+  /// No description provided for @chipsetsMtkUnlockConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock via Download Agent?'**
+  String get chipsetsMtkUnlockConfirmTitle;
+
+  /// No description provided for @chipsetsMtkUnlockConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Skello boots the stock loader over BROM, reads seccfg, patches the lock flag to unlocked and writes it back. Root is not needed, but the loader file of your model is. A bad write can break the boot.'**
+  String get chipsetsMtkUnlockConfirmBody;
+
+  /// No description provided for @chipsetsMtkDone.
+  ///
+  /// In en, this message translates to:
+  /// **'seccfg patched over the Download Agent'**
+  String get chipsetsMtkDone;
+
+  /// No description provided for @chipsetsUnisocTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unisoc: FDL'**
+  String get chipsetsUnisocTitle;
+
+  /// No description provided for @chipsetsUnisocHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose FDL1 and FDL2 from the factory firmware of your model; the addresses below are the common defaults.'**
+  String get chipsetsUnisocHint;
+
+  /// No description provided for @chipsetsUnisocPickFdl1.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose FDL1'**
+  String get chipsetsUnisocPickFdl1;
+
+  /// No description provided for @chipsetsUnisocPickFdl2.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose FDL2'**
+  String get chipsetsUnisocPickFdl2;
+
+  /// No description provided for @chipsetsUnisocAddr1Label.
+  ///
+  /// In en, this message translates to:
+  /// **'FDL1 address'**
+  String get chipsetsUnisocAddr1Label;
+
+  /// No description provided for @chipsetsUnisocAddr2Label.
+  ///
+  /// In en, this message translates to:
+  /// **'FDL2 address'**
+  String get chipsetsUnisocAddr2Label;
+
+  /// No description provided for @chipsetsUnisocAddrHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hex, for example 0x00090000'**
+  String get chipsetsUnisocAddrHint;
+
+  /// No description provided for @chipsetsUnisocPartitionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Partition name'**
+  String get chipsetsUnisocPartitionLabel;
+
+  /// No description provided for @chipsetsUnisocImageNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Image not chosen'**
+  String get chipsetsUnisocImageNone;
+
+  /// No description provided for @chipsetsUnisocImagePick.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose image'**
+  String get chipsetsUnisocImagePick;
+
+  /// No description provided for @chipsetsUnisocFlash.
+  ///
+  /// In en, this message translates to:
+  /// **'Flash partition'**
+  String get chipsetsUnisocFlash;
+
+  /// No description provided for @chipsetsUnisocConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Flash over FDL?'**
+  String get chipsetsUnisocConfirmTitle;
+
+  /// No description provided for @chipsetsUnisocConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Skello boots the factory loaders and writes {image} into {partition}. Wrong addresses or a foreign image can break the boot.'**
+  String chipsetsUnisocConfirmBody(String image, String partition);
+
+  /// No description provided for @chipsetsUnisocDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Partition written over FDL2'**
+  String get chipsetsUnisocDone;
+
+  /// No description provided for @chipsetsQualcommTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Qualcomm: EDL (Sahara + Firehose)'**
+  String get chipsetsQualcommTitle;
+
+  /// No description provided for @chipsetsQualcommHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The EDL port appears when the phone is plugged in dead mode; the programmer and rawprogram XML come from your model\'s firmware package.'**
+  String get chipsetsQualcommHint;
+
+  /// No description provided for @chipsetsQualcommProgrammerNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Firehose programmer not chosen'**
+  String get chipsetsQualcommProgrammerNone;
+
+  /// No description provided for @chipsetsQualcommProgrammerPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose programmer'**
+  String get chipsetsQualcommProgrammerPick;
+
+  /// No description provided for @chipsetsQualcommXmlPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose rawprogram XML'**
+  String get chipsetsQualcommXmlPick;
+
+  /// No description provided for @chipsetsQualcommParse.
+  ///
+  /// In en, this message translates to:
+  /// **'Parse XML'**
+  String get chipsetsQualcommParse;
+
+  /// No description provided for @chipsetsQualcommEntriesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} entries in the XML'**
+  String chipsetsQualcommEntriesLabel(int count);
+
+  /// No description provided for @chipsetsQualcommEntryLine.
+  ///
+  /// In en, this message translates to:
+  /// **'{label}: {file} @ sector {sector} ({sectors})'**
+  String chipsetsQualcommEntryLine(
+      String label, String file, String sector, String sectors);
+
+  /// No description provided for @chipsetsQualcommFlash.
+  ///
+  /// In en, this message translates to:
+  /// **'Flash all entries'**
+  String get chipsetsQualcommFlash;
+
+  /// No description provided for @chipsetsQualcommConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Flash over EDL?'**
+  String get chipsetsQualcommConfirmTitle;
+
+  /// No description provided for @chipsetsQualcommConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Skello serves the programmer over Sahara and writes every rawprogram entry. Partitions are rewritten without a confirmation on the phone.'**
+  String get chipsetsQualcommConfirmBody;
+
+  /// No description provided for @chipsetsQualcommDone.
+  ///
+  /// In en, this message translates to:
+  /// **'rawprogram finished'**
+  String get chipsetsQualcommDone;
+
   /// No description provided for @cancelLabel.
   ///
   /// In en, this message translates to:
@@ -732,9 +979,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-    'an issue with the localizations generation tool. Please file an issue '
-    'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.',
-  );
+      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+      'an issue with the localizations generation tool. Please file an issue '
+      'on GitHub with a reproducible sample app and the gen-l10n configuration '
+      'that was used.');
 }

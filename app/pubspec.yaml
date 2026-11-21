@@ -20,6 +20,7 @@ dependencies:
     path: rust_builder
 
 dev_dependencies:
+  file_selector_platform_interface: ^2.6.0
   flutter_lints: ^5.0.0
   flutter_test:
     sdk: flutter

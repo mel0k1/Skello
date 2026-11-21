@@ -97,4 +97,66 @@ class FakeRepository implements DeviceRepository {
     calls.add('wait-for-device $serial');
     return comesBack;
   }
+
+  List<String> mtkPorts = const [];
+  List<String> unisocPorts = const [];
+  List<String> qualcommPorts = const [];
+  List<ChipsetProgramEntry> parsedEntries = const [];
+  String daUnlockMessage = 'seccfg patched over the DA';
+  String unisocFlashMessage = 'partition written';
+  String edlFlashMessage = 'flash OKAY (all entries)';
+  bool failChipsetCalls = false;
+
+  ChipsetPortGroups get portGroups => ChipsetPortGroups(
+    mtkPorts,
+    unisocPorts,
+    qualcommPorts,
+  );
+
+  @override
+  Future<ChipsetPortGroups> chipsetPorts() async {
+    calls.add('chipset-ports');
+    if (failChipsetCalls) throw Exception('usb enumeration failed');
+    return portGroups;
+  }
+
+  @override
+  Future<String> mediatekDaUnlock(String loaderPath) async {
+    calls.add('mtk-da-unlock $loaderPath');
+    if (failChipsetCalls) throw Exception('brom handshake failed');
+    return daUnlockMessage;
+  }
+
+  @override
+  Future<String> unisocFlashPartition({
+    required String fdl1Path,
+    required String fdl2Path,
+    required int fdl1Addr,
+    required int fdl2Addr,
+    required String partition,
+    required String imagePath,
+  }) async {
+    calls.add(
+      'unisoc-flash $partition $fdl1Addr $fdl2Addr',
+    );
+    if (failChipsetCalls) throw Exception('fdl2 dead');
+    return unisocFlashMessage;
+  }
+
+  @override
+  Future<List<ChipsetProgramEntry>> parseRawprogram(String xmlPath) async {
+    calls.add('rawprogram-parse $xmlPath');
+    if (failChipsetCalls) throw Exception('bad xml');
+    return parsedEntries;
+  }
+
+  @override
+  Future<String> qualcommEdlFlash(
+    String programmerPath,
+    List<ChipsetProgramEntry> entries,
+  ) async {
+    calls.add('edl-flash ${entries.length} via $programmerPath');
+    if (failChipsetCalls) throw Exception('sahara failed');
+    return edlFlashMessage;
+  }
 }

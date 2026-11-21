@@ -1,6 +1,5 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -340,6 +339,146 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get seccfgFailed => 'Не удалось';
+
+  @override
+  String get chipsetsTitle => 'Чипсеты';
+
+  @override
+  String get chipsetsTooltip => 'Вендорские режимы';
+
+  @override
+  String get chipsetsLoadFailed => 'Не удалось получить список USB-портов';
+
+  @override
+  String get chipsetsPortsNone => 'Порт не обнаружен';
+
+  @override
+  String get chipsetsPickType => 'Файлы прошивки';
+
+  @override
+  String get chipsetsConfirmGo => 'Запустить';
+
+  @override
+  String get chipsetsAddrInvalid =>
+      'Адреса должны быть шестнадцатеричными числами, например 0x00090000';
+
+  @override
+  String get chipsetsMtkTitle => 'MediaTek: BROM + Download Agent';
+
+  @override
+  String get chipsetsMtkHint =>
+      'Выключите телефон, зажмите BROM или дайте батарее сесть; порт BROM/Preloader появляется при подключении кабеля.';
+
+  @override
+  String get chipsetsMtkLoaderNone =>
+      'Заводской загрузчик Download Agent не выбран';
+
+  @override
+  String get chipsetsMtkLoaderPick => 'Выбрать загрузчик DA';
+
+  @override
+  String get chipsetsMtkUnlock => 'Разблокировать загрузчик (без root)';
+
+  @override
+  String get chipsetsMtkUnlockConfirmTitle =>
+      'Разблокировать через Download Agent?';
+
+  @override
+  String get chipsetsMtkUnlockConfirmBody =>
+      'Skello поднимет заводской загрузчик по BROM, прочитает seccfg, перепишет флаг блокировки на unlocked и запишет раздел обратно. Root не нужен, но нужен файл загрузчика вашей модели. Ошибка записи может сломать загрузку.';
+
+  @override
+  String get chipsetsMtkDone => 'seccfg пропатчен через Download Agent';
+
+  @override
+  String get chipsetsUnisocTitle => 'Unisoc: FDL';
+
+  @override
+  String get chipsetsUnisocHint =>
+      'Выберите FDL1 и FDL2 из заводской прошивки вашей модели; адреса ниже - обычные значения по умолчанию.';
+
+  @override
+  String get chipsetsUnisocPickFdl1 => 'Выбрать FDL1';
+
+  @override
+  String get chipsetsUnisocPickFdl2 => 'Выбрать FDL2';
+
+  @override
+  String get chipsetsUnisocAddr1Label => 'Адрес FDL1';
+
+  @override
+  String get chipsetsUnisocAddr2Label => 'Адрес FDL2';
+
+  @override
+  String get chipsetsUnisocAddrHint =>
+      'В шестнадцатеричном виде, например 0x00090000';
+
+  @override
+  String get chipsetsUnisocPartitionLabel => 'Имя раздела';
+
+  @override
+  String get chipsetsUnisocImageNone => 'Образ не выбран';
+
+  @override
+  String get chipsetsUnisocImagePick => 'Выбрать образ';
+
+  @override
+  String get chipsetsUnisocFlash => 'Прошить раздел';
+
+  @override
+  String get chipsetsUnisocConfirmTitle => 'Прошить раздел по FDL?';
+
+  @override
+  String chipsetsUnisocConfirmBody(String image, String partition) {
+    return 'Skello поднимет заводские загрузчики и запишет $image в $partition. Неверные адреса или чужой образ могут сломать загрузку.';
+  }
+
+  @override
+  String get chipsetsUnisocDone => 'Раздел записан через FDL2';
+
+  @override
+  String get chipsetsQualcommTitle => 'Qualcomm: EDL (Sahara + Firehose)';
+
+  @override
+  String get chipsetsQualcommHint =>
+      'Порт EDL появляется при подключении телефона в dead mode; программатор и rawprogram XML берутся из пакета прошивки вашей модели.';
+
+  @override
+  String get chipsetsQualcommProgrammerNone =>
+      'Программатор Firehose не выбран';
+
+  @override
+  String get chipsetsQualcommProgrammerPick => 'Выбрать программатор';
+
+  @override
+  String get chipsetsQualcommXmlPick => 'Выбрать rawprogram XML';
+
+  @override
+  String get chipsetsQualcommParse => 'Разобрать XML';
+
+  @override
+  String chipsetsQualcommEntriesLabel(int count) {
+    return 'Записей в XML: $count';
+  }
+
+  @override
+  String chipsetsQualcommEntryLine(
+      String label, String file, String sector, String sectors) {
+    return '$label: $file @ сектор $sector ($sectors)';
+  }
+
+  @override
+  String get chipsetsQualcommFlash => 'Прошить все записи';
+
+  @override
+  String get chipsetsQualcommConfirmTitle => 'Прошивать по EDL?';
+
+  @override
+  String get chipsetsQualcommConfirmBody =>
+      'Skello подаст программатор по Sahara и запишет каждую запись rawprogram. Разделы перезаписываются без подтверждения на телефоне.';
+
+  @override
+  String get chipsetsQualcommDone => 'rawprogram завершён';
 
   @override
   String get cancelLabel => 'Отмена';

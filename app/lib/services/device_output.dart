@@ -12,6 +12,32 @@ class FastbootDevice {
   final String state;
 }
 
+/// Bootloader USB ports grouped by chipset family, as the core sees them.
+class ChipsetPortGroups {
+  const ChipsetPortGroups(this.mediatek, this.unisoc, this.qualcomm);
+
+  final List<String> mediatek;
+  final List<String> unisoc;
+  final List<String> qualcomm;
+}
+
+/// One rawprogram XML entry prepared for the Qualcomm EDL flash.
+class ChipsetProgramEntry {
+  const ChipsetProgramEntry({
+    required this.label,
+    required this.startSector,
+    required this.numSectors,
+    required this.physPart,
+    required this.filePath,
+  });
+
+  final String label;
+  final String startSector;
+  final BigInt numSectors;
+  final int physPart;
+  final String filePath;
+}
+
 class DeviceRow {
   const DeviceRow(this.serial, this.state, this.source);
 

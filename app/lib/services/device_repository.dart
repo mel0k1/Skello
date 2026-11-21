@@ -6,6 +6,7 @@ import 'package:skello/src/rust/api/adb.dart' as adb_api;
 import 'package:skello/src/rust/api/adb_usb.dart' as adb_usb_api;
 import 'package:skello/src/rust/api/fastboot.dart' as fastboot_api;
 import 'package:skello/src/rust/api/fastboot_usb.dart' as fastboot_usb_api;
+import 'package:skello/src/rust/api/chipsets.dart' as chipsets_api;
 import 'package:skello/src/rust/api/mediatek.dart' as mediatek_api;
 
 import 'command_log.dart';
@@ -468,6 +469,147 @@ class DeviceRepository {
       await Future<void>.delayed(const Duration(seconds: 2));
     }
     return false;
+  }
+
+  /// Lists the vendor bootloader USB ports without opening them.
+  Future<ChipsetPortGroups> chipsetPorts() async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    try {
+      final ports = await chipsets_api.chipsetPorts();
+      await CommandLog.instance.write(
+        'chipsets',
+        '<< ports mtk=${ports.mediatek.length} '
+            'unisoc=${ports.unisoc.length} qualcomm=${ports.qualcomm.length}',
+      );
+      return ChipsetPortGroups(ports.mediatek, ports.unisoc, ports.qualcomm);
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// MediaTek unlock without root over BROM and the stock Download Agent.
+  Future<String> mediatekDaUnlock(String loaderPath) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('chipsets', '>> mtk da unlock');
+    try {
+      final message = await chipsets_api.mediatekDaUnlock(
+        loaderPath: loaderPath,
+      );
+      await CommandLog.instance.write(
+        'chipsets',
+        '<< ${message.replaceAll('\n', ' | ')}',
+      );
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Unisoc partition flash over the factory FDL1/FDL2 loaders.
+  Future<String> unisocFlashPartition({
+    required String fdl1Path,
+    required String fdl2Path,
+    required int fdl1Addr,
+    required int fdl2Addr,
+    required String partition,
+    required String imagePath,
+  }) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write(
+      'chipsets',
+      '>> unisoc flash $partition from $imagePath',
+    );
+    try {
+      final message = await chipsets_api.unisocFlashPartition(
+        fdl1Path: fdl1Path,
+        fdl2Path: fdl2Path,
+        fdl1Addr: fdl1Addr,
+        fdl2Addr: fdl2Addr,
+        partition: partition,
+        imagePath: imagePath,
+      );
+      await CommandLog.instance.write(
+        'chipsets',
+        '<< ${message.replaceAll('\n', ' | ')}',
+      );
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Parses a rawprogram XML into flashable entries.
+  Future<List<ChipsetProgramEntry>> parseRawprogram(String xmlPath) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('chipsets', '>> rawprogram parse');
+    try {
+      final entries = await chipsets_api.parseRawprogram(xmlPath: xmlPath);
+      await CommandLog.instance.write(
+        'chipsets',
+        '<< ${entries.length} entries',
+      );
+      return [
+        for (final e in entries)
+          ChipsetProgramEntry(
+            label: e.label,
+            startSector: e.startSector,
+            numSectors: e.numSectors,
+            physPart: e.physPart,
+            filePath: e.filePath,
+          ),
+      ];
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Qualcomm EDL flash: Sahara programmer plus rawprogram entries.
+  Future<String> qualcommEdlFlash(
+    String programmerPath,
+    List<ChipsetProgramEntry> entries,
+  ) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write(
+      'chipsets',
+      '>> edl flash ${entries.length} entries',
+    );
+    try {
+      final message = await chipsets_api.qualcommEdlFlash(
+        programmerPath: programmerPath,
+        entries: [
+          for (final e in entries)
+            chipsets_api.ProgramEntry(
+              label: e.label,
+              startSector: e.startSector,
+              numSectors: e.numSectors,
+              physPart: e.physPart,
+              filePath: e.filePath,
+            ),
+        ],
+      );
+      await CommandLog.instance.write(
+        'chipsets',
+        '<< ${message.replaceAll('\n', ' | ')}',
+      );
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
   }
 
   Future<String> _usbFlash(

@@ -1,6 +1,5 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -340,6 +339,142 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get seccfgFailed => 'seccfg failed';
+
+  @override
+  String get chipsetsTitle => 'Chipsets';
+
+  @override
+  String get chipsetsTooltip => 'Vendor modes';
+
+  @override
+  String get chipsetsLoadFailed => 'Could not list the USB ports';
+
+  @override
+  String get chipsetsPortsNone => 'No port detected';
+
+  @override
+  String get chipsetsPickType => 'Firmware files';
+
+  @override
+  String get chipsetsConfirmGo => 'Run it';
+
+  @override
+  String get chipsetsAddrInvalid =>
+      'Addresses must be hex numbers, for example 0x00090000';
+
+  @override
+  String get chipsetsMtkTitle => 'MediaTek: BROM + Download Agent';
+
+  @override
+  String get chipsetsMtkHint =>
+      'Power the phone off, hold BROM or let the battery drain; the BROM/Preloader port shows up when the cable is plugged in.';
+
+  @override
+  String get chipsetsMtkLoaderNone => 'Stock Download Agent loader not chosen';
+
+  @override
+  String get chipsetsMtkLoaderPick => 'Choose DA loader';
+
+  @override
+  String get chipsetsMtkUnlock => 'Unlock bootloader (no root)';
+
+  @override
+  String get chipsetsMtkUnlockConfirmTitle => 'Unlock via Download Agent?';
+
+  @override
+  String get chipsetsMtkUnlockConfirmBody =>
+      'Skello boots the stock loader over BROM, reads seccfg, patches the lock flag to unlocked and writes it back. Root is not needed, but the loader file of your model is. A bad write can break the boot.';
+
+  @override
+  String get chipsetsMtkDone => 'seccfg patched over the Download Agent';
+
+  @override
+  String get chipsetsUnisocTitle => 'Unisoc: FDL';
+
+  @override
+  String get chipsetsUnisocHint =>
+      'Choose FDL1 and FDL2 from the factory firmware of your model; the addresses below are the common defaults.';
+
+  @override
+  String get chipsetsUnisocPickFdl1 => 'Choose FDL1';
+
+  @override
+  String get chipsetsUnisocPickFdl2 => 'Choose FDL2';
+
+  @override
+  String get chipsetsUnisocAddr1Label => 'FDL1 address';
+
+  @override
+  String get chipsetsUnisocAddr2Label => 'FDL2 address';
+
+  @override
+  String get chipsetsUnisocAddrHint => 'Hex, for example 0x00090000';
+
+  @override
+  String get chipsetsUnisocPartitionLabel => 'Partition name';
+
+  @override
+  String get chipsetsUnisocImageNone => 'Image not chosen';
+
+  @override
+  String get chipsetsUnisocImagePick => 'Choose image';
+
+  @override
+  String get chipsetsUnisocFlash => 'Flash partition';
+
+  @override
+  String get chipsetsUnisocConfirmTitle => 'Flash over FDL?';
+
+  @override
+  String chipsetsUnisocConfirmBody(String image, String partition) {
+    return 'Skello boots the factory loaders and writes $image into $partition. Wrong addresses or a foreign image can break the boot.';
+  }
+
+  @override
+  String get chipsetsUnisocDone => 'Partition written over FDL2';
+
+  @override
+  String get chipsetsQualcommTitle => 'Qualcomm: EDL (Sahara + Firehose)';
+
+  @override
+  String get chipsetsQualcommHint =>
+      'The EDL port appears when the phone is plugged in dead mode; the programmer and rawprogram XML come from your model\'s firmware package.';
+
+  @override
+  String get chipsetsQualcommProgrammerNone => 'Firehose programmer not chosen';
+
+  @override
+  String get chipsetsQualcommProgrammerPick => 'Choose programmer';
+
+  @override
+  String get chipsetsQualcommXmlPick => 'Choose rawprogram XML';
+
+  @override
+  String get chipsetsQualcommParse => 'Parse XML';
+
+  @override
+  String chipsetsQualcommEntriesLabel(int count) {
+    return '$count entries in the XML';
+  }
+
+  @override
+  String chipsetsQualcommEntryLine(
+      String label, String file, String sector, String sectors) {
+    return '$label: $file @ sector $sector ($sectors)';
+  }
+
+  @override
+  String get chipsetsQualcommFlash => 'Flash all entries';
+
+  @override
+  String get chipsetsQualcommConfirmTitle => 'Flash over EDL?';
+
+  @override
+  String get chipsetsQualcommConfirmBody =>
+      'Skello serves the programmer over Sahara and writes every rawprogram entry. Partitions are rewritten without a confirmation on the phone.';
+
+  @override
+  String get chipsetsQualcommDone => 'rawprogram finished';
 
   @override
   String get cancelLabel => 'Cancel';
