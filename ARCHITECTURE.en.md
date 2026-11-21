@@ -55,8 +55,12 @@ Flashing goes through the own USB transport (nusb: ff/42/03 interface, bulk endp
 1. Checks before sending: battery-soc-ok reports "yes" (when the variable exists), image size within max-download-size - both via getvar before download
 2. download:<size in hex>, then the image in 16 KiB chunks with progress
 3. flash:<partition>; INFO lines are collected and shown with the output
-4. Partitions to choose: boot, recovery, vendor_boot
-5. Reboot and verify the device came back - next step
+4. Partitions to choose: boot, recovery, vendor_boot; the same place has partition erase with a confirmation and the bootloader check
+5. Reboot and verify the device came back: after flashing a button sends reboot over USB and waits for the device in adb for up to 90 seconds, showing the result
+
+### adb over USB
+
+The adb work goes directly over USB without a server on port 5037: the ff/42/01 interface, the same bulk endpoints as fastboot. The codec is the 24-byte amessage with a checksum (byte sum) and magic; the CNXN handshake, on an AUTH token - a SHA1withRSA signature with the own key (the adbkey file, PKCS#1 PEM, in the app support directory), on rejection - publishing the key in the android pubkey format (len, n0inv, modulus, R², exponent - all little-endian) and waiting for the on-phone confirmation. Services open through A_OPEN: shell:<command> collects the output until CLSE acknowledging every WRTE, reboot[,target] reboots the phone. The device list is a USB enumeration with handshakes in threads: CNXN received - device, key not accepted - unauthorized, connection failed - offline. When USB is unavailable Skello falls back to the adb server and the system binaries.
 
 ### Root
 
@@ -71,4 +75,4 @@ All three methods are available on choice in the interface, the frame is the sam
 - No flashing command without an explicit confirmation showing the target partition
 - Charge and bootloader state checked before download/flash - implemented: battery-soc-ok, unlocked, max-download-size
 - Refusal to flash an image larger than max-download-size (splitting is on the plan)
-- A log of every command and device response: what happened to the phone must be reconstructable from the log
+- A log of every command and device response - implemented: skello-commands.log in the app support directory; what happened to the phone is reconstructable from the log
