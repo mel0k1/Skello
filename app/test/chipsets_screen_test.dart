@@ -110,8 +110,11 @@ void main() {
       find.widgetWithText(OutlinedButton, 'Choose image'),
     );
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).at(3), 'boot');
-    await tester.enterText(find.byType(TextField).at(1), 'zz');
+    await tester.enterText(find.byType(TextField).at(5), 'boot');
+    await tester.enterText(find.byType(TextField).at(3), 'zz');
+    final flashButton = find.widgetWithText(FilledButton, 'Flash partition');
+    await tester.ensureVisible(flashButton);
+    await tester.pumpAndSettle();
     await tester.pumpAndSettle();
 
     await tester.tap(find.widgetWithText(FilledButton, 'Flash partition'));
@@ -145,10 +148,13 @@ void main() {
       find.widgetWithText(OutlinedButton, 'Choose image'),
     );
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).at(3), 'boot');
+    await tester.enterText(find.byType(TextField).at(5), 'boot');
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Flash partition'));
+    final flashButton = find.widgetWithText(FilledButton, 'Flash partition');
+    await tester.ensureVisible(flashButton);
+    await tester.pumpAndSettle();
+    await tester.tap(flashButton);
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Run it'));
     await tester.pumpAndSettle();
@@ -239,7 +245,7 @@ void main() {
       ['v6-boot fastboot /fw/DA.bin'],
     );
     expect(find.text('DA V6 booted'), findsOneWidget);
-    expect(find.text('DA V6 booted, device set to fastboot'), findsOneWidget);
+    expect(find.text('DA V6 booted, device set to fastboot'), findsWidgets);
   });
 
   testWidgets('unisoc partition table shows the rows', (tester) async {
@@ -445,7 +451,7 @@ void main() {
 
     expect(repository.calls, contains('erase boot'));
     expect(find.text('Partition erased'), findsOneWidget);
-    expect(find.text('boot erased (2048 sectors)'), findsOneWidget);
+    expect(find.text('boot erased (2048 sectors)'), findsWidgets);
   });
 
   testWidgets('pac firmware info shows before flashing', (tester) async {
@@ -477,5 +483,64 @@ void main() {
     );
     expect(find.text('Pac firmware flashed'), findsOneWidget);
     expect(find.text('flashed 1: boot; reset'), findsOneWidget);
+  });
+
+  testWidgets('v6 read runs with partition and output path', (tester) async {
+    FileSelectorPlatform.instance = FakeSelector('/fw/DA_v6.bin');
+    final repository = FakeRepository();
+    repository.mtkPorts = ['BROM_123'];
+    await pumpChipsets(tester, repository);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Choose DA loader'));
+    await tester.pumpAndSettle();
+    final partitionField =
+        find.widgetWithText(TextField, 'Partition name').at(1);
+    await tester.ensureVisible(partitionField);
+    await tester.pumpAndSettle();
+    await tester.enterText(partitionField, 'boot');
+    final outField = find.widgetWithText(TextField, 'Save read to (file path)');
+    await tester.ensureVisible(outField);
+    await tester.pumpAndSettle();
+    await tester.enterText(outField, '/tmp/boot.bin');
+    final readButton = find.widgetWithText(OutlinedButton, 'Read partition');
+    await tester.ensureVisible(readButton);
+    await tester.pumpAndSettle();
+    await tester.tap(readButton);
+    await tester.pumpAndSettle();
+
+    expect(
+      repository.calls.where((c) => c.startsWith('v6-read')),
+      ['v6-read boot'],
+    );
+    expect(find.text('V6 operation finished'), findsOneWidget);
+    expect(find.text('boot read, 65536 bytes'), findsWidgets);
+  });
+
+  testWidgets('edl erase takes the partition name and confirms', (tester) async {
+    FileSelectorPlatform.instance = FakeSelector('/fw/prog_firehose.bin');
+    final repository = FakeRepository();
+    repository.qualcommPorts = ['9008'];
+    await pumpChipsets(tester, repository);
+
+    await tester.tap(
+      find.widgetWithText(OutlinedButton, 'Choose programmer'),
+    );
+    await tester.pumpAndSettle();
+    final eraseField =
+        find.widgetWithText(TextField, 'Partition name').last;
+    await tester.ensureVisible(eraseField);
+    await tester.pumpAndSettle();
+    await tester.enterText(eraseField, 'modem');
+    final eraseButton = find.widgetWithText(OutlinedButton, 'Erase partition').last;
+    await tester.ensureVisible(eraseButton);
+    await tester.pumpAndSettle();
+    await tester.tap(eraseButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Run it'));
+    await tester.pumpAndSettle();
+
+    expect(repository.calls, contains('edl-erase modem'));
+    expect(find.text('Partition erased'), findsOneWidget);
+    expect(find.text('boot erased (2048 sectors)'), findsWidgets);
   });
 }

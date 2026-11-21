@@ -63,7 +63,7 @@ import 'app_localizations_ru.dart';
 /// property.
 abstract class AppLocalizations {
   AppLocalizations(String locale)
-      : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -86,16 +86,16 @@ abstract class AppLocalizations {
   /// of delegates is preferred or required.
   static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
       <LocalizationsDelegate<dynamic>>[
-    delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-  ];
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
-    Locale('ru')
+    Locale('ru'),
   ];
 
   /// No description provided for @appName.
@@ -961,7 +961,11 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{label}: {file} @ sector {sector} ({sectors})'**
   String chipsetsQualcommEntryLine(
-      String label, String file, String sector, String sectors);
+    String label,
+    String file,
+    String sector,
+    String sectors,
+  );
 
   /// No description provided for @chipsetsQualcommFlash.
   ///
@@ -1179,6 +1183,108 @@ abstract class AppLocalizations {
   /// **'Flash this firmware? {info}'**
   String chipsetsPacConfirm(String info);
 
+  /// No description provided for @chipsetsV6Title.
+  ///
+  /// In en, this message translates to:
+  /// **'DA V6 (XML) partition ops'**
+  String get chipsetsV6Title;
+
+  /// No description provided for @chipsetsV6Hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Reads and writes go in 1 MiB chunks through the XML DA; after a disconnect the session rebuilds and the operation continues at the exact offset.'**
+  String get chipsetsV6Hint;
+
+  /// No description provided for @chipsetsV6OutPath.
+  ///
+  /// In en, this message translates to:
+  /// **'Save read to (file path)'**
+  String get chipsetsV6OutPath;
+
+  /// No description provided for @chipsetsV6Read.
+  ///
+  /// In en, this message translates to:
+  /// **'Read partition'**
+  String get chipsetsV6Read;
+
+  /// No description provided for @chipsetsV6Write.
+  ///
+  /// In en, this message translates to:
+  /// **'Write'**
+  String get chipsetsV6Write;
+
+  /// No description provided for @chipsetsV6ImagePick.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick image'**
+  String get chipsetsV6ImagePick;
+
+  /// No description provided for @chipsetsV6Done.
+  ///
+  /// In en, this message translates to:
+  /// **'V6 operation finished'**
+  String get chipsetsV6Done;
+
+  /// No description provided for @chipsetsV6PartitionRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Partition name required'**
+  String get chipsetsV6PartitionRequired;
+
+  /// No description provided for @chipsetsV6WriteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Write this image to {name} over the V6 DA?'**
+  String chipsetsV6WriteConfirm(String name);
+
+  /// No description provided for @chipsetsV6EraseConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Erase {name} over the V6 DA?'**
+  String chipsetsV6EraseConfirm(String name);
+
+  /// No description provided for @chipsetsQcEraseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Erase by GPT name'**
+  String get chipsetsQcEraseTitle;
+
+  /// No description provided for @chipsetsQcEraseHint.
+  ///
+  /// In en, this message translates to:
+  /// **'One Firehose <erase> command over the partition\'s LBA range; the programmer must be picked above.'**
+  String get chipsetsQcEraseHint;
+
+  /// No description provided for @chipsetsQcEraseConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Erase {name} over EDL?'**
+  String chipsetsQcEraseConfirm(String name);
+
+  /// No description provided for @chipsetsQcPatchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply a patch XML (patch0.xml): DISK entries fix sectors in place, host-side patches are skipped.'**
+  String get chipsetsQcPatchHint;
+
+  /// No description provided for @chipsetsQcPatchPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick patch XML'**
+  String get chipsetsQcPatchPick;
+
+  /// No description provided for @chipsetsQcPatchApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get chipsetsQcPatchApply;
+
+  /// No description provided for @chipsetsQcPatchDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Patch XML applied'**
+  String get chipsetsQcPatchDone;
+
   /// No description provided for @cancelLabel.
   ///
   /// In en, this message translates to:
@@ -1213,8 +1319,9 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-      'an issue with the localizations generation tool. Please file an issue '
-      'on GitHub with a reproducible sample app and the gen-l10n configuration '
-      'that was used.');
+    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+    'an issue with the localizations generation tool. Please file an issue '
+    'on GitHub with a reproducible sample app and the gen-l10n configuration '
+    'that was used.',
+  );
 }

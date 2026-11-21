@@ -1,5 +1,6 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -486,7 +487,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String chipsetsQualcommEntryLine(
-      String label, String file, String sector, String sectors) {
+    String label,
+    String file,
+    String sector,
+    String sectors,
+  ) {
     return '$label: $file @ сектор $sector ($sectors)';
   }
 
@@ -606,6 +611,66 @@ class AppLocalizationsRu extends AppLocalizations {
   String chipsetsPacConfirm(String info) {
     return 'Прошить эту прошивку? $info';
   }
+
+  @override
+  String get chipsetsV6Title => 'Разделы через DA V6 (XML)';
+
+  @override
+  String get chipsetsV6Hint =>
+      'Чтение и запись идут кусками по 1 МиБ через XML DA; после обрыва сессия собирается заново и операция продолжается с точного смещения.';
+
+  @override
+  String get chipsetsV6OutPath => 'Сохранить чтение в (путь файла)';
+
+  @override
+  String get chipsetsV6Read => 'Прочитать раздел';
+
+  @override
+  String get chipsetsV6Write => 'Записать';
+
+  @override
+  String get chipsetsV6ImagePick => 'Выбрать образ';
+
+  @override
+  String get chipsetsV6Done => 'Операция V6 завершена';
+
+  @override
+  String get chipsetsV6PartitionRequired => 'Нужно имя раздела';
+
+  @override
+  String chipsetsV6WriteConfirm(String name) {
+    return 'Записать образ в $name через DA V6?';
+  }
+
+  @override
+  String chipsetsV6EraseConfirm(String name) {
+    return 'Стереть $name через DA V6?';
+  }
+
+  @override
+  String get chipsetsQcEraseTitle => 'Стирание по имени из GPT';
+
+  @override
+  String get chipsetsQcEraseHint =>
+      'Одна команда Firehose <erase> на диапазон LBA раздела; программатор выбирается выше.';
+
+  @override
+  String chipsetsQcEraseConfirm(String name) {
+    return 'Стереть $name через EDL?';
+  }
+
+  @override
+  String get chipsetsQcPatchHint =>
+      'Применить patch XML (patch0.xml): записи DISK правят секторы на месте, патчи для хоста пропускаются.';
+
+  @override
+  String get chipsetsQcPatchPick => 'Выбрать patch XML';
+
+  @override
+  String get chipsetsQcPatchApply => 'Применить';
+
+  @override
+  String get chipsetsQcPatchDone => 'Patch XML применён';
 
   @override
   String get cancelLabel => 'Отмена';

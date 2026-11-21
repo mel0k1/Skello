@@ -410,6 +410,216 @@ pub fn mediatek_scatter_flash(loader_path: String, scatter_path: String) -> anyh
     Ok(result)
 }
 
+/// Qualcomm EDL: erases one partition by its GPT name (one `<erase>`
+/// command over the LBA range).
+pub fn qualcomm_edl_erase(programmer_path: String, partition: String) -> anyhow::Result<String> {
+    let mut fh = edl_firehose(programmer_path)?;
+    let parts = fh.gpt_list(0)?;
+    let (first, last) = parts
+        .iter()
+        .find(|p| p.name.eq_ignore_ascii_case(&partition))
+        .map(|p| (p.first_lba, p.last_lba))
+        .ok_or_else(|| anyhow::anyhow!("partition {partition} not found"))?;
+    fh.erase(0, first, last)?;
+    let _ = fh.reset();
+    let message = format!("{partition} erased ({} sectors)", last - first + 1);
+    log::core_log("qualcomm", &message);
+    Ok(message)
+}
+
+/// Qualcomm EDL: lists the GPT partitions of LUN 0 with their LBA
+/// ranges, the read-only companion for the erase flow.
+pub fn qualcomm_edl_gpt(programmer_path: String) -> anyhow::Result<String> {
+    let mut fh = edl_firehose(programmer_path)?;
+    let parts = fh.gpt_list(0)?;
+    let lines: Vec<String> = parts
+        .iter()
+        .map(|p| format!("{}: lba {}..{}", p.name, p.first_lba, p.last_lba))
+        .collect();
+    Ok(lines.join("
+"))
+}
+
+/// Boots the Sahara programmer and opens Firehose over USB.
+fn edl_firehose(programmer_path: String) -> anyhow::Result<Firehose> {
+    let blob = std::fs::read(&programmer_path)?;
+    if blob.starts_with(b"<?xml") {
+        anyhow::bail!("the programmer file is an ELF or cpio archive, plain binary expected");
+    }
+    Sahara::boot_programmer(&[blob])?;
+    let mut fh = Firehose::new(open_usb_serial(VID_QUALCOMM, PID_EDL)?);
+    fh.configure("ufs")?;
+    Ok(fh)
+}
+
+/// One `<patch>` instruction from a patch XML.
+pub struct PatchEntry {
+    pub byte_offset: u64,
+    pub size: u64,
+    pub start_sector: String,
+    pub value: String,
+    pub phys_part: u8,
+}
+
+/// Parses a patch XML: only DISK patches pass through, host-side
+/// patches are skipped like qdlrs does.
+pub fn parse_patchxml(xml_path: String) -> anyhow::Result<Vec<PatchEntry>> {
+    let xml = std::fs::read_to_string(&xml_path)?;
+    let mut out = Vec::new();
+    for chunk in xml.split("<patch") {
+        let Some(rest) = chunk.split_once("/>") else {
+            continue;
+        };
+        let tag = rest.0;
+        let get = |key: &str| -> Option<String> {
+            let pattern = format!("{key}=\"");
+            let start = tag.find(&pattern)? + pattern.len();
+            let end = tag[start..].find('"')? + start;
+            Some(tag[start..end].to_string())
+        };
+        if let Some(filename) = get("filename") {
+            if !filename.eq_ignore_ascii_case("DISK") {
+                continue;
+            }
+        }
+        out.push(PatchEntry {
+            byte_offset: get("byte_offset").and_then(|v| v.parse().ok()).unwrap_or(0),
+            size: get("size_in_bytes").and_then(|v| v.parse().ok()).unwrap_or(0),
+            start_sector: get("start_sector").unwrap_or_default(),
+            value: get("value").unwrap_or_default(),
+            phys_part: get("physical_partition_number")
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(0),
+        });
+    }
+    Ok(out)
+}
+
+/// Applies a patch XML: every DISK patch is one Firehose `<patch>`
+/// command, the device fixes the sectors itself.
+pub fn qualcomm_edl_patch(programmer_path: String, patch_xml_path: String) -> anyhow::Result<String> {
+    let entries = parse_patchxml(patch_xml_path)?;
+    if entries.is_empty() {
+        anyhow::bail!("no DISK patch entries found");
+    }
+    let mut fh = edl_firehose(programmer_path)?;
+    for entry in &entries {
+        fh.patch(
+            entry.phys_part,
+            entry.byte_offset,
+            entry.size,
+            &entry.start_sector,
+            &entry.value,
+        )?;
+    }
+    let _ = fh.reset();
+    let message = format!("{} patch entries applied", entries.len());
+    log::core_log("qualcomm", &message);
+    Ok(message)
+}
+
+/// Builds a fresh V6 flash session: BROM handshake, DA upload, XML
+/// session, stage 2. Used directly and as the recovery builder.
+fn v6_reopen(
+    loader_path: &str,
+) -> Result<XmlDa, skello_chipsets::mediatek::xml::XmlDaError> {
+    let mut brom = Brom::new(open_usb_serial(VID_MEDIATEK, PID_BROM)?);
+    XmlDa::flash_session_with(
+        &mut brom,
+        loader_path,
+        &mut || open_usb_serial(VID_MEDIATEK, PID_DA),
+    )
+}
+
+/// Reads a GPT area through the V6 DA and maps a partition name to
+/// its byte range on the user area.
+fn v6_find_partition(
+    session: &mut XmlDa,
+    name: &str,
+) -> anyhow::Result<(u64, u64)> {
+    let gpt = session.read_flash_region("user", 0, 34 * 512)?;
+    let parts = skello_chipsets::mediatek::gpt::parse_gpt(&gpt, 512)
+        .map_err(|e| anyhow::anyhow!("gpt: {e}"))?;
+    skello_chipsets::mediatek::gpt::find_partition(&parts, name, 512)
+        .ok_or_else(|| anyhow::anyhow!("partition {name} not found"))
+}
+
+/// MTK DA V6: reads a whole partition to a file in 1 MiB chunks;
+/// after a transport drop the session is rebuilt and reading
+/// continues at the exact offset.
+pub fn mediatek_v6_read_partition(
+    loader_path: String,
+    partition: String,
+    out_path: String,
+) -> anyhow::Result<String> {
+    let mut session = v6_reopen(&loader_path)?;
+    let (offset, size) = v6_find_partition(&mut session, &partition)?;
+    let mut file = std::io::BufWriter::new(std::fs::File::create(&out_path)?);
+    let mut reopen = || v6_reopen(&loader_path);
+    let mut sink = |pos: usize, data: &[u8]| {
+        let _ = pos;
+        std::io::Write::write_all(&mut file, data)
+            .map_err(skello_chipsets::mediatek::xml::XmlDaError::Io)
+    };
+    let read = XmlDa::read_flash_resumable(size as usize, 0x100_000, &mut sink, &mut reopen)
+        .map_err(|e| anyhow::anyhow!("v6 read: {e}"))?;
+    let message = format!("{partition} read, {read} bytes -> {out_path}");
+    log::core_log("mediatek", &message);
+    Ok(message)
+}
+
+/// MTK DA V6: writes an image into a partition in 1 MiB chunks.
+/// One erase runs before the first chunk; after a transport drop
+/// the session rebuilds and writing continues at the exact offset
+/// without touching what already landed.
+pub fn mediatek_v6_write_partition(
+    loader_path: String,
+    partition: String,
+    image_path: String,
+) -> anyhow::Result<String> {
+    let mut session = v6_reopen(&loader_path)?;
+    let (offset, size) = v6_find_partition(&mut session, &partition)?;
+    let image = std::fs::read(&image_path)?;
+    if image.len() as u64 > size {
+        anyhow::bail!(
+            "image is {} bytes, partition holds {}",
+            image.len(),
+            size
+        );
+    }
+    let _ = offset;
+    let mut reopen = || v6_reopen(&loader_path);
+    let mut reader = std::io::Cursor::new(image);
+    let written = XmlDa::write_flash_resumable(&mut reader, size as usize, 0x100_000, &mut reopen)
+        .map_err(|e| anyhow::anyhow!("v6 write: {e}"))?;
+    let message = format!("{partition} written, {written} bytes");
+    log::core_log("mediatek", &message);
+    Ok(message)
+}
+
+/// MTK DA V6: erases a whole partition by its GPT name.
+pub fn mediatek_v6_erase_partition(loader_path: String, partition: String) -> anyhow::Result<String> {
+    let mut session = v6_reopen(&loader_path)?;
+    session.erase_partition_named(&partition)?;
+    let message = format!("{partition} erased");
+    log::core_log("mediatek", &message);
+    Ok(message)
+}
+
+/// MTK DA V6: lists the GPT partitions as name + LBA ranges.
+pub fn mediatek_v6_gpt(loader_path: String) -> anyhow::Result<String> {
+    let mut session = v6_reopen(&loader_path)?;
+    let gpt = session.read_flash_region("user", 0, 34 * 512)?;
+    let parts = skello_chipsets::mediatek::gpt::parse_gpt(&gpt, 512)
+        .map_err(|e| anyhow::anyhow!("gpt: {e}"))?;
+    let lines: Vec<String> = parts
+        .iter()
+        .map(|p| format!("{}: lba {}..{}", p.name, p.first_lba, p.last_lba))
+        .collect();
+    Ok(lines.join("
+"))
+}
+
 /// Qualcomm EDL flash: serves the Firehose programmer over Sahara,
 /// switches to command mode and runs a rawprogram XML where every
 /// program entry flashes one file at its start sector. Sparse images

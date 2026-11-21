@@ -1,5 +1,6 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -482,7 +483,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String chipsetsQualcommEntryLine(
-      String label, String file, String sector, String sectors) {
+    String label,
+    String file,
+    String sector,
+    String sectors,
+  ) {
     return '$label: $file @ sector $sector ($sectors)';
   }
 
@@ -602,6 +607,66 @@ class AppLocalizationsEn extends AppLocalizations {
   String chipsetsPacConfirm(String info) {
     return 'Flash this firmware? $info';
   }
+
+  @override
+  String get chipsetsV6Title => 'DA V6 (XML) partition ops';
+
+  @override
+  String get chipsetsV6Hint =>
+      'Reads and writes go in 1 MiB chunks through the XML DA; after a disconnect the session rebuilds and the operation continues at the exact offset.';
+
+  @override
+  String get chipsetsV6OutPath => 'Save read to (file path)';
+
+  @override
+  String get chipsetsV6Read => 'Read partition';
+
+  @override
+  String get chipsetsV6Write => 'Write';
+
+  @override
+  String get chipsetsV6ImagePick => 'Pick image';
+
+  @override
+  String get chipsetsV6Done => 'V6 operation finished';
+
+  @override
+  String get chipsetsV6PartitionRequired => 'Partition name required';
+
+  @override
+  String chipsetsV6WriteConfirm(String name) {
+    return 'Write this image to $name over the V6 DA?';
+  }
+
+  @override
+  String chipsetsV6EraseConfirm(String name) {
+    return 'Erase $name over the V6 DA?';
+  }
+
+  @override
+  String get chipsetsQcEraseTitle => 'Erase by GPT name';
+
+  @override
+  String get chipsetsQcEraseHint =>
+      'One Firehose <erase> command over the partition\'s LBA range; the programmer must be picked above.';
+
+  @override
+  String chipsetsQcEraseConfirm(String name) {
+    return 'Erase $name over EDL?';
+  }
+
+  @override
+  String get chipsetsQcPatchHint =>
+      'Apply a patch XML (patch0.xml): DISK entries fix sectors in place, host-side patches are skipped.';
+
+  @override
+  String get chipsetsQcPatchPick => 'Pick patch XML';
+
+  @override
+  String get chipsetsQcPatchApply => 'Apply';
+
+  @override
+  String get chipsetsQcPatchDone => 'Patch XML applied';
 
   @override
   String get cancelLabel => 'Cancel';

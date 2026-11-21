@@ -277,4 +277,53 @@ class FakeRepository implements DeviceRepository {
     if (failChipsetCalls) throw Exception('scatter line 14: not a hex number');
     return scatterMessage;
   }
+
+  String v6Message = 'boot read, 65536 bytes';
+  String qcMessage = 'boot erased (2048 sectors)';
+
+  @override
+  Future<String> mediatekV6ReadPartition(
+    String loaderPath,
+    String partition,
+    String outPath,
+  ) async {
+    calls.add('v6-read $partition');
+    if (failChipsetCalls) throw Exception('v6 read: partition boot not found');
+    return v6Message;
+  }
+
+  @override
+  Future<String> mediatekV6WritePartition(
+    String loaderPath,
+    String partition,
+    String imagePath,
+  ) async {
+    calls.add('v6-write $partition');
+    if (failChipsetCalls) throw Exception('v6 write: image is 4096 bytes, partition holds 2048');
+    return v6Message;
+  }
+
+  @override
+  Future<String> mediatekV6ErasePartition(
+    String loaderPath,
+    String partition,
+  ) async {
+    calls.add('v6-erase $partition');
+    if (failChipsetCalls) throw Exception('v6 erase: partition boot not found');
+    return v6Message;
+  }
+
+  @override
+  Future<String> qualcommEdlErase(String programmerPath, String partition) async {
+    calls.add('edl-erase $partition');
+    if (failChipsetCalls) throw Exception('partition boot not found');
+    return qcMessage;
+  }
+
+  @override
+  Future<String> qualcommEdlPatch(String programmerPath, String patchPath) async {
+    calls.add('edl-patch $patchPath');
+    if (failChipsetCalls) throw Exception('no DISK patch entries found');
+    return '3 patch entries applied';
+  }
 }

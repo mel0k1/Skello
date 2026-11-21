@@ -904,6 +904,129 @@ class DeviceRepository {
     }
   }
 
+  /// MTK DA V6: reads a partition to a file with session recovery.
+  Future<String> mediatekV6ReadPartition(
+    String loaderPath,
+    String partition,
+    String outPath,
+  ) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('chipsets', '>> v6 read $partition');
+    try {
+      final message = await chipsets_api.mediatekV6ReadPartition(
+        loaderPath: loaderPath,
+        partition: partition,
+        outPath: outPath,
+      );
+      await CommandLog.instance.write(
+        'chipsets',
+        '<< ${message.replaceAll('\n', ' | ')}',
+      );
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// MTK DA V6: writes an image into a partition with recovery.
+  Future<String> mediatekV6WritePartition(
+    String loaderPath,
+    String partition,
+    String imagePath,
+  ) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('chipsets', '>> v6 write $partition');
+    try {
+      final message = await chipsets_api.mediatekV6WritePartition(
+        loaderPath: loaderPath,
+        partition: partition,
+        imagePath: imagePath,
+      );
+      await CommandLog.instance.write(
+        'chipsets',
+        '<< ${message.replaceAll('\n', ' | ')}',
+      );
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// MTK DA V6: erases a partition by its GPT name.
+  Future<String> mediatekV6ErasePartition(
+    String loaderPath,
+    String partition,
+  ) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('chipsets', '>> v6 erase $partition');
+    try {
+      final message = await chipsets_api.mediatekV6ErasePartition(
+        loaderPath: loaderPath,
+        partition: partition,
+      );
+      await CommandLog.instance.write(
+        'chipsets',
+        '<< ${message.replaceAll('\n', ' | ')}',
+      );
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Qualcomm EDL: erases one partition by its GPT name.
+  Future<String> qualcommEdlErase(String programmerPath, String partition) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('chipsets', '>> edl erase $partition');
+    try {
+      final message = await chipsets_api.qualcommEdlErase(
+        programmerPath: programmerPath,
+        partition: partition,
+      );
+      await CommandLog.instance.write(
+        'chipsets',
+        '<< ${message.replaceAll('\n', ' | ')}',
+      );
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Qualcomm EDL: applies a patch XML.
+  Future<String> qualcommEdlPatch(String programmerPath, String patchPath) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('chipsets', '>> edl patch');
+    try {
+      final message = await chipsets_api.qualcommEdlPatch(
+        programmerPath: programmerPath,
+        patchXmlPath: patchPath,
+      );
+      await CommandLog.instance.write(
+        'chipsets',
+        '<< ${message.replaceAll('\n', ' | ')}',
+      );
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
   Future<String> _usbFlash(
 
     String serial,

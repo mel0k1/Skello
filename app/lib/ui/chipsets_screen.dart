@@ -44,6 +44,17 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
   String? _pacInfo;
   String? _pacResult;
   String? _pacError;
+  final _v6PartitionCtrl = TextEditingController();
+  final _v6OutCtrl = TextEditingController();
+  String? _v6ImagePath;
+  final _qcEraseCtrl = TextEditingController();
+  bool _qcEraseBusy = false;
+  String? _qcEraseResult;
+  String? _qcEraseError;
+  bool _qcPatchBusy = false;
+  String? _qcPatchResult;
+  String? _qcPatchError;
+  String? _qcPatchPath;
   bool _rpmbBusy = false;
   String? _rpmbResult;
   String? _rpmbError;
@@ -395,6 +406,171 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
       setState(() {
         _rpmbError = e.toString();
         _rpmbBusy = false;
+      });
+    }
+  }
+
+  Future<void> _runV6Read() async {
+    final strings = AppLocalizations.of(context)!;
+    final name = _v6PartitionCtrl.text.trim();
+    if (name.isEmpty) {
+      setState(() => _v6Error = strings.chipsetsV6PartitionRequired);
+      return;
+    }
+    setState(() {
+      _v6Busy = true;
+      _v6Result = null;
+      _v6Error = null;
+    });
+    try {
+      final message = await widget.repository.mediatekV6ReadPartition(
+        _loaderPath!,
+        name,
+        _v6OutCtrl.text.trim(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _v6Result = message;
+        _v6Busy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _v6Error = e.toString();
+        _v6Busy = false;
+      });
+    }
+  }
+
+  Future<void> _runV6Write() async {
+    final strings = AppLocalizations.of(context)!;
+    final name = _v6PartitionCtrl.text.trim();
+    if (name.isEmpty || _v6ImagePath == null) {
+      setState(() => _v6Error = strings.chipsetsV6PartitionRequired);
+      return;
+    }
+    final go = await _confirm(
+      strings.chipsetsExploitConfirmTitle,
+      strings.chipsetsV6WriteConfirm(name),
+    );
+    if (!go) return;
+    setState(() {
+      _v6Busy = true;
+      _v6Result = null;
+      _v6Error = null;
+    });
+    try {
+      final message = await widget.repository.mediatekV6WritePartition(
+        _loaderPath!,
+        name,
+        _v6ImagePath!,
+      );
+      if (!mounted) return;
+      setState(() {
+        _v6Result = message;
+        _v6Busy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _v6Error = e.toString();
+        _v6Busy = false;
+      });
+    }
+  }
+
+  Future<void> _runV6Erase() async {
+    final strings = AppLocalizations.of(context)!;
+    final name = _v6PartitionCtrl.text.trim();
+    if (name.isEmpty) {
+      setState(() => _v6Error = strings.chipsetsV6PartitionRequired);
+      return;
+    }
+    final go = await _confirm(
+      strings.chipsetsExploitConfirmTitle,
+      strings.chipsetsV6EraseConfirm(name),
+    );
+    if (!go) return;
+    setState(() {
+      _v6Busy = true;
+      _v6Result = null;
+      _v6Error = null;
+    });
+    try {
+      final message = await widget.repository.mediatekV6ErasePartition(
+        _loaderPath!,
+        name,
+      );
+      if (!mounted) return;
+      setState(() {
+        _v6Result = message;
+        _v6Busy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _v6Error = e.toString();
+        _v6Busy = false;
+      });
+    }
+  }
+
+  Future<void> _runQcErase() async {
+    final strings = AppLocalizations.of(context)!;
+    final name = _qcEraseCtrl.text.trim();
+    if (name.isEmpty || _programmerPath == null) {
+      setState(() => _qcEraseError = strings.chipsetsV6PartitionRequired);
+      return;
+    }
+    final go = await _confirm(
+      strings.chipsetsExploitConfirmTitle,
+      strings.chipsetsQcEraseConfirm(name),
+    );
+    if (!go) return;
+    setState(() {
+      _qcEraseBusy = true;
+      _qcEraseResult = null;
+      _qcEraseError = null;
+    });
+    try {
+      final message =
+          await widget.repository.qualcommEdlErase(_programmerPath!, name);
+      if (!mounted) return;
+      setState(() {
+        _qcEraseResult = message;
+        _qcEraseBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _qcEraseError = e.toString();
+        _qcEraseBusy = false;
+      });
+    }
+  }
+
+  Future<void> _runQcPatch() async {
+    if (_programmerPath == null || _qcPatchPath == null) return;
+    setState(() {
+      _qcPatchBusy = true;
+      _qcPatchResult = null;
+      _qcPatchError = null;
+    });
+    try {
+      final message = await widget.repository.qualcommEdlPatch(
+        _programmerPath!,
+        _qcPatchPath!,
+      );
+      if (!mounted) return;
+      setState(() {
+        _qcPatchResult = message;
+        _qcPatchBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _qcPatchError = e.toString();
+        _qcPatchBusy = false;
       });
     }
   }
@@ -931,6 +1107,96 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                   error: _eraseError,
                   successText: strings.chipsetsEraseDone,
                 ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    strings.chipsetsV6Title,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  strings.chipsetsV6Hint,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 4),
+                TextField(
+                  controller: _v6PartitionCtrl,
+                  decoration: InputDecoration(
+                    labelText: strings.chipsetsEraseName,
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                TextField(
+                  controller: _v6OutCtrl,
+                  decoration: InputDecoration(
+                    labelText: strings.chipsetsV6OutPath,
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed:
+                            _loaderPath != null && !_v6Busy ? _runV6Read : null,
+                        child: Text(strings.chipsetsV6Read),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed:
+                            _loaderPath != null && !_v6Busy ? _runV6Erase : null,
+                        child: Text(strings.chipsetsEraseBtn),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: OutlinedButton(
+                        onPressed: !_v6Busy
+                            ? () async {
+                                final path = await _pickPath(const [
+                                  'img',
+                                  'bin',
+                                ]);
+                                if (path == null) return;
+                                setState(() => _v6ImagePath = path);
+                              }
+                            : null,
+                        child: Text(
+                          _v6ImagePath == null
+                              ? strings.chipsetsV6ImagePick
+                              : _baseName(_v6ImagePath!),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed:
+                            _loaderPath != null && _v6ImagePath != null && !_v6Busy
+                                ? _runV6Write
+                                : null,
+                        child: Text(strings.chipsetsV6Write),
+                      ),
+                    ),
+                  ],
+                ),
+                _resultLine(
+                  context,
+                  result: _v6Result,
+                  error: _v6Error,
+                  successText: strings.chipsetsV6Done,
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -1198,6 +1464,83 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                   result: _qualResult,
                   error: _qualError,
                   successText: strings.chipsetsQualcommDone,
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    strings.chipsetsQcEraseTitle,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  strings.chipsetsQcEraseHint,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 4),
+                TextField(
+                  controller: _qcEraseCtrl,
+                  decoration: InputDecoration(
+                    labelText: strings.chipsetsEraseName,
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                OutlinedButton(
+                  onPressed: _programmerPath != null && !_qcEraseBusy
+                      ? _runQcErase
+                      : null,
+                  child: Text(strings.chipsetsEraseBtn),
+                ),
+                _resultLine(
+                  context,
+                  result: _qcEraseResult,
+                  error: _qcEraseError,
+                  successText: strings.chipsetsEraseDone,
+                ),
+                Text(
+                  strings.chipsetsQcPatchHint,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: OutlinedButton(
+                        onPressed: !_qcPatchBusy
+                            ? () async {
+                                final path = await _pickPath(const ['xml']);
+                                if (path == null) return;
+                                setState(() => _qcPatchPath = path);
+                              }
+                            : null,
+                        child: Text(
+                          _qcPatchPath == null
+                              ? strings.chipsetsQcPatchPick
+                              : _baseName(_qcPatchPath!),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: _programmerPath != null &&
+                                _qcPatchPath != null &&
+                                !_qcPatchBusy
+                            ? _runQcPatch
+                            : null,
+                        child: Text(strings.chipsetsQcPatchApply),
+                      ),
+                    ),
+                  ],
+                ),
+                _resultLine(
+                  context,
+                  result: _qcPatchResult,
+                  error: _qcPatchError,
+                  successText: strings.chipsetsQcPatchDone,
                 ),
                 Padding(
                   padding: const EdgeInsets.only(top: 12),

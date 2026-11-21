@@ -4,6 +4,7 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `is_rooted`, `pull_seccfg`, `push_seccfg`, `report_of`, `run_shell`, `seccfg_err`
@@ -11,18 +12,24 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Reads the seccfg partition over adb (rooted device required for the
 /// block device) and reports the lock state.
-Future<SeccfgReport> mediatekSeccfgStatus(
-        {required String serial, required String keysDir}) =>
-    RustLib.instance.api
-        .crateApiMediatekMediatekSeccfgStatus(serial: serial, keysDir: keysDir);
+Future<SeccfgReport> mediatekSeccfgStatus({
+  required String serial,
+  required String keysDir,
+}) => RustLib.instance.api.crateApiMediatekMediatekSeccfgStatus(
+  serial: serial,
+  keysDir: keysDir,
+);
 
 /// Patches seccfg to the unlocked state and writes it back through adb.
 /// Only V3 software-SEJ partitions are supported; hardware-keyed ones
 /// need the Download Agent stage.
-Future<String> mediatekSeccfgUnlock(
-        {required String serial, required String keysDir}) =>
-    RustLib.instance.api
-        .crateApiMediatekMediatekSeccfgUnlock(serial: serial, keysDir: keysDir);
+Future<String> mediatekSeccfgUnlock({
+  required String serial,
+  required String keysDir,
+}) => RustLib.instance.api.crateApiMediatekMediatekSeccfgUnlock(
+  serial: serial,
+  keysDir: keysDir,
+);
 
 /// Parsed seccfg state of a MediaTek device.
 class SeccfgReport {
