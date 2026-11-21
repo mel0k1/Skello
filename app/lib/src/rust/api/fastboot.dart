@@ -8,3 +8,20 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 Future<String> fastbootDevices() =>
     RustLib.instance.api.crateApiFastbootFastbootDevices();
+
+Future<String> fastbootGetvar({required String serial, required String name}) =>
+    RustLib.instance.api
+        .crateApiFastbootFastbootGetvar(serial: serial, name: name);
+
+Future<String> fastbootReboot({required String serial}) =>
+    RustLib.instance.api.crateApiFastbootFastbootReboot(serial: serial);
+
+Future<String> fastbootFlashingUnlock({required String serial}) =>
+    RustLib.instance.api.crateApiFastbootFastbootFlashingUnlock(serial: serial);
+
+Future<String> fastbootFlash(
+        {required String serial,
+        required String partition,
+        required String image}) =>
+    RustLib.instance.api.crateApiFastbootFastbootFlash(
+        serial: serial, partition: partition, image: image);

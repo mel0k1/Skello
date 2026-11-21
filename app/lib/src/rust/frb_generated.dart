@@ -72,7 +72,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 422139797;
+  int get rustContentHash => -882207135;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -86,11 +86,27 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 abstract class RustLibApi extends BaseApi {
   Future<String> crateApiAdbAdbDevices();
 
+  Future<String> crateApiAdbAdbReboot(
+      {required String serial, required String target});
+
   Future<int> crateApiAdbAdbServerVersion();
 
   Future<BootImageInfo> crateApiBootimgBootImageInfo({required String path});
 
   Future<String> crateApiFastbootFastbootDevices();
+
+  Future<String> crateApiFastbootFastbootFlash(
+      {required String serial,
+      required String partition,
+      required String image});
+
+  Future<String> crateApiFastbootFastbootFlashingUnlock(
+      {required String serial});
+
+  Future<String> crateApiFastbootFastbootGetvar(
+      {required String serial, required String name});
+
+  Future<String> crateApiFastbootFastbootReboot({required String serial});
 
   Future<void> crateApiInitApp();
 }
@@ -127,12 +143,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<String> crateApiAdbAdbReboot(
+      {required String serial, required String target}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(serial, serializer);
+        sse_encode_String(target, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 2, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: sse_decode_AnyhowException,
+      ),
+      constMeta: kCrateApiAdbAdbRebootConstMeta,
+      argValues: [serial, target],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiAdbAdbRebootConstMeta => const TaskConstMeta(
+        debugName: "adb_reboot",
+        argNames: ["serial", "target"],
+      );
+
+  @override
   Future<int> crateApiAdbAdbServerVersion() {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 2, port: port_);
+            funcId: 3, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_u_32,
@@ -157,7 +199,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(path, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 3, port: port_);
+            funcId: 4, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_boot_image_info,
@@ -181,7 +223,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 4, port: port_);
+            funcId: 5, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_String,
@@ -200,12 +242,120 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<String> crateApiFastbootFastbootFlash(
+      {required String serial,
+      required String partition,
+      required String image}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(serial, serializer);
+        sse_encode_String(partition, serializer);
+        sse_encode_String(image, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 6, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: sse_decode_AnyhowException,
+      ),
+      constMeta: kCrateApiFastbootFastbootFlashConstMeta,
+      argValues: [serial, partition, image],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiFastbootFastbootFlashConstMeta =>
+      const TaskConstMeta(
+        debugName: "fastboot_flash",
+        argNames: ["serial", "partition", "image"],
+      );
+
+  @override
+  Future<String> crateApiFastbootFastbootFlashingUnlock(
+      {required String serial}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(serial, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 7, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: sse_decode_AnyhowException,
+      ),
+      constMeta: kCrateApiFastbootFastbootFlashingUnlockConstMeta,
+      argValues: [serial],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiFastbootFastbootFlashingUnlockConstMeta =>
+      const TaskConstMeta(
+        debugName: "fastboot_flashing_unlock",
+        argNames: ["serial"],
+      );
+
+  @override
+  Future<String> crateApiFastbootFastbootGetvar(
+      {required String serial, required String name}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(serial, serializer);
+        sse_encode_String(name, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 8, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: sse_decode_AnyhowException,
+      ),
+      constMeta: kCrateApiFastbootFastbootGetvarConstMeta,
+      argValues: [serial, name],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiFastbootFastbootGetvarConstMeta =>
+      const TaskConstMeta(
+        debugName: "fastboot_getvar",
+        argNames: ["serial", "name"],
+      );
+
+  @override
+  Future<String> crateApiFastbootFastbootReboot({required String serial}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(serial, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 9, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: sse_decode_AnyhowException,
+      ),
+      constMeta: kCrateApiFastbootFastbootRebootConstMeta,
+      argValues: [serial],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiFastbootFastbootRebootConstMeta =>
+      const TaskConstMeta(
+        debugName: "fastboot_reboot",
+        argNames: ["serial"],
+      );
+
+  @override
   Future<void> crateApiInitApp() {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 5, port: port_);
+            funcId: 10, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,

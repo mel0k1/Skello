@@ -10,3 +10,6 @@ Future<int> adbServerVersion() =>
     RustLib.instance.api.crateApiAdbAdbServerVersion();
 
 Future<String> adbDevices() => RustLib.instance.api.crateApiAdbAdbDevices();
+
+Future<String> adbReboot({required String serial, required String target}) =>
+    RustLib.instance.api.crateApiAdbAdbReboot(serial: serial, target: target);
