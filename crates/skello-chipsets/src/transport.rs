@@ -127,8 +127,7 @@ impl Link for UsbSerialLink {
 /// run against a fake bootloader without any real hardware.
 /// Device-side callback: gets the answer queue and the host write.
 #[doc(hidden)]
-pub type DeviceFn =
-    Box<dyn FnMut(&mut std::collections::VecDeque<u8>, &[u8]) + Send>;
+pub type DeviceFn = Box<dyn FnMut(&mut std::collections::VecDeque<u8>, &[u8]) + Send>;
 
 #[doc(hidden)]
 pub struct MockLink {

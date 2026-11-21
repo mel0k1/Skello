@@ -335,29 +335,28 @@ mod tests {
     fn send_da_rejects_bad_checksum() {
         let mut mock = MockLink::new();
         let hs = RefCell::new((0usize, 0usize));
-        let broken: crate::transport::DeviceFn =
-            Box::new(move |out, input| {
-                let mut st = hs.borrow_mut();
-                if input.len() == 1 && st.0 < HANDSHAKE.len() && HANDSHAKE[st.0] == input[0] {
-                    out.push_back(!input[0]);
-                    st.0 += 1;
-                    return;
-                }
-                st.0 = 0;
-                if input[0] == CMD_SEND_DA && input.len() == 1 {
-                    out.extend(input);
-                } else if input.len() == 4 {
-                    // address, size, sig_len echoes; status after the third
-                    out.extend(input);
-                    st.1 += 1;
-                    if st.1 == 3 {
-                        out.extend(0u16.to_be_bytes());
-                    }
-                } else if input.len() > 4 {
-                    out.extend(0xBEEFu16.to_be_bytes());
+        let broken: crate::transport::DeviceFn = Box::new(move |out, input| {
+            let mut st = hs.borrow_mut();
+            if input.len() == 1 && st.0 < HANDSHAKE.len() && HANDSHAKE[st.0] == input[0] {
+                out.push_back(!input[0]);
+                st.0 += 1;
+                return;
+            }
+            st.0 = 0;
+            if input[0] == CMD_SEND_DA && input.len() == 1 {
+                out.extend(input);
+            } else if input.len() == 4 {
+                // address, size, sig_len echoes; status after the third
+                out.extend(input);
+                st.1 += 1;
+                if st.1 == 3 {
                     out.extend(0u16.to_be_bytes());
                 }
-            });
+            } else if input.len() > 4 {
+                out.extend(0xBEEFu16.to_be_bytes());
+                out.extend(0u16.to_be_bytes());
+            }
+        });
         mock.device = Some(broken);
         let mut brom = Brom::new(Box::new(mock));
         brom.handshake().unwrap();

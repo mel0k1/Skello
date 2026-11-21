@@ -99,7 +99,6 @@ impl SaharaPacket {
         out.extend_from_slice(&self.body);
         out
     }
-
 }
 
 /// A Sahara session: programmer download, then command-mode switch.
