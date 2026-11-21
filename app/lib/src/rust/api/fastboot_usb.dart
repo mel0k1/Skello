@@ -24,6 +24,20 @@ Future<String> fastbootUsbGetvar({
 Future<void> fastbootUsbReboot({required String serial}) =>
     RustLib.instance.api.crateApiFastbootUsbFastbootUsbReboot(serial: serial);
 
+/// `flashing:unlock` over USB; the device may wait for an on-phone
+/// confirmation, so the read timeout is extended to 120 seconds.
+Future<String> fastbootUsbUnlock({required String serial}) =>
+    RustLib.instance.api.crateApiFastbootUsbFastbootUsbUnlock(serial: serial);
+
+Future<String> fastbootUsbErase({
+  required String serial,
+  required String partition,
+}) =>
+    RustLib.instance.api.crateApiFastbootUsbFastbootUsbErase(
+      serial: serial,
+      partition: partition,
+    );
+
 Stream<FlashProgress> fastbootFlashUsb({
   required String serial,
   required String partition,

@@ -42,6 +42,12 @@ pub fn fastboot_flashing_unlock(serial: String) -> anyhow::Result<String> {
     run_with_timeout(cmd, "fastboot flashing unlock", Duration::from_secs(120))
 }
 
+pub fn fastboot_erase(serial: String, partition: String) -> anyhow::Result<String> {
+    let mut cmd = Command::new("fastboot");
+    cmd.arg("-s").arg(&serial).arg("erase").arg(&partition);
+    run_with_timeout(cmd, "fastboot erase", Duration::from_secs(60))
+}
+
 pub fn fastboot_flash(serial: String, partition: String, image: String) -> anyhow::Result<String> {
     let mut cmd = Command::new("fastboot");
     cmd.arg("-s")

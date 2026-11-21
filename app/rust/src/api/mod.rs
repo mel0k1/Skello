@@ -1,4 +1,5 @@
 pub mod adb;
+pub mod adb_usb;
 pub mod bootimg;
 pub mod fastboot;
 pub mod fastboot_usb;

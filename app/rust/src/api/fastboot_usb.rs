@@ -35,6 +35,29 @@ pub fn fastboot_usb_reboot(serial: String) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// `flashing:unlock` over USB; the device may wait for an on-phone
+/// confirmation, so the read timeout is extended to 120 seconds.
+pub fn fastboot_usb_unlock(serial: String) -> anyhow::Result<String> {
+    let mut usb = UsbFastboot::connect(&serial)?;
+    usb.set_read_timeout(std::time::Duration::from_secs(120));
+    let (payload, infos) = usb.command(&skello_fastboot::flashing_unlock())?;
+    let mut lines = infos;
+    if !payload.is_empty() {
+        lines.push(payload);
+    }
+    Ok(lines.join("\n"))
+}
+
+pub fn fastboot_usb_erase(serial: String, partition: String) -> anyhow::Result<String> {
+    let mut usb = UsbFastboot::connect(&serial)?;
+    let (payload, infos) = usb.command(&skello_fastboot::erase(&partition))?;
+    let mut lines = infos;
+    if !payload.is_empty() {
+        lines.push(payload);
+    }
+    Ok(lines.join("\n"))
+}
+
 pub fn fastboot_flash_usb(
     serial: String,
     partition: String,

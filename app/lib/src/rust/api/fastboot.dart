@@ -22,6 +22,15 @@ Future<String> fastbootReboot({required String serial}) =>
 Future<String> fastbootFlashingUnlock({required String serial}) =>
     RustLib.instance.api.crateApiFastbootFastbootFlashingUnlock(serial: serial);
 
+Future<String> fastbootErase({
+  required String serial,
+  required String partition,
+}) =>
+    RustLib.instance.api.crateApiFastbootFastbootErase(
+      serial: serial,
+      partition: partition,
+    );
+
 Future<String> fastbootFlash({
   required String serial,
   required String partition,
