@@ -18,12 +18,12 @@ adb и fastboot работают из терминала: нужно помни�
 ## Что уже есть
 
 - crates/skello-adb: каркас бинарного протокола adb (заголовок amessage на 24 байта, константы команд из AOSP) и клиент adb-сервера на порту 5037 с тестами
-- crates/skello-fastboot: строки команд fastboot (getvar, download, flash, erase, set_active, reboot-*) и разбор ответов OKAY / FAIL / INFO / TEXT / DATA
+- crates/skello-fastboot: строки команд fastboot (getvar, download, flash, erase, set_active, reboot-*), разбор ответов OKAY / FAIL / INFO / TEXT / DATA, парсер max-download-size и USB-транспорт на nusb (перечисление устройств ff/42/03, getvar, reboot, download с прогрессом)
 - crates/skello-bootimg: разбор заголовка Android boot image (v0-v4): размеры ядра и ramdisk, размер страницы, версия Android и патч безопасности, наличие AVB-футера
 - app: мост Flutter и Rust через flutter_rust_bridge (крейт app/rust собирается cargokit-ом вместе с приложением), DeviceRepository зовёт ядро и при недоступности FFI переключается на системные adb и fastboot
 - app: живой список устройств из adb-сервера и fastboot с карточками состояний, меню перезагрузки (system / bootloader / recovery) и запуском мастера разблокировки; тема Material 3 Expressive, i18n на русский и английский
 - app: мастер разблокировки загрузчика: предупреждение о стирании с обязательным подтверждением, fastboot getvar unlocked, flashing unlock с ожиданием подтверждения на телефоне и повторной проверкой
-- app: Root-экран: выбор Magisk / KernelSU / APatch, выбор boot.img, проверка заголовка через Rust-ядро и прошивка boot через fastboot после всех проверок
+- app: Root-экран: выбор Magisk / KernelSU / APatch, выбор boot.img, проверка заголовка через Rust-ядро, прошивка boot / recovery / vendor_boot по USB с живым прогрессом после проверок unlocked, battery-soc-ok и max-download-size (фолбэк на системный fastboot)
 - CI на GitHub Actions: fmt, clippy, тесты Rust на Linux и Windows, analyze и тесты Flutter; релизные сборки Windows и Linux по тегу
 
 Разбор протоколов и исходников AOSP - в [ARCHITECTURE.md](ARCHITECTURE.md), работа с чипсетами - в [CHIPSETS.md](CHIPSETS.md).

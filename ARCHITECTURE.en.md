@@ -50,12 +50,13 @@ Implemented in the wizard (screen opened from the fastboot device card menu): a 
 
 ### Image flashing
 
-Right now boot is flashed through the system fastboot: the button on the Root screen is active only after the image header check, getvar:unlocked = yes and a dialog confirmation; the command output is shown when it finishes. Next - the own transport:
+Flashing goes through the own USB transport (nusb: ff/42/03 interface, bulk endpoints, 64-byte frames): the image streams via download with live progress over a flutter_rust_bridge stream, then flash:<partition>. If USB is unavailable, Skello falls back to the system fastboot without progress. The button is active only after the image header check, getvar:unlocked = yes and a dialog confirmation.
 
-1. Checks before sending: battery-soc-ok reports "yes", image size within max-download-size
-2. download:<size in hex>, then the image in 1024-byte chunks
-3. flash:<partition>; INFO lines are collected between steps and shown as live progress
-4. Reboot and verify the device came back
+1. Checks before sending: battery-soc-ok reports "yes" (when the variable exists), image size within max-download-size - both via getvar before download
+2. download:<size in hex>, then the image in 16 KiB chunks with progress
+3. flash:<partition>; INFO lines are collected and shown with the output
+4. Partitions to choose: boot, recovery, vendor_boot
+5. Reboot and verify the device came back - next step
 
 ### Root
 
@@ -68,6 +69,6 @@ All three methods are available on choice in the interface, the frame is the sam
 ## Safety rules we build into the code
 
 - No flashing command without an explicit confirmation showing the target partition
-- Charge and bootloader state checked before download/flash
-- Refusal to flash an image larger than max-download-size without splitting
+- Charge and bootloader state checked before download/flash - implemented: battery-soc-ok, unlocked, max-download-size
+- Refusal to flash an image larger than max-download-size (splitting is on the plan)
 - A log of every command and device response: what happened to the phone must be reconstructable from the log

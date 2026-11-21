@@ -18,12 +18,12 @@ adb and fastboot live in a terminal: you have to remember commands, keep the ter
 ## What is here
 
 - crates/skello-adb: the adb binary protocol frame (24-byte amessage header, command constants from AOSP) and a client for the adb server on port 5037, with tests
-- crates/skello-fastboot: fastboot command strings (getvar, download, flash, erase, set_active, reboot-*) and response parsing for OKAY / FAIL / INFO / TEXT / DATA
+- crates/skello-fastboot: fastboot command strings (getvar, download, flash, erase, set_active, reboot-*), response parsing for OKAY / FAIL / INFO / TEXT / DATA, a max-download-size parser and a USB transport on nusb (ff/42/03 device enumeration, getvar, reboot, download with progress)
 - crates/skello-bootimg: Android boot image header parsing (v0-v4): kernel and ramdisk sizes, page size, Android version and security patch, AVB footer presence
 - app: the Flutter-to-Rust bridge over flutter_rust_bridge (the app/rust crate builds with cargokit alongside the app); DeviceRepository calls the core and switches to system adb and fastboot when FFI is unavailable
 - app: a live device list from the adb server and fastboot with state cards, a reboot menu (system / bootloader / recovery) and the unlock wizard entry; a Material 3 Expressive theme, English and Russian localization
 - app: the bootloader unlock wizard: a wipe warning with mandatory confirmation, fastboot getvar unlocked, flashing unlock waiting for the on-phone confirmation and a repeated check
-- app: the Root screen: choosing Magisk / KernelSU / APatch, picking boot.img, header verification through the Rust core and flashing boot over fastboot after all checks pass
+- app: the Root screen: choosing Magisk / KernelSU / APatch, picking boot.img, header verification through the Rust core, flashing boot / recovery / vendor_boot over USB with live progress after the unlocked, battery-soc-ok and max-download-size checks (fallback to the system fastboot)
 - CI on GitHub Actions: fmt, clippy, Rust tests on Linux and Windows, Flutter analyze and tests; release builds for Windows and Linux on tags
 
 Protocol notes and the AOSP source breakdown live in [ARCHITECTURE.en.md](ARCHITECTURE.en.md), chipset work in [CHIPSETS.en.md](CHIPSETS.en.md).
