@@ -16,5 +16,6 @@ Projects used as idea and protocol references only, without copying code:
 
 - penumbra by shomykohai - AGPL-3.0, https://github.com/shomykohai/penumbra
 - unisoc-unlock by patrislav1 - no license, https://github.com/patrislav1/unisoc-unlock - the identifier token unlock procedure is followed (ideas and format only, code written from scratch); the T618 RSA key (crates/skello-chipsets/src/unisoc_t618_key.pem) is community-published data carried over verbatim with this attribution
+- spreadtrum_flash by ilyakurdyukov - Unlicense (public domain), https://github.com/ilyakurdyukov/spreadtrum_flash - the .pac package layout (header, directory entries, CRC16 0xA001) follows the unpac tool; the flash flow (FDL pair from the package, files by partition name) is written from scratch in crates/skello-chipsets/src/unisoc_pac.rs and unisoc.rs
 
 Protocol formats and constants follow the Android Open Source Project sources (packages/modules/adb, system/core/fastboot), licensed under Apache-2.0.
