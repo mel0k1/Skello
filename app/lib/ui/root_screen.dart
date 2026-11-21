@@ -6,8 +6,11 @@ import '../l10n/generated/app_localizations.dart';
 import '../services/boot_image.dart';
 import '../services/device_output.dart';
 import '../services/device_repository.dart';
+import '../services/flash_errors.dart';
 
 enum RootMethod { magisk, kernelsu, apatch }
+
+const flashPartitions = ['boot', 'recovery', 'vendor_boot'];
 
 class RootScreen extends StatefulWidget {
   const RootScreen({
@@ -31,6 +34,8 @@ class _RootScreenState extends State<RootScreen> {
   List<FastbootDevice> _devices = const [];
   String? _selectedSerial;
   bool? _unlocked;
+  String _partition = 'boot';
+  FlashProgressEvent? _progress;
   bool _flashing = false;
   String? _flashOutput;
   String? _flashError;
@@ -80,7 +85,7 @@ class _RootScreenState extends State<RootScreen> {
         !_flashing;
   }
 
-  Future<void> _flashBoot() async {
+  Future<void> _flashPartition() async {
     final serial = _selectedSerial;
     final path = _imagePath;
     if (serial == null || path == null) return;
@@ -89,7 +94,7 @@ class _RootScreenState extends State<RootScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(strings.flashConfirmTitle),
-        content: Text(strings.flashConfirmBody(serial)),
+        content: Text(strings.flashConfirmBody(_partition, serial)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -101,7 +106,7 @@ class _RootScreenState extends State<RootScreen> {
               foregroundColor: Theme.of(dialogContext).colorScheme.onError,
             ),
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(strings.flashBootButton),
+            child: Text(strings.flashPartitionButton(_partition)),
           ),
         ],
       ),
@@ -109,12 +114,20 @@ class _RootScreenState extends State<RootScreen> {
     if (confirmed != true) return;
     setState(() {
       _flashing = true;
+      _progress = null;
       _flashOutput = null;
       _flashError = null;
     });
     try {
-      final output =
-          await widget.repository.fastbootFlash(serial, 'boot', path);
+      final output = await widget.repository.flashPartition(
+        serial,
+        _partition,
+        path,
+        (event) {
+          if (!mounted) return;
+          setState(() => _progress = event);
+        },
+      );
       if (!mounted) return;
       setState(() {
         _flashing = false;
@@ -124,9 +137,31 @@ class _RootScreenState extends State<RootScreen> {
       if (!mounted) return;
       setState(() {
         _flashing = false;
-        _flashError = e.toString();
+        _flashError = _flashErrorText(e, strings);
       });
     }
+  }
+
+  String _flashErrorText(Object error, AppLocalizations strings) {
+    if (error is BootloaderLocked) return strings.flashLocked;
+    if (error is BatteryNotReady) return strings.flashBatteryError;
+    if (error is DownloadTooBig) {
+      final format = NumberFormat.decimalPattern();
+      return strings.flashSizeError(
+        format.format(error.maxSize),
+        format.format(error.imageSize),
+      );
+    }
+    return error.toString();
+  }
+
+  String _flashPhaseText(AppLocalizations strings) {
+    final progress = _progress;
+    if (progress == null) return strings.flashRunning;
+    if (progress.phase == 'flash') return strings.flashPhaseFlash;
+    final percent =
+        progress.total > 0 ? (progress.sent * 100 / progress.total).round() : 0;
+    return '${strings.flashPhaseDownload} $percent%';
   }
 
   Future<void> _pickImage() async {
@@ -391,6 +426,37 @@ class _RootScreenState extends State<RootScreen> {
                 Expanded(child: Text(unlockedText)),
               ],
             ),
+            const SizedBox(height: 12),
+            Text(
+              strings.flashPartitionLabel,
+              style: Theme.of(context).textTheme.labelMedium,
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                border: Border.all(color: scheme.outline),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: DropdownButton<String>(
+                value: _partition,
+                isExpanded: true,
+                underline: const SizedBox.shrink(),
+                items: [
+                  for (final partition in flashPartitions)
+                    DropdownMenuItem(value: partition, child: Text(partition)),
+                ],
+                onChanged: _flashing
+                    ? null
+                    : (value) {
+                        setState(() {
+                          _partition = value!;
+                          _flashOutput = null;
+                          _flashError = null;
+                        });
+                      },
+              ),
+            ),
             if (_check?.info == null) ...[
               const SizedBox(height: 12),
               Text(
@@ -404,15 +470,20 @@ class _RootScreenState extends State<RootScreen> {
                 backgroundColor: scheme.error,
                 foregroundColor: scheme.onError,
               ),
-              onPressed: _canFlash() ? _flashBoot : null,
+              onPressed: _canFlash() ? _flashPartition : null,
               icon: const Icon(Icons.flash_on),
-              label: Text(strings.flashBootButton),
+              label: Text(strings.flashPartitionButton(_partition)),
             ),
             if (_flashing) ...[
               const SizedBox(height: 16),
-              const LinearProgressIndicator(),
+              if (_progress != null && _progress!.total > 0)
+                LinearProgressIndicator(
+                  value: _progress!.sent / _progress!.total,
+                )
+              else
+                const LinearProgressIndicator(),
               const SizedBox(height: 8),
-              Text(strings.flashRunning),
+              Text(_flashPhaseText(strings)),
             ],
             if (_flashOutput != null) ...[
               const SizedBox(height: 16),
@@ -488,10 +559,7 @@ class BootImageCheckView extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                body,
-                style: TextStyle(color: scheme.onErrorContainer),
-              ),
+              Text(body, style: TextStyle(color: scheme.onErrorContainer)),
             ],
           ),
         ),
@@ -522,8 +590,11 @@ class BootImageCheckView extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                _infoRow(context, strings.infoHeaderVersion,
-                    'v${info.headerVersion}'),
+                _infoRow(
+                  context,
+                  strings.infoHeaderVersion,
+                  'v${info.headerVersion}',
+                ),
                 _infoRow(
                   context,
                   strings.infoPageSize,

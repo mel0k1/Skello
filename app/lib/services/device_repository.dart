@@ -1,10 +1,25 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:skello/src/rust/api/adb.dart' as adb_api;
 import 'package:skello/src/rust/api/fastboot.dart' as fastboot_api;
+import 'package:skello/src/rust/api/fastboot_usb.dart' as fastboot_usb_api;
 
 import 'core.dart';
 import 'device_output.dart';
+import 'flash_errors.dart';
+
+/// Progress of a USB flash: `phase` is "download" while the image streams
+/// to the device, then "flash" while the device writes the partition.
+class FlashProgressEvent {
+  const FlashProgressEvent(this.sent, this.total, this.phase);
+
+  final int sent;
+  final int total;
+  final String phase;
+}
+
+typedef FlashProgressCallback = void Function(FlashProgressEvent event);
 
 class DeviceRepository {
   const DeviceRepository();
@@ -21,6 +36,22 @@ class DeviceRepository {
   }
 
   Future<List<FastbootDevice>> fastbootDevices() async {
+    final binary = await _binaryFastbootDevices();
+    final merged = [...binary];
+    if (rustCore.ready) {
+      try {
+        final seen = binary.map((d) => d.serial).toSet();
+        for (final serial in await fastboot_usb_api.fastbootUsbDevices()) {
+          if (!seen.contains(serial)) {
+            merged.add(FastbootDevice(serial, 'fastboot'));
+          }
+        }
+      } catch (_) {}
+    }
+    return merged;
+  }
+
+  Future<List<FastbootDevice>> _binaryFastbootDevices() async {
     if (rustCore.ready) {
       try {
         return parseFastbootDevices(await fastboot_api.fastbootDevices());
@@ -33,6 +64,12 @@ class DeviceRepository {
 
   Future<String?> fastbootVar(String serial, String name) async {
     if (rustCore.ready) {
+      try {
+        return await fastboot_usb_api.fastbootUsbGetvar(
+          serial: serial,
+          name: name,
+        );
+      } catch (_) {}
       try {
         return await fastboot_api.fastbootGetvar(serial: serial, name: name);
       } catch (_) {
@@ -63,6 +100,10 @@ class DeviceRepository {
   Future<void> fastbootReboot(String serial) async {
     if (rustCore.ready) {
       try {
+        await fastboot_usb_api.fastbootUsbReboot(serial: serial);
+        return;
+      } catch (_) {}
+      try {
         await fastboot_api.fastbootReboot(serial: serial);
         return;
       } catch (_) {}
@@ -91,18 +132,31 @@ class DeviceRepository {
     }
   }
 
-  Future<String> fastbootFlash(
+  /// Pre-flash checks, then flash over USB with progress; falls back to the
+  /// system fastboot binary without progress when USB is unavailable.
+  Future<String> flashPartition(
     String serial,
     String partition,
     String imagePath,
+    FlashProgressCallback? onProgress,
   ) async {
+    final unlocked = await fastbootVar(serial, 'unlocked');
+    if (unlocked?.toLowerCase() != 'yes') {
+      throw const BootloaderLocked();
+    }
+    final socOk = await fastbootVar(serial, 'battery-soc-ok');
+    if (socOk != null && socOk.toLowerCase() != 'yes') {
+      throw const BatteryNotReady();
+    }
+    final maxSize = await fastbootVar(serial, 'max-download-size');
+    final maxBytes = maxSize == null ? null : parseDownloadSize(maxSize);
+    final imageSize = await File(imagePath).length();
+    if (maxBytes != null && imageSize > maxBytes) {
+      throw DownloadTooBig(maxBytes, imageSize);
+    }
     if (rustCore.ready) {
       try {
-        return await fastboot_api.fastbootFlash(
-          serial: serial,
-          partition: partition,
-          image: imagePath,
-        );
+        return await _usbFlash(serial, partition, imagePath, onProgress);
       } catch (_) {}
     }
     final result = await Process.run('fastboot', [
@@ -117,6 +171,48 @@ class DeviceRepository {
       throw Exception('fastboot flash failed: $output');
     }
     return output;
+  }
+
+  Future<String> _usbFlash(
+    String serial,
+    String partition,
+    String imagePath,
+    FlashProgressCallback? onProgress,
+  ) {
+    final done = Completer<String>();
+    late final StreamSubscription<fastboot_usb_api.FlashProgress> sub;
+    sub = fastboot_usb_api
+        .fastbootFlashUsb(
+      serial: serial,
+      partition: partition,
+      imagePath: imagePath,
+    )
+        .listen(
+      (event) {
+        if (event.phase == 'done') {
+          if (!done.isCompleted) done.complete(event.message);
+        } else if (onProgress != null) {
+          final sent = event.sent.toInt();
+          final total = event.total.toInt();
+          onProgress(FlashProgressEvent(
+            sent,
+            total,
+            sent >= total && total > 0 ? 'flash' : event.phase,
+          ));
+        }
+      },
+      onError: (Object error) {
+        if (!done.isCompleted) done.completeError(error);
+      },
+      onDone: () {
+        if (!done.isCompleted) {
+          done.completeError(
+            Exception('flash stream ended without result'),
+          );
+        }
+      },
+    );
+    return done.future.whenComplete(() => sub.cancel());
   }
 
   Future<List<AdbDevice>> _systemAdbDevices() async {

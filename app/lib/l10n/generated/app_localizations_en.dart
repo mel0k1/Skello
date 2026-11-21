@@ -1,5 +1,6 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -214,21 +215,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get flashStateUnknown => 'Bootloader state unknown';
 
   @override
-  String get flashBootButton => 'Flash boot';
+  String get flashPartitionLabel => 'Partition';
 
   @override
-  String get flashConfirmTitle => 'Flash boot image?';
+  String flashPartitionButton(String partition) {
+    return 'Flash $partition';
+  }
 
   @override
-  String flashConfirmBody(String serial) {
-    return 'Skello will run fastboot flash boot on $serial. Interrupting the flash can brick the device.';
+  String get flashConfirmTitle => 'Flash partition?';
+
+  @override
+  String flashConfirmBody(String partition, String serial) {
+    return 'Skello will run fastboot flash $partition on $serial. Interrupting the flash can brick the device.';
   }
 
   @override
   String get flashRunning => 'Flashing… do not unplug the device';
 
   @override
-  String get flashDone => 'boot flashed';
+  String get flashPhaseDownload => 'Sending the image…';
+
+  @override
+  String get flashPhaseFlash => 'Writing the partition…';
+
+  @override
+  String get flashBatteryError =>
+      'The device reports the battery is not ready to flash. Plug it in and wait for the charge.';
+
+  @override
+  String flashSizeError(String max, String image) {
+    return 'The image is larger than the device allows: max $max B, image $image B.';
+  }
+
+  @override
+  String get flashDone => 'image flashed';
 
   @override
   String get flashOutput => 'fastboot output';

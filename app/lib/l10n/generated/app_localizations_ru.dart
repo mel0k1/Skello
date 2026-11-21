@@ -1,5 +1,6 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -214,21 +215,41 @@ class AppLocalizationsRu extends AppLocalizations {
   String get flashStateUnknown => 'Состояние загрузчика неизвестно';
 
   @override
-  String get flashBootButton => 'Прошить boot';
+  String get flashPartitionLabel => 'Раздел';
 
   @override
-  String get flashConfirmTitle => 'Прошить boot-образ?';
+  String flashPartitionButton(String partition) {
+    return 'Прошить $partition';
+  }
 
   @override
-  String flashConfirmBody(String serial) {
-    return 'Skello выполнит fastboot flash boot на $serial. Прерывание прошивки может окирпичить устройство.';
+  String get flashConfirmTitle => 'Прошить раздел?';
+
+  @override
+  String flashConfirmBody(String partition, String serial) {
+    return 'Skello выполнит fastboot flash $partition на $serial. Прерывание прошивки может окирпичить устройство.';
   }
 
   @override
   String get flashRunning => 'Прошиваю… не отключайте устройство';
 
   @override
-  String get flashDone => 'boot прошит';
+  String get flashPhaseDownload => 'Отправка образа…';
+
+  @override
+  String get flashPhaseFlash => 'Запись раздела…';
+
+  @override
+  String get flashBatteryError =>
+      'Устройство сообщает, что батарея не готова к прошивке. Подключите зарядку и дождитесь заряда.';
+
+  @override
+  String flashSizeError(String max, String image) {
+    return 'Образ больше, чем разрешает устройство: максимум $max Б, образ $image Б.';
+  }
+
+  @override
+  String get flashDone => 'образ прошит';
 
   @override
   String get flashOutput => 'вывод fastboot';

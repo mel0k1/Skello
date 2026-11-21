@@ -95,7 +95,7 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
-    Locale('ru')
+    Locale('ru'),
   ];
 
   /// No description provided for @appName.
@@ -476,23 +476,29 @@ abstract class AppLocalizations {
   /// **'Bootloader state unknown'**
   String get flashStateUnknown;
 
-  /// No description provided for @flashBootButton.
+  /// No description provided for @flashPartitionLabel.
   ///
   /// In en, this message translates to:
-  /// **'Flash boot'**
-  String get flashBootButton;
+  /// **'Partition'**
+  String get flashPartitionLabel;
+
+  /// No description provided for @flashPartitionButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Flash {partition}'**
+  String flashPartitionButton(String partition);
 
   /// No description provided for @flashConfirmTitle.
   ///
   /// In en, this message translates to:
-  /// **'Flash boot image?'**
+  /// **'Flash partition?'**
   String get flashConfirmTitle;
 
   /// No description provided for @flashConfirmBody.
   ///
   /// In en, this message translates to:
-  /// **'Skello will run fastboot flash boot on {serial}. Interrupting the flash can brick the device.'**
-  String flashConfirmBody(String serial);
+  /// **'Skello will run fastboot flash {partition} on {serial}. Interrupting the flash can brick the device.'**
+  String flashConfirmBody(String partition, String serial);
 
   /// No description provided for @flashRunning.
   ///
@@ -500,10 +506,34 @@ abstract class AppLocalizations {
   /// **'Flashing… do not unplug the device'**
   String get flashRunning;
 
+  /// No description provided for @flashPhaseDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending the image…'**
+  String get flashPhaseDownload;
+
+  /// No description provided for @flashPhaseFlash.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing the partition…'**
+  String get flashPhaseFlash;
+
+  /// No description provided for @flashBatteryError.
+  ///
+  /// In en, this message translates to:
+  /// **'The device reports the battery is not ready to flash. Plug it in and wait for the charge.'**
+  String get flashBatteryError;
+
+  /// No description provided for @flashSizeError.
+  ///
+  /// In en, this message translates to:
+  /// **'The image is larger than the device allows: max {max} B, image {image} B.'**
+  String flashSizeError(String max, String image);
+
   /// No description provided for @flashDone.
   ///
   /// In en, this message translates to:
-  /// **'boot flashed'**
+  /// **'image flashed'**
   String get flashDone;
 
   /// No description provided for @flashOutput.
@@ -552,8 +582,9 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-      'an issue with the localizations generation tool. Please file an issue '
-      'on GitHub with a reproducible sample app and the gen-l10n configuration '
-      'that was used.');
+    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+    'an issue with the localizations generation tool. Please file an issue '
+    'on GitHub with a reproducible sample app and the gen-l10n configuration '
+    'that was used.',
+  );
 }

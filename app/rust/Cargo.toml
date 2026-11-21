@@ -11,6 +11,7 @@ anyhow = "1"
 flutter_rust_bridge = "=2.13.0"
 skello-adb = { path = "../../crates/skello-adb" }
 skello-bootimg = { path = "../../crates/skello-bootimg" }
+skello-fastboot = { path = "../../crates/skello-fastboot" }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

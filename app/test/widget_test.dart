@@ -8,11 +8,13 @@ import 'fake_repository.dart';
 
 void main() {
   testWidgets('home shows a connected device card', (tester) async {
-    await tester.pumpWidget(SkelloApp(
-      repository: FakeRepository(
-        adb: const [AdbDevice('R58N60ABCD', 'device')],
+    await tester.pumpWidget(
+      SkelloApp(
+        repository: FakeRepository(
+          adb: const [AdbDevice('R58N60ABCD', 'device')],
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('R58N60ABCD'), findsOneWidget);
@@ -67,8 +69,9 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('card menu opens the unlock wizard for a fastboot device',
-      (tester) async {
+  testWidgets('card menu opens the unlock wizard for a fastboot device', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1200, 2200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);

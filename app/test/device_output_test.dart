@@ -49,4 +49,18 @@ void main() {
     expect(parseFastbootVar('FAILED (remote: unknown)\n', 'unlocked'), isNull);
     expect(parseFastbootVar('', 'unlocked'), isNull);
   });
+
+  test('parses max-download-size values', () {
+    expect(parseDownloadSize('0x1fe00000'), 0x1fe00000);
+    expect(parseDownloadSize('536870912'), 536870912);
+    expect(parseDownloadSize('64M'), 64 * 1024 * 1024);
+    expect(parseDownloadSize('512K'), 512 * 1024);
+    expect(parseDownloadSize('1G'), 1024 * 1024 * 1024);
+  });
+
+  test('rejects junk download sizes', () {
+    expect(parseDownloadSize(''), isNull);
+    expect(parseDownloadSize('0x'), isNull);
+    expect(parseDownloadSize('unknown'), isNull);
+  });
 }

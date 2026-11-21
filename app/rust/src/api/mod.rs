@@ -1,6 +1,7 @@
 pub mod adb;
 pub mod bootimg;
 pub mod fastboot;
+pub mod fastboot_usb;
 mod util;
 
 #[flutter_rust_bridge::frb(init)]

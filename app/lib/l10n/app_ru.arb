@@ -63,18 +63,43 @@
   "flashLocked": "Загрузчик заблокирован — сначала разблокируйте",
   "flashUnlocked": "Загрузчик разблокирован",
   "flashStateUnknown": "Состояние загрузчика неизвестно",
-  "flashBootButton": "Прошить boot",
-  "flashConfirmTitle": "Прошить boot-образ?",
-  "flashConfirmBody": "Skello выполнит fastboot flash boot на {serial}. Прерывание прошивки может окирпичить устройство.",
+  "flashPartitionLabel": "Раздел",
+  "flashPartitionButton": "Прошить {partition}",
+  "@flashPartitionButton": {
+    "placeholders": {
+      "partition": {
+        "type": "String"
+      }
+    }
+  },
+  "flashConfirmTitle": "Прошить раздел?",
+  "flashConfirmBody": "Skello выполнит fastboot flash {partition} на {serial}. Прерывание прошивки может окирпичить устройство.",
   "@flashConfirmBody": {
     "placeholders": {
+      "partition": {
+        "type": "String"
+      },
       "serial": {
         "type": "String"
       }
     }
   },
   "flashRunning": "Прошиваю… не отключайте устройство",
-  "flashDone": "boot прошит",
+  "flashPhaseDownload": "Отправка образа…",
+  "flashPhaseFlash": "Запись раздела…",
+  "flashBatteryError": "Устройство сообщает, что батарея не готова к прошивке. Подключите зарядку и дождитесь заряда.",
+  "flashSizeError": "Образ больше, чем разрешает устройство: максимум {max} Б, образ {image} Б.",
+  "@flashSizeError": {
+    "placeholders": {
+      "max": {
+        "type": "String"
+      },
+      "image": {
+        "type": "String"
+      }
+    }
+  },
+  "flashDone": "образ прошит",
   "flashOutput": "вывод fastboot",
   "flashFailed": "Прошивка не удалась",
   "cancelLabel": "Отмена"

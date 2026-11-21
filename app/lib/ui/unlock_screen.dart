@@ -192,10 +192,7 @@ class _UnlockScreenState extends State<UnlockScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                _error!,
-                style: TextStyle(color: scheme.onErrorContainer),
-              ),
+              Text(_error!, style: TextStyle(color: scheme.onErrorContainer)),
               const SizedBox(height: 12),
               FilledButton.tonal(
                 onPressed: _check,
@@ -267,10 +264,7 @@ class _UnlockScreenState extends State<UnlockScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  strings.unlockSteps,
-                  style: const TextStyle(height: 1.5),
-                ),
+                Text(strings.unlockSteps, style: const TextStyle(height: 1.5)),
               ],
             ),
           ),

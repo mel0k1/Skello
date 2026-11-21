@@ -42,12 +42,15 @@ class FakeRepository implements DeviceRepository {
   }
 
   @override
-  Future<String> fastbootFlash(
+  Future<String> flashPartition(
     String serial,
     String partition,
     String imagePath,
+    FlashProgressCallback? onProgress,
   ) async {
     calls.add('flash $serial $partition');
-    return 'Sending boot.img OKAY\nWriting boot.img OKAY';
+    onProgress?.call(const FlashProgressEvent(50, 100, 'download'));
+    onProgress?.call(const FlashProgressEvent(100, 100, 'flash'));
+    return 'Sending OKAY\nWriting OKAY';
   }
 }

@@ -63,18 +63,43 @@
   "flashLocked": "Bootloader is locked - unlock it first",
   "flashUnlocked": "Bootloader unlocked",
   "flashStateUnknown": "Bootloader state unknown",
-  "flashBootButton": "Flash boot",
-  "flashConfirmTitle": "Flash boot image?",
-  "flashConfirmBody": "Skello will run fastboot flash boot on {serial}. Interrupting the flash can brick the device.",
+  "flashPartitionLabel": "Partition",
+  "flashPartitionButton": "Flash {partition}",
+  "@flashPartitionButton": {
+    "placeholders": {
+      "partition": {
+        "type": "String"
+      }
+    }
+  },
+  "flashConfirmTitle": "Flash partition?",
+  "flashConfirmBody": "Skello will run fastboot flash {partition} on {serial}. Interrupting the flash can brick the device.",
   "@flashConfirmBody": {
     "placeholders": {
+      "partition": {
+        "type": "String"
+      },
       "serial": {
         "type": "String"
       }
     }
   },
   "flashRunning": "Flashing… do not unplug the device",
-  "flashDone": "boot flashed",
+  "flashPhaseDownload": "Sending the image…",
+  "flashPhaseFlash": "Writing the partition…",
+  "flashBatteryError": "The device reports the battery is not ready to flash. Plug it in and wait for the charge.",
+  "flashSizeError": "The image is larger than the device allows: max {max} B, image {image} B.",
+  "@flashSizeError": {
+    "placeholders": {
+      "max": {
+        "type": "String"
+      },
+      "image": {
+        "type": "String"
+      }
+    }
+  },
+  "flashDone": "image flashed",
   "flashOutput": "fastboot output",
   "flashFailed": "Flash failed",
   "cancelLabel": "Cancel"

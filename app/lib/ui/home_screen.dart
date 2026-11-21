@@ -53,18 +53,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openRoot() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const RootScreen()),
-    );
+    Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => const RootScreen()));
   }
 
   void _openUnlock(DeviceRow row) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => UnlockScreen(
-          serial: row.serial,
-          repository: widget.repository,
-        ),
+        builder: (_) =>
+            UnlockScreen(serial: row.serial, repository: widget.repository),
       ),
     );
   }

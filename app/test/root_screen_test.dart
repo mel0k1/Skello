@@ -42,8 +42,9 @@ void main() {
     return _wrap(const RootScreen(reader: FakeReader()));
   }
 
-  testWidgets('root screen shows the three methods and the boot picker',
-      (tester) async {
+  testWidgets('root screen shows the three methods and the boot picker', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1200, 2200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -87,24 +88,32 @@ void main() {
     expect(find.text('present'), findsOneWidget);
   });
 
-  testWidgets('check view shows an error for an unreadable file',
-      (tester) async {
+  testWidgets('check view shows an error for an unreadable file', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1200, 1200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(_wrap(const BootImageCheckView(
-      check: BootImageCheck.fail(BootImageCheckFailure.read),
-    )));
+    await tester.pumpWidget(
+      _wrap(
+        const BootImageCheckView(
+          check: BootImageCheck.fail(BootImageCheckFailure.read),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Check failed'), findsOneWidget);
-    expect(find.text('This file is not a readable Android boot image.'),
-        findsOneWidget);
+    expect(
+      find.text('This file is not a readable Android boot image.'),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('flash section gates the button on locked bootloader and image',
-      (tester) async {
+  testWidgets('flash section gates the button on locked bootloader and image', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1200, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -143,6 +152,8 @@ void main() {
 
     expect(find.text('Bootloader unlocked'), findsOneWidget);
     expect(find.text('Select and verify a boot image first.'), findsOneWidget);
-    expect(find.byType(DropdownButton<String>), findsOneWidget);
+    expect(find.byType(DropdownButton<String>), findsNWidgets(2));
+    expect(find.text('Partition'), findsOneWidget);
+    expect(find.text('boot'), findsOneWidget);
   });
 }

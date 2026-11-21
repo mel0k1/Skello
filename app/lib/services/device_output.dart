@@ -67,3 +67,25 @@ String? parseFastbootVar(String output, String name) {
   }
   return null;
 }
+
+/// Parses fastboot max-download-size values: `0x10000000`, `536870912`,
+/// `64M`, `512K`, `1G`. Returns bytes, or null if the value is unreadable.
+int? parseDownloadSize(String value) {
+  final text = value.trim();
+  if (text.isEmpty) return null;
+  if (text.toLowerCase().startsWith('0x')) {
+    final hex = text.substring(2);
+    if (hex.isEmpty) return null;
+    return int.tryParse(hex, radix: 16);
+  }
+  final multiplier = switch (text[text.length - 1]) {
+    'K' || 'k' => 1024,
+    'M' || 'm' => 1024 * 1024,
+    'G' || 'g' => 1024 * 1024 * 1024,
+    _ => 1,
+  };
+  final number = multiplier == 1 ? text : text.substring(0, text.length - 1);
+  final parsed = int.tryParse(number.trim());
+  if (parsed == null || parsed < 0) return null;
+  return parsed * multiplier;
+}
