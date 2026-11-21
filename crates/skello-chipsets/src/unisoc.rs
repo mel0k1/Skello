@@ -335,6 +335,42 @@ impl Bsl {
         Ok(format!("{ver} | {ver2}"))
     }
 
+    /// Flashes a whole .pac firmware: boots the FDL pair from the
+    /// package itself, writes every file entry marked for flashing
+    /// under its partition name, then resets the device. The CRC
+    /// checks run before anything touches the flash.
+    pub fn flash_pac(&mut self, data: &[u8]) -> Result<String> {
+        use crate::unisoc_pac::{extract_entry, parse_pac};
+        let fw = parse_pac(data).map_err(|e| BslError::Io(std::io::Error::other(e.to_string())))?;
+        if !fw.head_crc_ok {
+            return Err(BslError::Unexpected("package header crc mismatch"));
+        }
+        if fw.data_crc_ok == Some(false) {
+            return Err(BslError::Unexpected("package data crc mismatch"));
+        }
+        let (fdl1, fdl2) = fw
+            .fdl_pair()
+            .ok_or(BslError::Unexpected("no fdl pair in package"))?;
+        let fdl1_data = extract_entry(data, fdl1)
+            .map_err(|e| BslError::Io(std::io::Error::other(e.to_string())))?;
+        let fdl2_data = extract_entry(data, fdl2)
+            .map_err(|e| BslError::Io(std::io::Error::other(e.to_string())))?;
+        let ver = self.boot(fdl1_data, fdl1.addr[0], fdl2_data, fdl2.addr[0])?;
+        let mut written = Vec::new();
+        for entry in fw.flash_files() {
+            let blob = extract_entry(data, entry)
+                .map_err(|e| BslError::Io(std::io::Error::other(e.to_string())))?;
+            self.write_partition(&entry.name, blob)?;
+            written.push(entry.name.clone());
+        }
+        let _ = self.reset();
+        Ok(format!(
+            "{ver}; flashed {}: {}",
+            written.len(),
+            written.join(", ")
+        ))
+    }
+
     /// Writes `name` = UTF-16, size, then the data blocks.
     pub fn write_partition(&mut self, name: &str, data: &[u8]) -> Result<()> {
         let pkt = partition_request(name, data.len() as u64, false);
