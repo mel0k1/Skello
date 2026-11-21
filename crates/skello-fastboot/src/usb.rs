@@ -145,6 +145,49 @@ impl UsbFastboot {
         self.read.set_read_timeout(timeout);
     }
 
+    /// Runs a command to completion collecting every packet as raw
+    /// (header, body) pairs: vendor bootloaders answer with
+    /// non-standard headers (Unisoc `SN` for get_identifier_token).
+    /// OKAY closes the loop, FAIL errors out.
+    pub fn command_raw(&mut self, cmd: &str) -> Result<(String, Vec<(String, String)>), UsbError> {
+        let mut frame = cmd.as_bytes().to_vec();
+        frame.push(0);
+        self.send_raw(&frame)?;
+        let mut raw = Vec::new();
+        loop {
+            let mut buf = vec![0u8; crate::RESPONSE_SZ];
+            let n = self
+                .read
+                .read(&mut buf)
+                .map_err(|e| UsbError::Io(e.to_string()))?;
+            if n == 0 {
+                return Err(UsbError::Io("empty response packet".into()));
+            }
+            let packet = &buf[..n];
+            let head: String = String::from_utf8_lossy(&packet[..packet.len().min(4)])
+                .trim_end_matches('\0')
+                .to_owned();
+            if packet.len() >= 4
+                && matches!(head.as_str(), "OKAY" | "FAIL" | "INFO" | "TEXT" | "DATA")
+            {
+                match parse_response(packet).map_err(|e| UsbError::Device(e.to_string()))? {
+                    Response::Ok(payload) => return Ok((payload, raw)),
+                    Response::Fail(payload) => return Err(UsbError::Device(payload)),
+                    Response::Info(text) => raw.push(("INFO".into(), text)),
+                    Response::Text(text) => raw.push(("TEXT".into(), text)),
+                    Response::Data(_) => {
+                        return Err(UsbError::Device("unexpected DATA response".into()))
+                    }
+                }
+            } else {
+                let body = String::from_utf8_lossy(packet)
+                    .trim_end_matches(['\0', '\n', '\r'])
+                    .to_owned();
+                raw.push((head, body));
+            }
+        }
+    }
+
     fn send_raw(&mut self, data: &[u8]) -> Result<(), UsbError> {
         self.write
             .write_all(data)

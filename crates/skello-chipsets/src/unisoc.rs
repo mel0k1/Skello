@@ -657,3 +657,101 @@ mod tests {
         bsl.reset().unwrap();
     }
 }
+
+/// The community-published bootloader signing key for T618-class
+/// devices (unisoc-unlock, see NOTICE): data, not code.
+pub const UNISOC_T618_KEY: &str = include_str!("unisoc_t618_key.pem");
+
+#[derive(Debug)]
+pub enum TokenError {
+    /// The identifier token is not a hex string.
+    BadToken,
+    /// The key material could not be loaded.
+    Key,
+    #[allow(dead_code)]
+    Io(std::io::Error),
+}
+
+impl std::fmt::Display for TokenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TokenError::BadToken => write!(f, "identifier token is not a hex string"),
+            TokenError::Key => write!(f, "signing key could not be loaded"),
+            TokenError::Io(e) => write!(f, "token io: {e}"),
+        }
+    }
+}
+
+impl std::error::Error for TokenError {}
+
+/// Signs the Unisoc bootloader identifier token: the hex token is
+/// zero-padded to 64 bytes and signed with RSA-4096 PKCS#1 v1.5 over
+/// SHA-256 (the unisoc-unlock procedure). Returns the signature the
+/// host sends through `fastboot download` before
+/// `flashing unlock_bootloader`.
+pub fn sign_identifier_token(
+    token_hex: &str,
+    key_pem: &str,
+) -> std::result::Result<Vec<u8>, TokenError> {
+    let token = token_hex.trim();
+    if token.is_empty() || !token.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err(TokenError::BadToken);
+    }
+    let mut padded = token.to_ascii_lowercase();
+    while padded.len() < 128 {
+        padded.push('0');
+    }
+    padded.truncate(128);
+    let raw = hex::decode(&padded).map_err(|_| TokenError::BadToken)?;
+    sign_token_bytes(&raw, key_pem)
+}
+
+/// Signs the already-decoded token bytes.
+pub fn sign_token_bytes(raw: &[u8], key_pem: &str) -> std::result::Result<Vec<u8>, TokenError> {
+    use rsa::pkcs1::DecodeRsaPrivateKey;
+    use rsa::pkcs1v15::SigningKey;
+    use rsa::signature::{SignatureEncoding, Signer};
+    let key = rsa::RsaPrivateKey::from_pkcs1_pem(key_pem).map_err(|_| TokenError::Key)?;
+    let signing = SigningKey::<sha2::Sha256>::new(key);
+    Ok(signing.sign(raw).to_vec())
+}
+
+#[cfg(test)]
+mod token_tests {
+    use super::*;
+
+    #[test]
+    fn token_signature_verifies() {
+        let token = "0123456789abcdef0123456789abcdef";
+        let signature = sign_identifier_token(token, UNISOC_T618_KEY).unwrap();
+        // RSA-4096: the signature is 512 bytes
+        assert_eq!(signature.len(), 512);
+
+        use rsa::pkcs1::DecodeRsaPrivateKey;
+        use rsa::pkcs1v15::{Signature, VerifyingKey};
+        use rsa::signature::Verifier;
+        let key = rsa::RsaPrivateKey::from_pkcs1_pem(UNISOC_T618_KEY).unwrap();
+        let verifying = VerifyingKey::<sha2::Sha256>::new(key.into());
+        // the verification input is the padded token
+        let mut padded = token.to_ascii_lowercase();
+        while padded.len() < 128 {
+            padded.push('0');
+        }
+        let raw = hex::decode(&padded).unwrap();
+        verifying
+            .verify(&raw, &Signature::try_from(signature.as_slice()).unwrap())
+            .unwrap();
+    }
+
+    #[test]
+    fn rejects_non_hex_tokens() {
+        assert!(matches!(
+            sign_identifier_token("zzzz", UNISOC_T618_KEY),
+            Err(TokenError::BadToken)
+        ));
+        assert!(matches!(
+            sign_identifier_token("", UNISOC_T618_KEY),
+            Err(TokenError::BadToken)
+        ));
+    }
+}
