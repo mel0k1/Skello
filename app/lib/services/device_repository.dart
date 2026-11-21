@@ -612,6 +612,116 @@ class DeviceRepository {
     }
   }
 
+  /// Boots a V6 XML Download Agent into fastboot or meta.
+  Future<String> mediatekV6Boot(String loaderPath, String mode) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('chipsets', '>> v6 boot $mode');
+    try {
+      final message = await chipsets_api.mediatekV6Boot(
+        loaderPath: loaderPath,
+        mode: mode,
+      );
+      await CommandLog.instance.write(
+        'chipsets',
+        '<< ${message.replaceAll('\n', ' | ')}',
+      );
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Reads the Unisoc partition table over the FDL loaders.
+  Future<List<UnisocPartitionRow>> unisocPartitionList(
+    String fdl1Path,
+    String fdl2Path,
+    int fdl1Addr,
+    int fdl2Addr,
+  ) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('chipsets', '>> unisoc table');
+    try {
+      final table = await chipsets_api.unisocPartitionList(
+        fdl1Path: fdl1Path,
+        fdl2Path: fdl2Path,
+        fdl1Addr: fdl1Addr,
+        fdl2Addr: fdl2Addr,
+      );
+      await CommandLog.instance.write(
+        'chipsets',
+        '<< ${table.length} partitions',
+      );
+      return [
+        for (final p in table) UnisocPartitionRow(p.name, p.sizeSectors),
+      ];
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Serial ports present on the system: the EDL UART candidates.
+  Future<List<String>> qualcommSerialPorts() async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    try {
+      final ports = await chipsets_api.qualcommSerialPorts();
+      await CommandLog.instance.write(
+        'chipsets',
+        '<< serial ports: ${ports.length}',
+      );
+      return ports;
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Qualcomm EDL flash over a serial port (Sahara + Firehose).
+  Future<String> qualcommEdlFlashSerial(
+    String programmerPath,
+    List<ChipsetProgramEntry> entries,
+    String portPath,
+  ) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write(
+      'chipsets',
+      '>> edl serial flash ${entries.length} entries on $portPath',
+    );
+    try {
+      final message = await chipsets_api.qualcommEdlFlashSerial(
+        programmerPath: programmerPath,
+        entries: [
+          for (final e in entries)
+            chipsets_api.ProgramEntry(
+              label: e.label,
+              startSector: e.startSector,
+              numSectors: e.numSectors,
+              physPart: e.physPart,
+              filePath: e.filePath,
+            ),
+        ],
+        portPath: portPath,
+      );
+      await CommandLog.instance.write(
+        'chipsets',
+        '<< ${message.replaceAll('\n', ' | ')}',
+      );
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
   Future<String> _usbFlash(
     String serial,
     String partition,

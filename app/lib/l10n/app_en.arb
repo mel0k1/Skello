@@ -166,6 +166,10 @@
   "chipsetsMtkUnlockConfirmTitle": "Unlock via Download Agent?",
   "chipsetsMtkUnlockConfirmBody": "Skello boots the stock loader over BROM, reads seccfg, patches the lock flag to unlocked and writes it back. Root is not needed, but the loader file of your model is. A bad write can break the boot.",
   "chipsetsMtkDone": "seccfg patched over the Download Agent",
+  "chipsetsMtkV6Boot": "Boot DA V6 (XML)",
+  "chipsetsMtkV6Fastboot": "Fastboot",
+  "chipsetsMtkV6Meta": "Meta",
+  "chipsetsMtkV6Done": "DA V6 booted",
   "chipsetsUnisocTitle": "Unisoc: FDL",
   "chipsetsUnisocHint": "Choose FDL1 and FDL2 from the factory firmware of your model; the addresses below are the common defaults.",
   "chipsetsUnisocPickFdl1": "Choose FDL1",
@@ -190,6 +194,16 @@
     }
   },
   "chipsetsUnisocDone": "Partition written over FDL2",
+  "chipsetsUnisocTable": "Read partition table",
+  "chipsetsUnisocTableDone": "Partition table",
+  "chipsetsUnisocSectors": "{count} sectors",
+  "@chipsetsUnisocSectors": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "chipsetsQualcommTitle": "Qualcomm: EDL (Sahara + Firehose)",
   "chipsetsQualcommHint": "The EDL port appears when the phone is plugged in dead mode; the programmer and rawprogram XML come from your model's firmware package.",
   "chipsetsQualcommProgrammerNone": "Firehose programmer not chosen",
@@ -225,5 +239,10 @@
   "chipsetsQualcommConfirmTitle": "Flash over EDL?",
   "chipsetsQualcommConfirmBody": "Skello serves the programmer over Sahara and writes every rawprogram entry. Partitions are rewritten without a confirmation on the phone.",
   "chipsetsQualcommDone": "rawprogram finished",
+  "chipsetsQualcommSerial": "EDL over serial (UART)",
+  "chipsetsQualcommSerialLoad": "Scan serial ports",
+  "chipsetsQualcommSerialNone": "No serial port found",
+  "chipsetsQualcommSerialFlash": "Flash over serial",
+  "chipsetsQualcommSerialDone": "rawprogram finished over serial",
   "cancelLabel": "Cancel"
 }

@@ -211,4 +211,100 @@ void main() {
     expect(find.text('MediaTek: BROM + Download Agent'), findsOneWidget);
     expect(repository.calls.where((c) => c == 'chipset-ports'), hasLength(1));
   });
+
+  testWidgets('mtk v6 boot runs for fastboot and meta', (tester) async {
+    FileSelectorPlatform.instance = FakeSelector('/fw/DA.bin');
+    final repository = FakeRepository();
+    repository.mtkPorts = ['BROM_123'];
+    await pumpChipsets(tester, repository);
+
+    await tester.tap(
+      find.widgetWithText(OutlinedButton, 'Choose DA loader'),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Fastboot'));
+    await tester.pumpAndSettle();
+
+    expect(
+      repository.calls.where((c) => c.startsWith('v6-boot')),
+      ['v6-boot fastboot /fw/DA.bin'],
+    );
+    expect(find.text('DA V6 booted'), findsOneWidget);
+    expect(find.text('DA V6 booted, device set to fastboot'), findsOneWidget);
+  });
+
+  testWidgets('unisoc partition table shows the rows', (tester) async {
+    FileSelectorPlatform.instance = FakeSelector('/fw/fdl.bin');
+    final repository = FakeRepository();
+    repository.unisocPorts = ['SPD'];
+    repository.unisocTable = [
+      UnisocPartitionRow('prod', BigInt.from(4194304)),
+      UnisocPartitionRow('misc', BigInt.from(2048)),
+    ];
+    await pumpChipsets(tester, repository);
+
+    await tester.tap(
+      find.widgetWithText(OutlinedButton, 'Choose FDL1'),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.widgetWithText(OutlinedButton, 'Choose FDL2'),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Read partition table'));
+    await tester.pumpAndSettle();
+
+    expect(
+      repository.calls.where((c) => c.startsWith('unisoc-table')),
+      ['unisoc-table 589824 1342177280'],
+    );
+    expect(find.text('Partition table'), findsOneWidget);
+    expect(find.text('prod - 4194304 sectors'), findsOneWidget);
+    expect(find.text('misc - 2048 sectors'), findsOneWidget);
+  });
+
+  testWidgets('edl serial flash runs over the picked port', (tester) async {
+    FileSelectorPlatform.instance = FakeSelector('/fw/rawprogram.xml');
+    final repository = FakeRepository();
+    repository.qualcommPorts = ['9008'];
+    repository.serialPorts = ['/dev/ttyUSB0'];
+    repository.parsedEntries = [
+      ChipsetProgramEntry(
+        label: 'boot',
+        startSector: '1024',
+        numSectors: BigInt.from(100),
+        physPart: 0,
+        filePath: '/fw/boot.img',
+      ),
+    ];
+    await pumpChipsets(tester, repository);
+
+    await tester.tap(
+      find.widgetWithText(OutlinedButton, 'Choose programmer'),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.widgetWithText(OutlinedButton, 'Choose rawprogram XML'),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Parse XML'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Scan serial ports'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ChoiceChip, '/dev/ttyUSB0'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'Flash over serial'),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Run it'));
+    await tester.pumpAndSettle();
+
+    expect(
+      repository.calls.where((c) => c.startsWith('edl-serial-flash')),
+      ['edl-serial-flash 1 on /dev/ttyUSB0'],
+    );
+    expect(find.text('rawprogram finished over serial'), findsOneWidget);
+    expect(find.text('flash OKAY over serial'), findsOneWidget);
+  });
 }

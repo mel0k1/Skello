@@ -63,7 +63,7 @@ import 'app_localizations_ru.dart';
 /// property.
 abstract class AppLocalizations {
   AppLocalizations(String locale)
-      : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -86,16 +86,16 @@ abstract class AppLocalizations {
   /// of delegates is preferred or required.
   static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
       <LocalizationsDelegate<dynamic>>[
-    delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-  ];
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
-    Locale('ru')
+    Locale('ru'),
   ];
 
   /// No description provided for @appName.
@@ -788,6 +788,30 @@ abstract class AppLocalizations {
   /// **'seccfg patched over the Download Agent'**
   String get chipsetsMtkDone;
 
+  /// No description provided for @chipsetsMtkV6Boot.
+  ///
+  /// In en, this message translates to:
+  /// **'Boot DA V6 (XML)'**
+  String get chipsetsMtkV6Boot;
+
+  /// No description provided for @chipsetsMtkV6Fastboot.
+  ///
+  /// In en, this message translates to:
+  /// **'Fastboot'**
+  String get chipsetsMtkV6Fastboot;
+
+  /// No description provided for @chipsetsMtkV6Meta.
+  ///
+  /// In en, this message translates to:
+  /// **'Meta'**
+  String get chipsetsMtkV6Meta;
+
+  /// No description provided for @chipsetsMtkV6Done.
+  ///
+  /// In en, this message translates to:
+  /// **'DA V6 booted'**
+  String get chipsetsMtkV6Done;
+
   /// No description provided for @chipsetsUnisocTitle.
   ///
   /// In en, this message translates to:
@@ -872,6 +896,24 @@ abstract class AppLocalizations {
   /// **'Partition written over FDL2'**
   String get chipsetsUnisocDone;
 
+  /// No description provided for @chipsetsUnisocTable.
+  ///
+  /// In en, this message translates to:
+  /// **'Read partition table'**
+  String get chipsetsUnisocTable;
+
+  /// No description provided for @chipsetsUnisocTableDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Partition table'**
+  String get chipsetsUnisocTableDone;
+
+  /// No description provided for @chipsetsUnisocSectors.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} sectors'**
+  String chipsetsUnisocSectors(int count);
+
   /// No description provided for @chipsetsQualcommTitle.
   ///
   /// In en, this message translates to:
@@ -919,7 +961,11 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{label}: {file} @ sector {sector} ({sectors})'**
   String chipsetsQualcommEntryLine(
-      String label, String file, String sector, String sectors);
+    String label,
+    String file,
+    String sector,
+    String sectors,
+  );
 
   /// No description provided for @chipsetsQualcommFlash.
   ///
@@ -944,6 +990,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'rawprogram finished'**
   String get chipsetsQualcommDone;
+
+  /// No description provided for @chipsetsQualcommSerial.
+  ///
+  /// In en, this message translates to:
+  /// **'EDL over serial (UART)'**
+  String get chipsetsQualcommSerial;
+
+  /// No description provided for @chipsetsQualcommSerialLoad.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan serial ports'**
+  String get chipsetsQualcommSerialLoad;
+
+  /// No description provided for @chipsetsQualcommSerialNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No serial port found'**
+  String get chipsetsQualcommSerialNone;
+
+  /// No description provided for @chipsetsQualcommSerialFlash.
+  ///
+  /// In en, this message translates to:
+  /// **'Flash over serial'**
+  String get chipsetsQualcommSerialFlash;
+
+  /// No description provided for @chipsetsQualcommSerialDone.
+  ///
+  /// In en, this message translates to:
+  /// **'rawprogram finished over serial'**
+  String get chipsetsQualcommSerialDone;
 
   /// No description provided for @cancelLabel.
   ///
@@ -979,8 +1055,9 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-      'an issue with the localizations generation tool. Please file an issue '
-      'on GitHub with a reproducible sample app and the gen-l10n configuration '
-      'that was used.');
+    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+    'an issue with the localizations generation tool. Please file an issue '
+    'on GitHub with a reproducible sample app and the gen-l10n configuration '
+    'that was used.',
+  );
 }

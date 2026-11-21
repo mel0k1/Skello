@@ -38,6 +38,15 @@ class ChipsetProgramEntry {
   final String filePath;
 }
 
+/// One row of the Unisoc partition table as the FDL2 reports it: the
+/// size stays in the loader's own sector units.
+class UnisocPartitionRow {
+  const UnisocPartitionRow(this.name, this.sizeSectors);
+
+  final String name;
+  final BigInt sizeSectors;
+}
+
 class DeviceRow {
   const DeviceRow(this.serial, this.state, this.source);
 

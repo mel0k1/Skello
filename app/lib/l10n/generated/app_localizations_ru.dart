@@ -1,5 +1,6 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -391,6 +392,18 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chipsetsMtkDone => 'seccfg пропатчен через Download Agent';
 
   @override
+  String get chipsetsMtkV6Boot => 'Загрузить DA V6 (XML)';
+
+  @override
+  String get chipsetsMtkV6Fastboot => 'Fastboot';
+
+  @override
+  String get chipsetsMtkV6Meta => 'Meta';
+
+  @override
+  String get chipsetsMtkV6Done => 'DA V6 загружен';
+
+  @override
   String get chipsetsUnisocTitle => 'Unisoc: FDL';
 
   @override
@@ -437,6 +450,17 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chipsetsUnisocDone => 'Раздел записан через FDL2';
 
   @override
+  String get chipsetsUnisocTable => 'Прочитать таблицу разделов';
+
+  @override
+  String get chipsetsUnisocTableDone => 'Таблица разделов';
+
+  @override
+  String chipsetsUnisocSectors(int count) {
+    return 'Секторов: $count';
+  }
+
+  @override
   String get chipsetsQualcommTitle => 'Qualcomm: EDL (Sahara + Firehose)';
 
   @override
@@ -463,7 +487,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String chipsetsQualcommEntryLine(
-      String label, String file, String sector, String sectors) {
+    String label,
+    String file,
+    String sector,
+    String sectors,
+  ) {
     return '$label: $file @ сектор $sector ($sectors)';
   }
 
@@ -479,6 +507,21 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get chipsetsQualcommDone => 'rawprogram завершён';
+
+  @override
+  String get chipsetsQualcommSerial => 'EDL по serial (UART)';
+
+  @override
+  String get chipsetsQualcommSerialLoad => 'Найти serial-порты';
+
+  @override
+  String get chipsetsQualcommSerialNone => 'Serial-порты не найдены';
+
+  @override
+  String get chipsetsQualcommSerialFlash => 'Прошить по serial';
+
+  @override
+  String get chipsetsQualcommSerialDone => 'rawprogram завершён по serial';
 
   @override
   String get cancelLabel => 'Отмена';

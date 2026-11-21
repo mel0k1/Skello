@@ -105,6 +105,10 @@ class FakeRepository implements DeviceRepository {
   String daUnlockMessage = 'seccfg patched over the DA';
   String unisocFlashMessage = 'partition written';
   String edlFlashMessage = 'flash OKAY (all entries)';
+  String v6BootMessage = 'DA V6 booted, device set to fastboot';
+  List<UnisocPartitionRow> unisocTable = const [];
+  List<String> serialPorts = const [];
+  String serialFlashMessage = 'flash OKAY over serial';
   bool failChipsetCalls = false;
 
   ChipsetPortGroups get portGroups => ChipsetPortGroups(
@@ -158,5 +162,42 @@ class FakeRepository implements DeviceRepository {
     calls.add('edl-flash ${entries.length} via $programmerPath');
     if (failChipsetCalls) throw Exception('sahara failed');
     return edlFlashMessage;
+  }
+
+  @override
+  Future<String> mediatekV6Boot(String loaderPath, String mode) async {
+    calls.add('v6-boot $mode $loaderPath');
+    if (failChipsetCalls) throw Exception('xml da failed');
+    return v6BootMessage;
+  }
+
+  @override
+  Future<List<UnisocPartitionRow>> unisocPartitionList(
+    String fdl1Path,
+    String fdl2Path,
+    int fdl1Addr,
+    int fdl2Addr,
+  ) async {
+    calls.add('unisoc-table $fdl1Addr $fdl2Addr');
+    if (failChipsetCalls) throw Exception('fdl2 dead');
+    return unisocTable;
+  }
+
+  @override
+  Future<List<String>> qualcommSerialPorts() async {
+    calls.add('serial-ports');
+    if (failChipsetCalls) throw Exception('serial scan failed');
+    return serialPorts;
+  }
+
+  @override
+  Future<String> qualcommEdlFlashSerial(
+    String programmerPath,
+    List<ChipsetProgramEntry> entries,
+    String portPath,
+  ) async {
+    calls.add('edl-serial-flash ${entries.length} on $portPath');
+    if (failChipsetCalls) throw Exception('sahara failed');
+    return serialFlashMessage;
   }
 }

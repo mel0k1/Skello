@@ -1,5 +1,6 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -389,6 +390,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chipsetsMtkDone => 'seccfg patched over the Download Agent';
 
   @override
+  String get chipsetsMtkV6Boot => 'Boot DA V6 (XML)';
+
+  @override
+  String get chipsetsMtkV6Fastboot => 'Fastboot';
+
+  @override
+  String get chipsetsMtkV6Meta => 'Meta';
+
+  @override
+  String get chipsetsMtkV6Done => 'DA V6 booted';
+
+  @override
   String get chipsetsUnisocTitle => 'Unisoc: FDL';
 
   @override
@@ -434,6 +447,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chipsetsUnisocDone => 'Partition written over FDL2';
 
   @override
+  String get chipsetsUnisocTable => 'Read partition table';
+
+  @override
+  String get chipsetsUnisocTableDone => 'Partition table';
+
+  @override
+  String chipsetsUnisocSectors(int count) {
+    return '$count sectors';
+  }
+
+  @override
   String get chipsetsQualcommTitle => 'Qualcomm: EDL (Sahara + Firehose)';
 
   @override
@@ -459,7 +483,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String chipsetsQualcommEntryLine(
-      String label, String file, String sector, String sectors) {
+    String label,
+    String file,
+    String sector,
+    String sectors,
+  ) {
     return '$label: $file @ sector $sector ($sectors)';
   }
 
@@ -475,6 +503,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chipsetsQualcommDone => 'rawprogram finished';
+
+  @override
+  String get chipsetsQualcommSerial => 'EDL over serial (UART)';
+
+  @override
+  String get chipsetsQualcommSerialLoad => 'Scan serial ports';
+
+  @override
+  String get chipsetsQualcommSerialNone => 'No serial port found';
+
+  @override
+  String get chipsetsQualcommSerialFlash => 'Flash over serial';
+
+  @override
+  String get chipsetsQualcommSerialDone => 'rawprogram finished over serial';
 
   @override
   String get cancelLabel => 'Cancel';

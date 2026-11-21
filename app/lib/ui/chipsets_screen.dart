@@ -26,6 +26,9 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
   bool _mtkBusy = false;
   String? _mtkResult;
   String? _mtkError;
+  bool _v6Busy = false;
+  String? _v6Result;
+  String? _v6Error;
 
   final _fdl1AddrCtrl = TextEditingController(text: '0x00090000');
   final _fdl2AddrCtrl = TextEditingController(text: '0x50000000');
@@ -36,6 +39,9 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
   bool _unisocBusy = false;
   String? _unisocResult;
   String? _unisocError;
+  bool _tableBusy = false;
+  List<UnisocPartitionRow>? _tableRows;
+  String? _tableError;
 
   String? _programmerPath;
   String? _xmlPath;
@@ -43,6 +49,11 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
   bool _qualBusy = false;
   String? _qualResult;
   String? _qualError;
+  bool _serialBusy = false;
+  List<String>? _serialPorts;
+  String? _selectedPort;
+  String? _serialResult;
+  String? _serialError;
 
   @override
   void initState() {
@@ -201,8 +212,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
     }
   }
 
-  Future<void> _parseXml() async {
-    setState(() {
+  Future<void> _parseXml() async {    setState(() {
       _qualBusy = true;
       _qualResult = null;
       _qualError = null;
@@ -250,6 +260,123 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
       setState(() {
         _qualError = e.toString();
         _qualBusy = false;
+      });
+    }
+  }
+
+  Future<void> _runV6Boot(String mode) async {
+    setState(() {
+      _v6Busy = true;
+      _v6Result = null;
+      _v6Error = null;
+    });
+    try {
+      final message = await widget.repository.mediatekV6Boot(
+        _loaderPath!,
+        mode,
+      );
+      if (!mounted) return;
+      setState(() {
+        _v6Result = message;
+        _v6Busy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _v6Error = e.toString();
+        _v6Busy = false;
+      });
+    }
+  }
+
+  Future<void> _loadTable() async {
+    final strings = AppLocalizations.of(context)!;
+    final fdl1Addr = _parseHex(_fdl1AddrCtrl.text);
+    final fdl2Addr = _parseHex(_fdl2AddrCtrl.text);
+    if (fdl1Addr == null || fdl2Addr == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(strings.chipsetsAddrInvalid)),
+      );
+      return;
+    }
+    setState(() {
+      _tableBusy = true;
+      _tableRows = null;
+      _tableError = null;
+    });
+    try {
+      final rows = await widget.repository.unisocPartitionList(
+        _fdl1Path!,
+        _fdl2Path!,
+        fdl1Addr,
+        fdl2Addr,
+      );
+      if (!mounted) return;
+      setState(() {
+        _tableRows = rows;
+        _tableBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _tableError = e.toString();
+        _tableBusy = false;
+      });
+    }
+  }
+
+  Future<void> _loadSerialPorts() async {
+    setState(() {
+      _serialBusy = true;
+      _serialPorts = null;
+      _selectedPort = null;
+      _serialResult = null;
+      _serialError = null;
+    });
+    try {
+      final ports = await widget.repository.qualcommSerialPorts();
+      if (!mounted) return;
+      setState(() {
+        _serialPorts = ports;
+        _serialBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _serialError = e.toString();
+        _serialBusy = false;
+      });
+    }
+  }
+
+  Future<void> _runSerialFlash() async {
+    final strings = AppLocalizations.of(context)!;
+    final go = await _confirm(
+      strings.chipsetsQualcommConfirmTitle,
+      strings.chipsetsQualcommConfirmBody,
+    );
+    if (!go) return;
+    setState(() {
+      _serialBusy = true;
+      _serialResult = null;
+      _serialError = null;
+    });
+    try {
+      final message = await widget.repository.qualcommEdlFlashSerial(
+        _programmerPath!,
+        _entries!,
+        _selectedPort!,
+      );
+      if (!mounted) return;
+      setState(() {
+        _serialResult = message;
+        _serialBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _serialError = e.toString();
+        _serialBusy = false;
       });
     }
   }
@@ -430,6 +557,40 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                   error: _mtkError,
                   successText: strings.chipsetsMtkDone,
                 ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    strings.chipsetsMtkV6Boot,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _loaderPath != null && !_v6Busy
+                            ? () => _runV6Boot('fastboot')
+                            : null,
+                        child: Text(strings.chipsetsMtkV6Fastboot),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _loaderPath != null && !_v6Busy
+                            ? () => _runV6Boot('meta')
+                            : null,
+                        child: Text(strings.chipsetsMtkV6Meta),
+                      ),
+                    ),
+                  ],
+                ),
+                _resultLine(
+                  context,
+                  result: _v6Result,
+                  error: _v6Error,
+                  successText: strings.chipsetsMtkV6Done,
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -516,6 +677,32 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                   error: _unisocError,
                   successText: strings.chipsetsUnisocDone,
                 ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: OutlinedButton(
+                    onPressed: _fdl1Path != null &&
+                            _fdl2Path != null &&
+                            !_tableBusy &&
+                            !_unisocBusy
+                        ? _loadTable
+                        : null,
+                    child: Text(strings.chipsetsUnisocTable),
+                  ),
+                ),
+                if (_tableRows != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    strings.chipsetsUnisocTableDone,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 4),
+                  for (final row in _tableRows!)
+                    Text(
+                      '${row.name} - ${strings.chipsetsUnisocSectors(row.sizeSectors.toInt())}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                ],
+                _resultLine(context, error: _tableError),
               ],
             ),
             const SizedBox(height: 12),
@@ -588,6 +775,58 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                   result: _qualResult,
                   error: _qualError,
                   successText: strings.chipsetsQualcommDone,
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    strings.chipsetsQualcommSerial,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                OutlinedButton(
+                  onPressed: !_serialBusy ? _loadSerialPorts : null,
+                  child: Text(strings.chipsetsQualcommSerialLoad),
+                ),
+                if (_serialPorts != null) ...[
+                  const SizedBox(height: 4),
+                  if (_serialPorts!.isEmpty)
+                    Text(
+                      strings.chipsetsQualcommSerialNone,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    )
+                  else
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        for (final port in _serialPorts!)
+                          ChoiceChip(
+                            label: Text(port),
+                            selected: _selectedPort == port,
+                            onSelected: (_) =>
+                                setState(() => _selectedPort = port),
+                          ),
+                      ],
+                    ),
+                ],
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: _programmerPath != null &&
+                          _entries != null &&
+                          _entries!.isNotEmpty &&
+                          _selectedPort != null &&
+                          !_serialBusy
+                      ? _runSerialFlash
+                      : null,
+                  icon: const Icon(Icons.settings_input_composite),
+                  label: Text(strings.chipsetsQualcommSerialFlash),
+                ),
+                _resultLine(
+                  context,
+                  result: _serialResult,
+                  error: _serialError,
+                  successText: strings.chipsetsQualcommSerialDone,
                 ),
               ],
             ),

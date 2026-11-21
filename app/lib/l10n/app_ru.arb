@@ -166,6 +166,10 @@
   "chipsetsMtkUnlockConfirmTitle": "Разблокировать через Download Agent?",
   "chipsetsMtkUnlockConfirmBody": "Skello поднимет заводской загрузчик по BROM, прочитает seccfg, перепишет флаг блокировки на unlocked и запишет раздел обратно. Root не нужен, но нужен файл загрузчика вашей модели. Ошибка записи может сломать загрузку.",
   "chipsetsMtkDone": "seccfg пропатчен через Download Agent",
+  "chipsetsMtkV6Boot": "Загрузить DA V6 (XML)",
+  "chipsetsMtkV6Fastboot": "Fastboot",
+  "chipsetsMtkV6Meta": "Meta",
+  "chipsetsMtkV6Done": "DA V6 загружен",
   "chipsetsUnisocTitle": "Unisoc: FDL",
   "chipsetsUnisocHint": "Выберите FDL1 и FDL2 из заводской прошивки вашей модели; адреса ниже - обычные значения по умолчанию.",
   "chipsetsUnisocPickFdl1": "Выбрать FDL1",
@@ -190,6 +194,16 @@
     }
   },
   "chipsetsUnisocDone": "Раздел записан через FDL2",
+  "chipsetsUnisocTable": "Прочитать таблицу разделов",
+  "chipsetsUnisocTableDone": "Таблица разделов",
+  "chipsetsUnisocSectors": "Секторов: {count}",
+  "@chipsetsUnisocSectors": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "chipsetsQualcommTitle": "Qualcomm: EDL (Sahara + Firehose)",
   "chipsetsQualcommHint": "Порт EDL появляется при подключении телефона в dead mode; программатор и rawprogram XML берутся из пакета прошивки вашей модели.",
   "chipsetsQualcommProgrammerNone": "Программатор Firehose не выбран",
@@ -225,5 +239,10 @@
   "chipsetsQualcommConfirmTitle": "Прошивать по EDL?",
   "chipsetsQualcommConfirmBody": "Skello подаст программатор по Sahara и запишет каждую запись rawprogram. Разделы перезаписываются без подтверждения на телефоне.",
   "chipsetsQualcommDone": "rawprogram завершён",
+  "chipsetsQualcommSerial": "EDL по serial (UART)",
+  "chipsetsQualcommSerialLoad": "Найти serial-порты",
+  "chipsetsQualcommSerialNone": "Serial-порты не найдены",
+  "chipsetsQualcommSerialFlash": "Прошить по serial",
+  "chipsetsQualcommSerialDone": "rawprogram завершён по serial",
   "cancelLabel": "Отмена"
 }
