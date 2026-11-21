@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -672974527;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 793970899;
 
 // Section: executor
 
@@ -923,6 +923,45 @@ fn wire__crate__api__chipsets__mediatek_da_unlock_impl(
         },
     )
 }
+fn wire__crate__api__chipsets__mediatek_erase_partition_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "mediatek_erase_partition",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_loader_path = <String>::sse_decode(&mut deserializer);
+            let api_name = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::chipsets::mediatek_erase_partition(
+                            api_loader_path,
+                            api_name,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__chipsets__mediatek_exploit_dump_brom_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1069,6 +1108,45 @@ fn wire__crate__api__chipsets__mediatek_rpmb_write_impl(
                             api_loader_path,
                             api_addr,
                             api_data,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__chipsets__mediatek_scatter_flash_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "mediatek_scatter_flash",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_loader_path = <String>::sse_decode(&mut deserializer);
+            let api_scatter_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::chipsets::mediatek_scatter_flash(
+                            api_loader_path,
+                            api_scatter_path,
                         )?;
                         std::result::Result::Ok(output_ok)
                     })(),
@@ -1414,6 +1492,76 @@ fn wire__crate__api__chipsets__unisoc_flash_partition_impl(
                             api_partition,
                             api_image_path,
                         )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__chipsets__unisoc_pac_flash_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "unisoc_pac_flash",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_pac_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::chipsets::unisoc_pac_flash(api_pac_path)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__chipsets__unisoc_pac_info_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "unisoc_pac_info",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_pac_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::chipsets::unisoc_pac_info(api_pac_path)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -1843,67 +1991,81 @@ fn pde_ffi_dispatcher_primary_impl(
         24 => {
             wire__crate__api__chipsets__mediatek_da_unlock_impl(port, ptr, rust_vec_len, data_len)
         }
-        25 => wire__crate__api__chipsets__mediatek_exploit_dump_brom_impl(
+        25 => wire__crate__api__chipsets__mediatek_erase_partition_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        26 => wire__crate__api__chipsets__mediatek_exploit_unlock_impl(
+        26 => wire__crate__api__chipsets__mediatek_exploit_dump_brom_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        27 => {
+        27 => wire__crate__api__chipsets__mediatek_exploit_unlock_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        28 => {
             wire__crate__api__chipsets__mediatek_rpmb_read_impl(port, ptr, rust_vec_len, data_len)
         }
-        28 => {
+        29 => {
             wire__crate__api__chipsets__mediatek_rpmb_write_impl(port, ptr, rust_vec_len, data_len)
         }
-        29 => wire__crate__api__mediatek__mediatek_seccfg_status_impl(
+        30 => wire__crate__api__chipsets__mediatek_scatter_flash_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        30 => wire__crate__api__mediatek__mediatek_seccfg_unlock_impl(
+        31 => wire__crate__api__mediatek__mediatek_seccfg_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        31 => wire__crate__api__chipsets__mediatek_v6_boot_impl(port, ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__chipsets__parse_rawprogram_impl(port, ptr, rust_vec_len, data_len),
-        33 => {
+        32 => wire__crate__api__mediatek__mediatek_seccfg_unlock_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        33 => wire__crate__api__chipsets__mediatek_v6_boot_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__chipsets__parse_rawprogram_impl(port, ptr, rust_vec_len, data_len),
+        35 => {
             wire__crate__api__chipsets__qualcomm_edl_flash_impl(port, ptr, rust_vec_len, data_len)
         }
-        34 => wire__crate__api__chipsets__qualcomm_edl_flash_serial_impl(
+        36 => wire__crate__api__chipsets__qualcomm_edl_flash_serial_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        35 => wire__crate__api__chipsets__qualcomm_serial_ports_impl(
+        37 => wire__crate__api__chipsets__qualcomm_serial_ports_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        36 => wire__crate__api__log__set_core_log_file_impl(port, ptr, rust_vec_len, data_len),
-        37 => wire__crate__api__chipsets__unisoc_flash_partition_impl(
+        38 => wire__crate__api__log__set_core_log_file_impl(port, ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__chipsets__unisoc_flash_partition_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        38 => wire__crate__api__chipsets__unisoc_partition_list_impl(
+        40 => wire__crate__api__chipsets__unisoc_pac_flash_impl(port, ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__chipsets__unisoc_pac_info_impl(port, ptr, rust_vec_len, data_len),
+        42 => wire__crate__api__chipsets__unisoc_partition_list_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        39 => wire__crate__api__chipsets__unisoc_unlock_bootloader_impl(
+        43 => wire__crate__api__chipsets__unisoc_unlock_bootloader_impl(
             port,
             ptr,
             rust_vec_len,

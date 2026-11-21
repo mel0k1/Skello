@@ -32,6 +32,18 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
   bool _exploitBusy = false;
   String? _exploitResult;
   String? _exploitError;
+  bool _scatterBusy = false;
+  String? _scatterResult;
+  String? _scatterError;
+  final _eraseController = TextEditingController();
+  bool _eraseBusy = false;
+  String? _eraseResult;
+  String? _eraseError;
+  bool _pacBusy = false;
+  String? _pacPath;
+  String? _pacInfo;
+  String? _pacResult;
+  String? _pacError;
   bool _rpmbBusy = false;
   String? _rpmbResult;
   String? _rpmbError;
@@ -383,6 +395,70 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
       setState(() {
         _rpmbError = e.toString();
         _rpmbBusy = false;
+      });
+    }
+  }
+
+  Future<void> _runErase() async {
+    final strings = AppLocalizations.of(context)!;
+    final name = _eraseController.text.trim();
+    if (name.isEmpty) {
+      setState(() => _eraseError = strings.chipsetsEraseName);
+      return;
+    }
+    final go = await _confirm(
+      strings.chipsetsExploitConfirmTitle,
+      strings.chipsetsExploitConfirmBody,
+    );
+    if (!go) return;
+    setState(() {
+      _eraseBusy = true;
+      _eraseResult = null;
+      _eraseError = null;
+    });
+    try {
+      final message =
+          await widget.repository.mediatekErasePartition(_loaderPath!, name);
+      if (!mounted) return;
+      setState(() {
+        _eraseResult = message;
+        _eraseBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _eraseError = e.toString();
+        _eraseBusy = false;
+      });
+    }
+  }
+
+  Future<void> _runPacFlash() async {
+    final strings = AppLocalizations.of(context)!;
+    if (_pacPath == null) return;
+    final go = await _confirm(
+      strings.chipsetsExploitConfirmTitle,
+      strings.chipsetsPacConfirm(_pacInfo ?? ''),
+    );
+    if (!go) return;
+    setState(() {
+      _pacBusy = true;
+      _pacResult = null;
+      _pacError = null;
+    });
+    try {
+      final message =
+          await widget.repository.unisocPacFlash(_pacPath!);
+      if (!mounted) return;
+      setState(() {
+        _pacResult = message;
+        _pacBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _pacError = e.toString();
+        _pacBusy = false;
       });
     }
   }
@@ -775,6 +851,86 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                   error: _rpmbError,
                   successText: strings.chipsetsRpmbDone,
                 ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    strings.chipsetsScatterTitle,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  strings.chipsetsScatterHint,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: !_scatterBusy
+                            ? () async {
+                                final path = await _pickPath(
+                                  const ['txt'],
+                                );
+                                if (path == null) return;
+                                setState(() {
+                                  _scatterBusy = true;
+                                  _scatterResult = null;
+                                  _scatterError = null;
+                                });
+                                try {
+                                  final message = await widget.repository
+                                      .mediatekScatterFlash(_loaderPath!, path);
+                                  if (!mounted) return;
+                                  setState(() {
+                                    _scatterResult = message;
+                                    _scatterBusy = false;
+                                  });
+                                } catch (e) {
+                                  if (!mounted) return;
+                                  setState(() {
+                                    _scatterError = e.toString();
+                                    _scatterBusy = false;
+                                  });
+                                }
+                              }
+                            : null,
+                        child: Text(strings.chipsetsScatterFlash),
+                      ),
+                    ),
+                  ],
+                ),
+                _resultLine(
+                  context,
+                  result: _scatterResult,
+                  error: _scatterError,
+                  successText: strings.chipsetsScatterDone,
+                ),
+                Text(
+                  strings.chipsetsEraseHint,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 4),
+                TextField(
+                  controller: _eraseController,
+                  decoration: InputDecoration(
+                    labelText: strings.chipsetsEraseName,
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                OutlinedButton(
+                  onPressed:
+                      _loaderPath != null && !_eraseBusy ? _runErase : null,
+                  child: Text(strings.chipsetsEraseBtn),
+                ),
+                _resultLine(
+                  context,
+                  result: _eraseResult,
+                  error: _eraseError,
+                  successText: strings.chipsetsEraseDone,
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -910,6 +1066,65 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                   result: _unlockResult,
                   error: _unlockError,
                   successText: strings.chipsetsUnisocUnlockDone,
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    strings.chipsetsPacTitle,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  strings.chipsetsPacHint,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 4),
+                OutlinedButton(
+                  onPressed: !_pacBusy
+                      ? () async {
+                          final path = await _pickPath(const ['pac']);
+                          if (path == null) return;
+                          setState(() {
+                            _pacResult = null;
+                            _pacError = null;
+                            _pacInfo = null;
+                          });
+                          try {
+                            final info = await widget.repository
+                                .unisocPacInfo(path);
+                            if (!mounted) return;
+                            setState(() {
+                              _pacPath = path;
+                              _pacInfo = info;
+                            });
+                          } catch (e) {
+                            if (!mounted) return;
+                            setState(() {
+                              _pacError = e.toString();
+                            });
+                          }
+                        }
+                      : null,
+                  child: Text(strings.chipsetsPacPick),
+                ),
+                if (_pacInfo != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(_pacInfo!, style: Theme.of(context).textTheme.bodySmall),
+                  ),
+                const SizedBox(height: 4),
+                FilledButton(
+                  onPressed: _pacPath != null && !_pacBusy
+                      ? _runPacFlash
+                      : null,
+                  child: Text(strings.chipsetsPacFlash),
+                ),
+                _resultLine(
+                  context,
+                  result: _pacResult,
+                  error: _pacError,
+                  successText: strings.chipsetsPacDone,
                 ),
               ],
             ),

@@ -244,4 +244,37 @@ class FakeRepository implements DeviceRepository {
     if (failChipsetCalls) throw Exception('no fastboot device found');
     return unisocUnlockMessage;
   }
+
+  String pacInfo = 'TEST_FW 1.0 | CRC ok | flash files (1): boot (64 KB)';
+  String pacFlashMessage = 'flashed 1: boot; reset';
+  String eraseMessage = 'boot erased (2048 sectors)';
+  String scatterMessage = 'scatter MT6768: flashed 2 partitions: preloader, boot';
+
+  @override
+  Future<String> unisocPacInfo(String pacPath) async {
+    calls.add('pac-info $pacPath');
+    if (failChipsetCalls) throw Exception('pac: not a Unisoc .pac package');
+    return pacInfo;
+  }
+
+  @override
+  Future<String> unisocPacFlash(String pacPath) async {
+    calls.add('pac-flash $pacPath');
+    if (failChipsetCalls) throw Exception('pac flash: package data crc mismatch');
+    return pacFlashMessage;
+  }
+
+  @override
+  Future<String> mediatekErasePartition(String loaderPath, String name) async {
+    calls.add('erase $name');
+    if (failChipsetCalls) throw Exception('partition $name not found');
+    return eraseMessage;
+  }
+
+  @override
+  Future<String> mediatekScatterFlash(String loaderPath, String scatterPath) async {
+    calls.add('scatter-flash $scatterPath');
+    if (failChipsetCalls) throw Exception('scatter line 14: not a hex number');
+    return scatterMessage;
+  }
 }

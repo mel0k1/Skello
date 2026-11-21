@@ -355,6 +355,61 @@ pub fn unisoc_flash_partition(
     Ok(format!("{partition} written, {ver}"))
 }
 
+/// Unisoc .pac package summary: firmware name/version and the files
+/// marked for flashing, so the user confirms before anything runs.
+pub fn unisoc_pac_info(pac_path: String) -> anyhow::Result<String> {
+    let data = std::fs::read(&pac_path)?;
+    let fw = skello_chipsets::parse_pac(&data)
+        .map_err(|e| anyhow::anyhow!("pac: {e}"))?;
+    if !fw.head_crc_ok {
+        anyhow::bail!("pac header crc mismatch");
+    }
+    let files: Vec<String> = fw
+        .flash_files()
+        .iter()
+        .map(|e| format!("{} ({} KB)", e.name, e.size / 1024))
+        .collect();
+    Ok(format!(
+        "{} {} | CRC ok | flash files ({}): {}",
+        fw.fw_name,
+        fw.fw_version,
+        files.len(),
+        files.join(", ")
+    ))
+}
+
+/// Flashes a whole Unisoc .pac firmware: the FDL pair boots from the
+/// package itself, every flash file goes to its named partition, the
+/// device resets afterwards. Data CRC is checked first.
+pub fn unisoc_pac_flash(pac_path: String) -> anyhow::Result<String> {
+    let data = std::fs::read(&pac_path)?;
+    let mut bsl = Bsl::new(open_usb_serial(VID_UNISOC, UNISOC_PID_BROM)?, true);
+    let result = bsl
+        .flash_pac(&data)
+        .map_err(|e| anyhow::anyhow!("pac flash: {e}"))?;
+    log::core_log("unisoc", &format!("pac flash: {result}"));
+    Ok(result)
+}
+
+/// Erases a MediaTek partition by its GPT name through the stock DA
+/// (one FORMAT command over the whole area).
+pub fn mediatek_erase_partition(loader_path: String, name: String) -> anyhow::Result<String> {
+    let mut brom = Brom::new(open_usb_serial(VID_MEDIATEK, PID_BROM)?);
+    let result = XFlash::erase_partition_with(&mut brom, &loader_path, &name)?;
+    log::core_log("mediatek", &result);
+    Ok(result)
+}
+
+/// Flashes a MediaTek firmware by its scatter file: every entry
+/// marked for download is written from the images next to the
+/// scatter, boot-area entries go into the boot1 area.
+pub fn mediatek_scatter_flash(loader_path: String, scatter_path: String) -> anyhow::Result<String> {
+    let mut brom = Brom::new(open_usb_serial(VID_MEDIATEK, PID_BROM)?);
+    let result = XFlash::scatter_flash_with(&mut brom, &loader_path, &scatter_path)?;
+    log::core_log("mediatek", &result);
+    Ok(result)
+}
+
 /// Qualcomm EDL flash: serves the Firehose programmer over Sahara,
 /// switches to command mode and runs a rawprogram XML where every
 /// program entry flashes one file at its start sector. Sparse images

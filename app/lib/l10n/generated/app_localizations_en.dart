@@ -557,5 +557,52 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chipsetsUnisocUnlockDone => 'Unlock flow finished';
 
   @override
+  String get chipsetsScatterTitle => 'Scatter firmware';
+
+  @override
+  String get chipsetsScatterHint =>
+      'Flash the images listed in the scatter file; boot-area entries write into the boot1 hardware area.';
+
+  @override
+  String get chipsetsScatterFlash => 'Flash by scatter';
+
+  @override
+  String get chipsetsScatterDone => 'Scatter flash finished';
+
+  @override
+  String get chipsetsEraseHint =>
+      'Erase one partition by its GPT name: one FORMAT command over the whole area. RPMB is refused by design.';
+
+  @override
+  String get chipsetsEraseName => 'Partition name';
+
+  @override
+  String get chipsetsEraseBtn => 'Erase partition';
+
+  @override
+  String get chipsetsEraseDone => 'Partition erased';
+
+  @override
+  String get chipsetsPacTitle => 'Full firmware (.pac)';
+
+  @override
+  String get chipsetsPacHint =>
+      'The package carries its own FDL pair: it boots, writes every flash file and resets. CRCs are checked first.';
+
+  @override
+  String get chipsetsPacPick => 'Choose .pac firmware';
+
+  @override
+  String get chipsetsPacFlash => 'Flash firmware';
+
+  @override
+  String get chipsetsPacDone => 'Pac firmware flashed';
+
+  @override
+  String chipsetsPacConfirm(String info) {
+    return 'Flash this firmware? $info';
+  }
+
+  @override
   String get cancelLabel => 'Cancel';
 }

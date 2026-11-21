@@ -825,7 +825,87 @@ class DeviceRepository {
     }
   }
 
+  /// Unisoc .pac summary before flashing.
+  Future<String> unisocPacInfo(String pacPath) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    try {
+      return await chipsets_api.unisocPacInfo(pacPath: pacPath);
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< pac info failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Flashes a whole Unisoc .pac firmware.
+  Future<String> unisocPacFlash(String pacPath) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('chipsets', '>> pac flash');
+    try {
+      final message = await chipsets_api.unisocPacFlash(pacPath: pacPath);
+      await CommandLog.instance.write(
+        'chipsets',
+        '<< ${message.replaceAll('\n', ' | ')}',
+      );
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Erases one MediaTek partition by its GPT name.
+  Future<String> mediatekErasePartition(String loaderPath, String name) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('chipsets', '>> erase $name');
+    try {
+      final message = await chipsets_api.mediatekErasePartition(
+        loaderPath: loaderPath,
+        name: name,
+      );
+      await CommandLog.instance.write(
+        'chipsets',
+        '<< ${message.replaceAll('\n', ' | ')}',
+      );
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Flashes a MediaTek firmware by its scatter file.
+  Future<String> mediatekScatterFlash(
+    String loaderPath,
+    String scatterPath,
+  ) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('chipsets', '>> scatter flash');
+    try {
+      final message = await chipsets_api.mediatekScatterFlash(
+        loaderPath: loaderPath,
+        scatterPath: scatterPath,
+      );
+      await CommandLog.instance.write(
+        'chipsets',
+        '<< ${message.replaceAll('\n', ' | ')}',
+      );
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
   Future<String> _usbFlash(
+
     String serial,
     String partition,
     String imagePath,

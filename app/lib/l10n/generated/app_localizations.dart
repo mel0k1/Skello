@@ -1095,6 +1095,90 @@ abstract class AppLocalizations {
   /// **'Unlock flow finished'**
   String get chipsetsUnisocUnlockDone;
 
+  /// No description provided for @chipsetsScatterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scatter firmware'**
+  String get chipsetsScatterTitle;
+
+  /// No description provided for @chipsetsScatterHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Flash the images listed in the scatter file; boot-area entries write into the boot1 hardware area.'**
+  String get chipsetsScatterHint;
+
+  /// No description provided for @chipsetsScatterFlash.
+  ///
+  /// In en, this message translates to:
+  /// **'Flash by scatter'**
+  String get chipsetsScatterFlash;
+
+  /// No description provided for @chipsetsScatterDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Scatter flash finished'**
+  String get chipsetsScatterDone;
+
+  /// No description provided for @chipsetsEraseHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Erase one partition by its GPT name: one FORMAT command over the whole area. RPMB is refused by design.'**
+  String get chipsetsEraseHint;
+
+  /// No description provided for @chipsetsEraseName.
+  ///
+  /// In en, this message translates to:
+  /// **'Partition name'**
+  String get chipsetsEraseName;
+
+  /// No description provided for @chipsetsEraseBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Erase partition'**
+  String get chipsetsEraseBtn;
+
+  /// No description provided for @chipsetsEraseDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Partition erased'**
+  String get chipsetsEraseDone;
+
+  /// No description provided for @chipsetsPacTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Full firmware (.pac)'**
+  String get chipsetsPacTitle;
+
+  /// No description provided for @chipsetsPacHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The package carries its own FDL pair: it boots, writes every flash file and resets. CRCs are checked first.'**
+  String get chipsetsPacHint;
+
+  /// No description provided for @chipsetsPacPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose .pac firmware'**
+  String get chipsetsPacPick;
+
+  /// No description provided for @chipsetsPacFlash.
+  ///
+  /// In en, this message translates to:
+  /// **'Flash firmware'**
+  String get chipsetsPacFlash;
+
+  /// No description provided for @chipsetsPacDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Pac firmware flashed'**
+  String get chipsetsPacDone;
+
+  /// No description provided for @chipsetsPacConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Flash this firmware? {info}'**
+  String chipsetsPacConfirm(String info);
+
   /// No description provided for @cancelLabel.
   ///
   /// In en, this message translates to:

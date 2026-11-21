@@ -561,5 +561,52 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chipsetsUnisocUnlockDone => 'Разблокировка завершена';
 
   @override
+  String get chipsetsScatterTitle => 'Прошивка по scatter';
+
+  @override
+  String get chipsetsScatterHint =>
+      'Прошиваются образы из scatter-файла; записи boot-области пишутся в hardware boot1.';
+
+  @override
+  String get chipsetsScatterFlash => 'Прошить по scatter';
+
+  @override
+  String get chipsetsScatterDone => 'Scatter-прошивка завершена';
+
+  @override
+  String get chipsetsEraseHint =>
+      'Стереть раздел по имени из GPT: одна команда FORMAT на всю область. RPMB стирать нельзя.';
+
+  @override
+  String get chipsetsEraseName => 'Имя раздела';
+
+  @override
+  String get chipsetsEraseBtn => 'Стереть раздел';
+
+  @override
+  String get chipsetsEraseDone => 'Раздел стёрт';
+
+  @override
+  String get chipsetsPacTitle => 'Полная прошивка (.pac)';
+
+  @override
+  String get chipsetsPacHint =>
+      'Пакет несёт свою пару FDL: устройство бутится, пишутся все файлы прошивки, потом перезагрузка. Сначала проверяются CRC.';
+
+  @override
+  String get chipsetsPacPick => 'Выбрать прошивку .pac';
+
+  @override
+  String get chipsetsPacFlash => 'Прошить прошивку';
+
+  @override
+  String get chipsetsPacDone => 'Прошивка .pac записана';
+
+  @override
+  String chipsetsPacConfirm(String info) {
+    return 'Прошить эту прошивку? $info';
+  }
+
+  @override
   String get cancelLabel => 'Отмена';
 }

@@ -122,6 +122,32 @@ Future<String> unisocFlashPartition(
         partition: partition,
         imagePath: imagePath);
 
+/// Unisoc .pac package summary: firmware name/version and the files
+/// marked for flashing, so the user confirms before anything runs.
+Future<String> unisocPacInfo({required String pacPath}) =>
+    RustLib.instance.api.crateApiChipsetsUnisocPacInfo(pacPath: pacPath);
+
+/// Flashes a whole Unisoc .pac firmware: the FDL pair boots from the
+/// package itself, every flash file goes to its named partition, the
+/// device resets afterwards. Data CRC is checked first.
+Future<String> unisocPacFlash({required String pacPath}) =>
+    RustLib.instance.api.crateApiChipsetsUnisocPacFlash(pacPath: pacPath);
+
+/// Erases a MediaTek partition by its GPT name through the stock DA
+/// (one FORMAT command over the whole area).
+Future<String> mediatekErasePartition(
+        {required String loaderPath, required String name}) =>
+    RustLib.instance.api.crateApiChipsetsMediatekErasePartition(
+        loaderPath: loaderPath, name: name);
+
+/// Flashes a MediaTek firmware by its scatter file: every entry
+/// marked for download is written from the images next to the
+/// scatter, boot-area entries go into the boot1 area.
+Future<String> mediatekScatterFlash(
+        {required String loaderPath, required String scatterPath}) =>
+    RustLib.instance.api.crateApiChipsetsMediatekScatterFlash(
+        loaderPath: loaderPath, scatterPath: scatterPath);
+
 /// Parses a rawprogram XML (firehose flasher layout) into entries.
 Future<List<ProgramEntry>> parseRawprogram({required String xmlPath}) =>
     RustLib.instance.api.crateApiChipsetsParseRawprogram(xmlPath: xmlPath);

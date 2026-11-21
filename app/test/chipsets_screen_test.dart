@@ -110,8 +110,8 @@ void main() {
       find.widgetWithText(OutlinedButton, 'Choose image'),
     );
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).at(2), 'boot');
-    await tester.enterText(find.byType(TextField).at(0), 'zz');
+    await tester.enterText(find.byType(TextField).at(3), 'boot');
+    await tester.enterText(find.byType(TextField).at(1), 'zz');
     await tester.pumpAndSettle();
 
     await tester.tap(find.widgetWithText(FilledButton, 'Flash partition'));
@@ -145,7 +145,7 @@ void main() {
       find.widgetWithText(OutlinedButton, 'Choose image'),
     );
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).at(2), 'boot');
+    await tester.enterText(find.byType(TextField).at(3), 'boot');
     await tester.pumpAndSettle();
 
     await tester.tap(find.widgetWithText(FilledButton, 'Flash partition'));
@@ -394,5 +394,88 @@ void main() {
       find.text('unlock sent; confirm on the device screen'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('scatter flash runs after the loader pick', (tester) async {
+    FileSelectorPlatform.instance = FakeSelector('/fw/DA.bin');
+    final repository = FakeRepository();
+    repository.mtkPorts = ['BROM_123'];
+    await pumpChipsets(tester, repository);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Choose DA loader'));
+    await tester.pumpAndSettle();
+    final scatterButton = find.widgetWithText(OutlinedButton, 'Flash by scatter');
+    await tester.ensureVisible(scatterButton);
+    await tester.pumpAndSettle();
+    await tester.tap(scatterButton);
+    await tester.pumpAndSettle();
+
+    expect(
+      repository.calls.where((c) => c.startsWith('scatter-flash')),
+      ['scatter-flash /fw/DA.bin'],
+    );
+    expect(find.text('Scatter flash finished'), findsOneWidget);
+    expect(
+      find.text(
+        'scatter MT6768: flashed 2 partitions: preloader, boot',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('erase takes the partition name and confirms', (tester) async {
+    FileSelectorPlatform.instance = FakeSelector('/fw/DA.bin');
+    final repository = FakeRepository();
+    repository.mtkPorts = ['BROM_123'];
+    await pumpChipsets(tester, repository);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Choose DA loader'));
+    await tester.pumpAndSettle();
+    final eraseField =
+        find.widgetWithText(TextField, 'Partition name').first;
+    await tester.ensureVisible(eraseField);
+    await tester.pumpAndSettle();
+    await tester.enterText(eraseField, 'boot');
+    await tester.tap(
+      find.widgetWithText(OutlinedButton, 'Erase partition').first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Run it'));
+    await tester.pumpAndSettle();
+
+    expect(repository.calls, contains('erase boot'));
+    expect(find.text('Partition erased'), findsOneWidget);
+    expect(find.text('boot erased (2048 sectors)'), findsOneWidget);
+  });
+
+  testWidgets('pac firmware info shows before flashing', (tester) async {
+    FileSelectorPlatform.instance = FakeSelector('/fw/T618.pac');
+    final repository = FakeRepository();
+    repository.unisocPorts = ['SPD'];
+    await pumpChipsets(tester, repository);
+
+    final pacButton =
+        find.widgetWithText(OutlinedButton, 'Choose .pac firmware');
+    await tester.ensureVisible(pacButton);
+    await tester.pumpAndSettle();
+    await tester.tap(pacButton);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('TEST_FW 1.0'), findsOneWidget);
+    expect(
+      repository.calls.where((c) => c.startsWith('pac-info')),
+      ['pac-info /fw/T618.pac'],
+    );
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Flash firmware'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Run it'));
+    await tester.pumpAndSettle();
+
+    expect(
+      repository.calls.where((c) => c.startsWith('pac-flash')),
+      ['pac-flash /fw/T618.pac'],
+    );
+    expect(find.text('Pac firmware flashed'), findsOneWidget);
+    expect(find.text('flashed 1: boot; reset'), findsOneWidget);
   });
 }
