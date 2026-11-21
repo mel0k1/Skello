@@ -20,11 +20,14 @@ adb и fastboot работают из терминала: нужно помни�
 - crates/skello-adb: протокол adb целиком на Rust: заголовок amessage на 24 байта, клиент adb-сервера на порту 5037 и USB-транспорт без сервера (интерфейс ff/42/01): CNXN/AUTH-рукопожатие с RSA-ключом в формате android pubkey, сервисы shell и reboot через A_OPEN, статусы device / unauthorized / offline
 - crates/skello-fastboot: строки команд fastboot (getvar, download, flash, erase, set_active, reboot-*), разбор ответов OKAY / FAIL / INFO / TEXT / DATA, парсер max-download-size и USB-транспорт на nusb (перечисление устройств ff/42/03, getvar, reboot, unlock, erase, download с прогрессом)
 - crates/skello-bootimg: разбор заголовка Android boot image (v0-v4): размеры ядра и ramdisk, размер страницы, версия Android и патч безопасности, наличие AVB-футера
+- crates/skello-chipsets: формат раздела seccfg MediaTek (V3/V4) по mtkclient: чтение состояния блокировки, локальный патч unlock для разделов с программным ключом SEJ (AES-256-CBC), аппаратные ключи честно отклоняются до этапа DA
 - app: мост Flutter и Rust через flutter_rust_bridge (крейт app/rust собирается cargokit-ом вместе с приложением), DeviceRepository зовёт ядро и при недоступности FFI переключается на системные adb и fastboot
 - app: живой список устройств напрямую по USB (adb и fastboot) с карточками состояний, меню перезагрузки (system / bootloader / recovery) и запуском мастера разблокировки; тема Material 3 Expressive, i18n на русский и английский
 - app: мастер разблокировки загрузчика: предупреждение о стирании с обязательным подтверждением, flashing unlock по USB (или через бинарник) с ожиданием подтверждения на телефоне и повторной проверкой
 - app: Root-экран: выбор Magisk / KernelSU / APatch, выбор boot.img, проверка заголовка через Rust-ядро, прошивка boot / recovery / vendor_boot по USB с живым прогрессом и стирание разделов после проверок unlocked, battery-soc-ok и max-download-size; после прошивки - перезагрузка с ожиданием устройства в adb до 90 секунд
-- app: журнал команд и ответов устройства в skello-commands.log (каталог поддержки приложения)
+- app: Root-экран прошивает образы больше max-download-size: Android sparse разбивается по чанкам на серию download+flash, сырой образ без sparse-разметки честно отклоняется
+- app: терминал adb shell по USB на карточке устройства и экран MediaTek seccfg: чтение состояния блокировки и разблокировка через root (dd + base64 через adb shell)
+- app: журнал команд и ответов устройства в skello-commands.log (каталог поддержки приложения) - пишут и Dart, и Rust-ядро внутри транзакций
 - CI на GitHub Actions: fmt, clippy, тесты Rust на Linux и Windows, analyze и тесты Flutter; релизные сборки Windows и Linux по тегу
 
 Разбор протоколов и исходников AOSP - в [ARCHITECTURE.md](ARCHITECTURE.md), работа с чипсетами - в [CHIPSETS.md](CHIPSETS.md).

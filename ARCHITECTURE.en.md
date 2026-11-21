@@ -53,7 +53,7 @@ Implemented in the wizard (screen opened from the fastboot device card menu): a 
 Flashing goes through the own USB transport (nusb: ff/42/03 interface, bulk endpoints, 64-byte frames): the image streams via download with live progress over a flutter_rust_bridge stream, then flash:<partition>. If USB is unavailable, Skello falls back to the system fastboot without progress. The button is active only after the image header check, getvar:unlocked = yes and a dialog confirmation.
 
 1. Checks before sending: battery-soc-ok reports "yes" (when the variable exists), image size within max-download-size - both via getvar before download
-2. download:<size in hex>, then the image in 16 KiB chunks with progress
+2. download:<size in hex>, then the image in 16 KiB chunks with progress; an image larger than max-download-size is split along the Android sparse chunks (RAW chunks are cut into whole blocks, every part gets its own header and CRC32, write positions stay in the chunk offsets) and flashed as a series of download+flash; a raw image without sparse layout is refused
 3. flash:<partition>; INFO lines are collected and shown with the output
 4. Partitions to choose: boot, recovery, vendor_boot; the same place has partition erase with a confirmation and the bootloader check
 5. Reboot and verify the device came back: after flashing a button sends reboot over USB and waits for the device in adb for up to 90 seconds, showing the result
@@ -75,4 +75,10 @@ All three methods are available on choice in the interface, the frame is the sam
 - No flashing command without an explicit confirmation showing the target partition
 - Charge and bootloader state checked before download/flash - implemented: battery-soc-ok, unlocked, max-download-size
 - Refusal to flash an image larger than max-download-size (splitting is on the plan)
-- A log of every command and device response - implemented: skello-commands.log in the app support directory; what happened to the phone is reconstructable from the log
+- A log of every command and device response - implemented: skello-commands.log in the app support directory, written by both sides (the Dart CommandLog and the Rust core inside transactions: getvar, max-download-size, part splitting, INFO lines, shell commands with output size); what happened to the phone is reconstructable from the log
+
+### Chipsets: the start
+
+The first step of CHIPSETS.md lives in the skello-chipsets crate - the MediaTek seccfg partition format (V3 with the AND_SECCFG_v header and V4 with the MMMM magic, state and attribute constants after mtkclient, Apache-2.0, attribution in NOTICE). V3 partitions with the software SEJ key are decrypted and patched locally: AES-256-CBC with a fixed key (a port of sej_sec_cfg_sw), the enc_len flag 0x07F20000 and the attribute 0x44444444 set unlock, the body is encrypted back, the image is aligned to 0x200. V4 partitions and V3 with a hardware key are not patched - Skello answers that the Download Agent stage with the SEJ hardware is needed (stage 2 of the plan). The exchange goes through adb shell with root: dd reads the partition, base64 carries the data, the patched image is written back in chunks through echo | base64 -d and dd. This is a working path for devices with SW-SEJ that are rooted but have a locked bootloader.
+
+Next in CHIPSETS.md: the BROM/Preloader transport and the DA V5/V6 load (MediaTek, stage 1), the FDL transport and the 0x7d/0x7e transcode escaping (Unisoc), Sahara with a serial transport and sparse images (Qualcomm).
