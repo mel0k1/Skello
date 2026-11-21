@@ -1,5 +1,11 @@
 use std::fmt;
 
+pub mod size;
+pub mod usb;
+
+pub use size::parse_download_size;
+pub use usb::{usb_fastboot_devices, UsbError, UsbFastboot};
+
 pub const RESPONSE_SZ: usize = 256;
 pub const COMMAND_SZ: usize = 4096;
 pub const TRANSPORT_CHUNK_SIZE: usize = 1024;
