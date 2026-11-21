@@ -104,6 +104,57 @@ pub fn open_usb_serial(vid: u16, pid: u16) -> Result<Box<dyn Link>, LinkError> {
     Err(LinkError::Endpoints(format!("{vid:04x}:{pid:04x}")))
 }
 
+/// Opens the device and returns the handle plus the bulk link: for
+/// flows that drive control transfers on the side (the linecode
+/// exploit) while talking the byte protocol.
+pub fn open_device_with_link(vid: u16, pid: u16) -> Result<(Device, Box<dyn Link>), LinkError> {
+    let mut list = nusb::list_devices()
+        .wait()
+        .map_err(|e| LinkError::Enumeration(e.to_string()))?;
+    let info = list
+        .find(|info| info.vendor_id() == vid && info.product_id() == pid)
+        .ok_or_else(|| LinkError::NotFound(format!("{vid:04x}:{pid:04x}")))?;
+    let device = info
+        .open()
+        .wait()
+        .map_err(|e| LinkError::Io(e.to_string()))?;
+    for num in 0..4u8 {
+        let Ok(interface) = device.claim_interface(num).wait() else {
+            continue;
+        };
+        let mut in_addr = None;
+        let mut out_addr = None;
+        if let Some(desc) = interface.descriptor() {
+            for ep in desc.endpoints() {
+                match ep.direction() {
+                    nusb::transfer::Direction::In => in_addr = Some(ep.address()),
+                    nusb::transfer::Direction::Out => out_addr = Some(ep.address()),
+                }
+            }
+        }
+        if let (Some(i), Some(o)) = (in_addr, out_addr) {
+            let write = interface
+                .endpoint::<Bulk, Out>(o)
+                .map_err(|e| LinkError::Endpoints(e.to_string()))?
+                .writer(16 * 1024);
+            let read = interface
+                .endpoint::<Bulk, In>(i)
+                .map_err(|e| LinkError::Endpoints(e.to_string()))?
+                .reader(64 * 1024);
+            return Ok((
+                device.clone(),
+                Box::new(UsbSerialLink {
+                    _device: device,
+                    _interface: interface,
+                    write,
+                    read,
+                }),
+            ));
+        }
+    }
+    Err(LinkError::Endpoints(format!("{vid:04x}:{pid:04x}")))
+}
+
 /// A live USB byte link: blocking bulk reads and writes through nusb.
 pub struct UsbSerialLink {
     _device: Device,

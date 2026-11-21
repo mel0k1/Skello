@@ -71,6 +71,12 @@ impl Brom {
         Self { link }
     }
 
+    /// Hands the byte link back (flows that switch between the BROM
+    /// protocol and control transfers).
+    pub fn into_parts(self) -> Box<dyn Link> {
+        self.link
+    }
+
     /// Runs the four-byte handshake: every byte must come back
     /// inverted, up to 10 attempts.
     pub fn handshake(&mut self) -> Result<()> {
