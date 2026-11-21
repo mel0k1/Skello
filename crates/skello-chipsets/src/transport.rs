@@ -9,6 +9,7 @@ use std::time::Duration;
 use nusb::io::{EndpointRead, EndpointWrite};
 use nusb::transfer::{Bulk, In, Out};
 use nusb::{Device, Interface, MaybeFuture};
+use serial2::SerialPort;
 
 /// One byte stream to a bootloader port: CDC-ACM style serial over
 /// bulk endpoints or a vendor-specific EDL interface.
@@ -119,6 +120,51 @@ impl Link for UsbSerialLink {
 
     fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
         self.write.write_all(buf)
+    }
+}
+
+/// A raw serial port link: the EDL transport over UART. Setup follows
+/// qdlrs (BSD-3-Clause, serial.rs): raw mode, 8N1, 115200 baud by
+/// default, per-call read timeouts; NOTICE has the attribution.
+pub struct SerialLink {
+    port: serial2::SerialPort,
+}
+
+/// Opens a serial port as a byte link for the EDL-over-UART path.
+pub fn open_serial_link(path: &str, baud: u32) -> Result<Box<dyn Link>, LinkError> {
+    let port = SerialPort::open(path, baud).map_err(|e| LinkError::Io(e.to_string()))?;
+    Ok(Box::new(SerialLink { port }))
+}
+
+/// Names of the serial ports present on the system: the EDL UART
+/// candidates (/dev/ttyUSB*, /dev/ttyACM*, COM*).
+pub fn serial_port_names() -> Result<Vec<String>, LinkError> {
+    Ok(SerialPort::available_ports()
+        .map_err(|e| LinkError::Enumeration(e.to_string()))?
+        .into_iter()
+        .map(|p| p.to_string_lossy().to_string())
+        .collect())
+}
+
+impl Link for SerialLink {
+    fn read(&mut self, buf: &mut [u8], timeout: Duration) -> std::io::Result<usize> {
+        self.port.set_read_timeout(timeout)?;
+        match self.port.read(buf) {
+            Ok(n) => Ok(n),
+            Err(e)
+                if e.kind() == std::io::ErrorKind::TimedOut
+                    || e.kind() == std::io::ErrorKind::WouldBlock =>
+            {
+                Ok(0)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
+        self.port.set_write_timeout(Duration::from_secs(5))?;
+        self.port.write_all(buf)?;
+        Ok(())
     }
 }
 

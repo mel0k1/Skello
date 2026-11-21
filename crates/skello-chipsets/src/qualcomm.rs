@@ -152,6 +152,37 @@ impl Sahara {
     /// Serves READ_DATA requests out of the programmer image(s).
     pub fn send_image(&mut self, mode: u32, images: &[Vec<u8>]) -> Result<()> {
         self.hello(mode)?;
+        self.serve(images)
+    }
+
+    /// Like `send_image` but tolerates devices that stay silent
+    /// instead of announcing HELLO first (common over the serial
+    /// transport): after a short silence the HELLO_RESP goes out
+    /// blind, per qdlrs behavior.
+    pub fn send_image_relaxed(&mut self, mode: u32, images: &[Vec<u8>]) -> Result<()> {
+        let short = Duration::from_secs(3);
+        // consume HELLO when it comes; stay tolerant when it does not
+        let _ = self.read(short);
+        self.write_hello_resp(mode)?;
+        self.serve(images)
+    }
+
+    fn write_hello_resp(&mut self, mode: u32) -> Result<()> {
+        let mut resp = Vec::with_capacity(48);
+        resp.extend_from_slice(&SAHARA_VERSION.to_le_bytes());
+        resp.extend_from_slice(&1u32.to_le_bytes()); // compatible version
+        resp.extend_from_slice(&0u32.to_le_bytes()); // status: success
+        resp.extend_from_slice(&mode.to_le_bytes());
+        resp.extend_from_slice(&[0u8; 24]); // six reserved words
+        self.write(&SaharaPacket {
+            cmd: SAHARA_HELLO_RESP,
+            body: resp,
+        })
+    }
+
+    /// The common body of both image serving paths: READ_DATA /
+    /// END_OF_IMAGE / DONE / COMMAND_READY handling.
+    fn serve(&mut self, images: &[Vec<u8>]) -> Result<()> {
         loop {
             let pkt = self.read(BOOT_TIMEOUT)?;
             match pkt.cmd {
@@ -226,6 +257,17 @@ impl Sahara {
     pub fn boot_programmer(images: &[Vec<u8>]) -> Result<()> {
         let mut sahara = Sahara::new(crate::transport::open_usb_serial(VID_QUALCOMM, PID_EDL)?);
         sahara.send_image(SAHARA_MODE_IMAGE_TX_PENDING, images)?;
+        sahara.switch_to_command_mode()
+    }
+
+    /// Full boot over an arbitrary link: the serial transport uses
+    /// this with an `open_serial_link` port.
+    pub fn boot_programmer_with(
+        link: Box<dyn crate::transport::Link>,
+        images: &[Vec<u8>],
+    ) -> Result<()> {
+        let mut sahara = Sahara::new(link);
+        sahara.send_image_relaxed(SAHARA_MODE_IMAGE_TX_PENDING, images)?;
         sahara.switch_to_command_mode()
     }
 }
