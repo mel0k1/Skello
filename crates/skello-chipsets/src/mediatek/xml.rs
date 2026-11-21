@@ -110,11 +110,17 @@ pub enum XmlReply {
 /// A DA V6 session over an open byte link.
 pub struct XmlDa {
     link: Box<dyn Link>,
+    /// The size answer for the FILE-SYS-OPERATION query of
+    /// WRITE-PARTITION: the DA asks how big the source file is.
+    pending_size: Option<usize>,
 }
 
 impl XmlDa {
     pub fn new(link: Box<dyn Link>) -> Self {
-        Self { link }
+        Self {
+            link,
+            pending_size: None,
+        }
     }
 
     fn read_exact(&mut self, buf: &mut [u8], timeout: Duration) -> Result<()> {
@@ -224,6 +230,23 @@ impl XmlDa {
                 }
                 self.get_command_result()
             }
+            "CMD:UPLOAD-FILE" => {
+                // the DA wants to send data: acknowledge, then the
+                // size answer follows as OK@0x<len>
+                self.ack()?;
+                self.get_command_result()
+            }
+            "CMD:FILE-SYS-OPERATION" => {
+                // the DA asks for the file operation (the source
+                // size for WRITE-PARTITION): answer the pending size
+                self.ack()?;
+                let payload = match self.pending_size {
+                    Some(size) => format!("OK@{size:#x}"),
+                    None => "OK@NOT-EXISTS".to_owned(),
+                };
+                self.send_str(&payload)?;
+                self.get_command_result()
+            }
             "CMD:DOWNLOAD-FILE" => {
                 let packet_length = usize::from_str_radix(
                     xml_field(&data, "packet_length")
@@ -329,7 +352,14 @@ impl XmlDa {
             XmlReply::Download(dl) => dl,
             _ => return Err(XmlDaError::Unexpected("boot_to download request")),
         };
-        let packet_length = download.packet_length.max(0x100);
+        self.stream_download(download, data)
+    }
+
+    /// Streams `data` into the device through the DOWNLOAD-FILE
+    /// handshake the DA opened, then closes the command cycle.
+    fn stream_download(&mut self, dl: XmlDownload, data: &[u8]) -> Result<()> {
+        let packet_length = dl.packet_length.max(0x100);
+        self.pending_size = Some(data.len());
         self.ack_value(data.len())?;
         if !self.get_response()?.contains("OK") {
             return Err(XmlDaError::Unexpected("upload length ack"));
@@ -347,6 +377,12 @@ impl XmlDa {
             }
             pos = end;
         }
+        self.finish_end_start()
+    }
+
+    /// Closes a command whose data phase ended: reads CMD:END,
+    /// checks the result, acks and consumes the next CMD:START.
+    fn finish_end_start(&mut self) -> Result<()> {
         match self.get_command_result()? {
             XmlReply::Result { command, result } if command == "CMD:END" => {
                 if result != "OK" {
@@ -355,11 +391,85 @@ impl XmlDa {
                 self.ack()?;
                 match self.get_command_result()? {
                     XmlReply::Start => Ok(()),
-                    _ => Err(XmlDaError::Unexpected("boot_to start")),
+                    _ => Err(XmlDaError::Unexpected("post-command start")),
                 }
             }
-            _ => Err(XmlDaError::Unexpected("boot_to end")),
+            _ => Err(XmlDaError::Unexpected("command end")),
         }
+    }
+
+    /// Chunked flash read with session recovery: on a transport
+    /// failure `reopen` builds a fresh XmlDa and reading continues at
+    /// the exact offset. `sink` receives (offset, chunk). Returns the
+    /// total bytes read.
+    pub fn read_flash_resumable(
+        total_len: usize,
+        chunk_len: usize,
+        mut sink: impl FnMut(usize, &[u8]) -> Result<()>,
+        mut reopen: impl FnMut() -> Result<XmlDa>,
+    ) -> Result<usize> {
+        let mut session = reopen()?;
+        let mut pos = 0usize;
+        let mut attempts = 0usize;
+        while pos < total_len {
+            let want = chunk_len.min(total_len - pos);
+            match session.read_flash_region("user", pos as u64, want) {
+                Ok(data) => {
+                    sink(pos, &data)?;
+                    pos += want;
+                    attempts = 0;
+                }
+                Err(e) => {
+                    attempts += 1;
+                    if attempts > 3 {
+                        return Err(e);
+                    }
+                    // the transport died: rebuild and continue here
+                    session = reopen()?;
+                }
+            }
+        }
+        Ok(pos)
+    }
+
+    /// Chunked flash write with session recovery: erases once per
+    /// fresh session, then writes the remaining bytes at the exact
+    /// offset. Returns the total bytes written.
+    pub fn write_flash_resumable(
+        source: &mut dyn std::io::Read,
+        total_len: usize,
+        chunk_len: usize,
+        mut reopen: impl FnMut() -> Result<XmlDa>,
+    ) -> Result<usize> {
+        let mut session = reopen()?;
+        let mut pos = 0usize;
+        let mut attempts = 0usize;
+        while pos < total_len {
+            let want = chunk_len.min(total_len - pos);
+            let mut chunk = vec![0u8; want];
+            source.read_exact(&mut chunk)?;
+            // the wipe runs exactly once, before the first chunk:
+            // a resumed write must not erase what already landed
+            let step = if pos == 0 {
+                session.erase_flash_region("user", 0, total_len)
+            } else {
+                Ok(())
+            };
+            match step.and_then(|()| session.write_flash_region("user", pos as u64, &chunk)) {
+                Ok(()) => {
+                    pos += want;
+                    attempts = 0;
+                }
+                Err(e) => {
+                    attempts += 1;
+                    if attempts > 3 {
+                        return Err(e);
+                    }
+                    session = reopen()?;
+                }
+            }
+        }
+        Ok(pos)
     }
 
     /// Asks the running DA to reboot into fastboot or meta.
@@ -395,6 +505,163 @@ impl XmlDa {
         ))?
         .completed()?;
         Ok(())
+    }
+
+    /// `READ-FLASH`: one region read by byte offset over the
+    /// running DA. The DA streams the data back through
+    /// UPLOAD-FILE; short reads are an honest error.
+    pub fn read_flash_region(
+        &mut self,
+        section: &str,
+        offset: u64,
+        length: usize,
+    ) -> Result<Vec<u8>> {
+        let xml = build_command(
+            "READ-FLASH",
+            "1.0",
+            Some(&format!(
+                "<partition>{section}</partition>\
+                 <target_file>MEM</target_file>\
+                 <length>{length:#x}</length>\
+                 <offset>{offset:#x}</offset>"
+            )),
+            None,
+        );
+        let data = match self.send_command(&xml)? {
+            XmlReply::Data(d) => d,
+            _ => return Err(XmlDaError::Unexpected("read-flash upload")),
+        };
+        if data.len() != length {
+            return Err(XmlDaError::Unexpected("read-flash short read"));
+        }
+        self.finish_end_start()?;
+        Ok(data)
+    }
+
+    /// `WRITE-FLASH`: one region write by byte offset, data streamed
+    /// through the DOWNLOAD-FILE handshake.
+    pub fn write_flash_region(&mut self, section: &str, offset: u64, data: &[u8]) -> Result<()> {
+        let xml = build_command(
+            "WRITE-FLASH",
+            "1.0",
+            Some(&format!(
+                "<partition>{section}</partition>\
+                 <source_file>MEM:\\0x0:0x{:X}</source_file>\
+                 <offset>{offset:#x}</offset>",
+                data.len()
+            )),
+            None,
+        );
+        match self.send_command(&xml)? {
+            XmlReply::Download(dl) => self.stream_download(dl, data),
+            _ => Err(XmlDaError::Unexpected("write-flash download request")),
+        }
+    }
+
+    /// `ERASE-FLASH`: wipes a region; the DA reports progress until
+    /// it answers EOT.
+    pub fn erase_flash_region(&mut self, section: &str, offset: u64, length: usize) -> Result<()> {
+        let xml = build_command(
+            "ERASE-FLASH",
+            "1.0",
+            Some(&format!(
+                "<partition>{section}</partition>\
+                 <length>{length:#x}</length>\
+                 <offset>{offset:#x}</offset>"
+            )),
+            None,
+        );
+        self.send_command(&xml)?.completed()?;
+        Ok(())
+    }
+
+    /// `ERASE-PARTITION`: wipes the whole named partition.
+    pub fn erase_partition_named(&mut self, name: &str) -> Result<()> {
+        let xml = build_command(
+            "ERASE-PARTITION",
+            "1.0",
+            Some(&format!("<partition>{name}</partition>")),
+            None,
+        );
+        self.send_command(&xml)?.completed()?;
+        Ok(())
+    }
+
+    /// `READ-PARTITION`: reads the whole named partition.
+    pub fn read_partition_named(&mut self, name: &str) -> Result<Vec<u8>> {
+        let xml = build_command(
+            "READ-PARTITION",
+            "1.0",
+            Some(&format!(
+                "<partition>{name}</partition><target_file>{name}.bin</target_file>"
+            )),
+            None,
+        );
+        let data = match self.send_command(&xml)? {
+            XmlReply::Data(d) => d,
+            _ => return Err(XmlDaError::Unexpected("read-partition upload")),
+        };
+        self.finish_end_start()?;
+        Ok(data)
+    }
+
+    /// `WRITE-PARTITION`: writes the whole named partition. The DA
+    /// pre-erases, asks the source size (FILE-SYS) and streams the
+    /// data through DOWNLOAD-FILE.
+    pub fn write_partition_named(&mut self, name: &str, data: &[u8]) -> Result<()> {
+        let xml = build_command(
+            "WRITE-PARTITION",
+            "1.0",
+            Some(&format!(
+                "<partition>{name}</partition><source_file>{name}.bin</source_file>"
+            )),
+            None,
+        );
+        self.pending_size = Some(data.len());
+        match self.send_command(&xml)? {
+            XmlReply::Download(dl) => self.stream_download(dl, data),
+            _ => Err(XmlDaError::Unexpected("write-partition download request")),
+        }
+    }
+
+    /// Boots the DA for flash operations: like the full V6 boot but
+    /// without the boot-mode switch and the reboot tail, so read and
+    /// write commands run right after. Also the session builder the
+    /// recovery loop uses to reopen after a transport failure.
+    pub fn flash_session_with(
+        brom: &mut Brom,
+        loader_path: &str,
+        da_open: &mut dyn FnMut()
+            -> std::result::Result<Box<dyn Link>, crate::transport::LinkError>,
+    ) -> Result<XmlDa> {
+        brom.handshake()?;
+        let (hw_code, _sub) = brom.get_hw_code()?;
+        let (loader, bytes) = pick_loader(loader_path, hw_code)
+            .map_err(|e| XmlDaError::Io(std::io::Error::other(e.to_string())))?;
+        if !loader.v6 {
+            return Err(XmlDaError::NotV6Loader);
+        }
+        let s1 = loader
+            .stage1()
+            .ok_or(XmlDaError::Unexpected("no stage 1"))?;
+        let s2 = loader
+            .stage2()
+            .ok_or(XmlDaError::Unexpected("no stage 2"))?;
+        let da1 = stage_image(&bytes, s1)
+            .map_err(|e| XmlDaError::Io(std::io::Error::other(e.to_string())))?;
+        let da2 = stage_image(&bytes, s2)
+            .map_err(|e| XmlDaError::Io(std::io::Error::other(e.to_string())))?;
+        brom.send_da(s1.start_addr, s1.sig_len, &da1)?;
+        brom.jump_da(s1.start_addr)?;
+        let link = da_open()?;
+        let mut da = XmlDa::new(link);
+        match da.get_command_result()? {
+            XmlReply::Start => {}
+            _ => return Err(XmlDaError::Unexpected("xml da start")),
+        }
+        da.init_session()?;
+        da.boot_to(s2.start_addr, &da2)?;
+        Ok(da)
     }
 
     /// Full V6 boot over real hardware: BROM handshake, stage 1
@@ -547,18 +814,23 @@ mod tests {
         )
     }
 
-    /// Device side of the XML DA: answers every XML command with
-    /// OK / CMD:END / CMD:START, drives the PROGRESS-REPORT loop for
-    /// NOTIFY-INIT-HW and runs the DOWNLOAD-FILE chunked upload for
-    /// BOOT-TO. The post-jump CMD:START announcement is pre-queued.
     fn mock_xml_da() -> MockLink {
+        mock_xml_da_muted(0)
+    }
+
+    /// The same DA mock that goes silent (link dead) after `mute`
+    /// successful READ-FLASH answers.
+    fn mock_xml_da_muted(mute: usize) -> MockLink {
         let mut link = MockLink::new();
         // the DA announces itself with CMD:START right after the jump
         let mut q = std::collections::VecDeque::new();
         MockState::queue(&mut q, &dev_xml("CMD:START", ""));
         let start: Vec<u8> = q.into_iter().collect();
         link.push(&start);
-        let state = RefCell::new(MockState::default());
+        let state = RefCell::new(MockState {
+            mute_after_reads: mute,
+            ..Default::default()
+        });
         link.device = Some(Box::new(move |out, input| {
             let mut st = state.borrow_mut();
             st.in_buf.extend_from_slice(input);
@@ -573,6 +845,13 @@ mod tests {
         expect_len: usize,
         uploaded: Vec<u8>,
         seen: Vec<String>,
+        /// The host just answered the FILE-SYS size query: the next
+        /// OK@ reply carries the partition size, DOWNLOAD follows.
+        after_filesys: bool,
+        /// READ-FLASH answers served so far.
+        reads_done: usize,
+        /// When nonzero, the mock goes silent after this many reads.
+        mute_after_reads: usize,
     }
 
     impl MockState {
@@ -590,6 +869,10 @@ mod tests {
         }
 
         fn process(&mut self, out: &mut VecDeque<u8>) {
+            if self.mute_after_reads > 0 && self.reads_done >= self.mute_after_reads {
+                // the link went dark: no answers, reads time out
+                return;
+            }
             loop {
                 if self.in_buf.len() < 12 {
                     break;
@@ -628,6 +911,78 @@ mod tests {
                         Self::queue(out, END_OK);
                         Self::queue(out, &dev_xml("CMD:START", ""));
                     }
+                    "CMD:READ-FLASH" | "CMD:READ-PARTITION" => {
+                        let len_field = xml_field(&text, "length").unwrap_or_default();
+                        let len = usize::from_str_radix(len_field.trim_start_matches("0x"), 16)
+                            .unwrap_or(0x800);
+                        let off_field = xml_field(&text, "offset").unwrap_or_default();
+                        let off = usize::from_str_radix(off_field.trim_start_matches("0x"), 16)
+                            .unwrap_or(0);
+                        self.reads_done += 1;
+                        let data: Vec<u8> = (0..len).map(|i| ((off + i) * 7 % 253) as u8).collect();
+                        Self::queue(out, "OK");
+                        Self::queue(
+                            out,
+                            &dev_xml(
+                                "CMD:UPLOAD-FILE",
+                                "<arg><checksum>CHK_NO</checksum><info>read</info><target_file>MEM</target_file><packet_length>0x100</packet_length></arg>",
+                            ),
+                        );
+                        Self::queue(out, &format!("OK@{len:#x}"));
+                        Self::queue(out, "OK");
+                        Self::queue_packet(out, &data);
+                        Self::queue(out, END_OK);
+                        Self::queue(out, &dev_xml("CMD:START", ""));
+                    }
+                    "CMD:WRITE-FLASH" => {
+                        let source = xml_field(&text, "source_file").unwrap_or_default();
+                        // MEM:\0x0:0x<len>
+                        let len_part = source.rsplit(':').next().unwrap_or("0x0");
+                        self.expect_len =
+                            usize::from_str_radix(len_part.trim_start_matches("0x"), 16)
+                                .unwrap_or(0);
+                        self.uploaded.clear();
+                        Self::queue(out, "OK");
+                        Self::queue(
+                            out,
+                            &dev_xml(
+                                "CMD:DOWNLOAD-FILE",
+                                "<arg><checksum>CHK_NO</checksum><info>write-flash</info><source_file>MEM</source_file><packet_length>0x100</packet_length></arg>",
+                            ),
+                        );
+                    }
+                    "CMD:WRITE-PARTITION" => {
+                        Self::queue(out, "OK");
+                        Self::queue(
+                            out,
+                            &dev_xml(
+                                "CMD:PROGRESS-REPORT",
+                                "<arg><message>pre-erase</message></arg>",
+                            ),
+                        );
+                        Self::queue(out, "OK!EOT");
+                        Self::queue(
+                            out,
+                            &dev_xml(
+                                "CMD:FILE-SYS-OPERATION",
+                                "<arg><key>MEM</key><operation>GetSize</operation></arg>",
+                            ),
+                        );
+                        self.after_filesys = true;
+                    }
+                    "CMD:ERASE-FLASH" | "CMD:ERASE-PARTITION" => {
+                        Self::queue(out, "OK");
+                        Self::queue(
+                            out,
+                            &dev_xml(
+                                "CMD:PROGRESS-REPORT",
+                                "<arg><message>erasing</message></arg>",
+                            ),
+                        );
+                        Self::queue(out, "OK!EOT");
+                        Self::queue(out, END_OK);
+                        Self::queue(out, &dev_xml("CMD:START", ""));
+                    }
                     "CMD:BOOT-TO" => {
                         let source = xml_field(&text, "source_file").unwrap_or_default();
                         // MEM://0x0:0x<len>
@@ -654,8 +1009,26 @@ mod tests {
                 return;
             }
             if body.starts_with(b"OK@") {
-                // host transfer acks: answer OK, chunks follow
-                Self::queue(out, "OK");
+                let text = String::from_utf8_lossy(body)
+                    .trim_end_matches('\0')
+                    .to_owned();
+                if self.after_filesys {
+                    // the partition size answer: open the download
+                    self.after_filesys = false;
+                    self.expect_len =
+                        usize::from_str_radix(text.trim_start_matches("OK@0x"), 16).unwrap_or(0);
+                    self.uploaded.clear();
+                    Self::queue(
+                        out,
+                        &dev_xml(
+                            "CMD:DOWNLOAD-FILE",
+                            "<arg><checksum>CHK_NO</checksum><info>partition</info><source_file>partition.bin</source_file><packet_length>0x100</packet_length></arg>",
+                        ),
+                    );
+                } else {
+                    // host transfer acks: answer OK, chunks follow
+                    Self::queue(out, "OK");
+                }
                 return;
             }
             if body == b"OK\0" {
@@ -735,5 +1108,93 @@ mod tests {
             Err(XmlDaError::NotV6Loader)
         ));
         let _ = std::fs::remove_file(&loader_path);
+    }
+
+    /// Opens a synced V6 session over the mock: the DA announces
+    /// itself, then the runtime parameters run through.
+    fn synced_xml_session() -> XmlDa {
+        let mut da = XmlDa::new(Box::new(mock_xml_da()));
+        // consume the post-jump START announcement first
+        match da.get_command_result().unwrap() {
+            XmlReply::Start => {}
+            _ => panic!("expected the da start"),
+        }
+        da.init_session().unwrap();
+        da
+    }
+
+    #[test]
+    fn v6_read_flash_streams_data() {
+        let mut da = synced_xml_session();
+        let data = da.read_flash_region("user", 0, 0x800).unwrap();
+        assert_eq!(data.len(), 0x800);
+        assert_eq!(data[0], 0);
+        assert_eq!(data[0x101], (0x101 * 7 % 253) as u8);
+    }
+
+    #[test]
+    fn v6_read_partition_streams_data() {
+        let mut da = synced_xml_session();
+        let data = da.read_partition_named("boot").unwrap();
+        assert_eq!(data.len(), 0x800);
+    }
+
+    #[test]
+    fn v6_write_flash_streams_chunks() {
+        let mut da = synced_xml_session();
+        let data: Vec<u8> = (0..0x300).map(|i| (i * 11 % 251) as u8).collect();
+        da.write_flash_region("user", 0x1_0000, &data).unwrap();
+    }
+
+    #[test]
+    fn v6_write_partition_answers_the_size_query() {
+        let mut da = synced_xml_session();
+        let data = vec![0x5Au8; 0x500];
+        da.write_partition_named("userdata", &data).unwrap();
+    }
+
+    #[test]
+    fn v6_erase_reports_progress() {
+        let mut da = synced_xml_session();
+        da.erase_partition_named("cache").unwrap();
+        da.erase_flash_region("user", 0x4000, 0x1000).unwrap();
+    }
+
+    #[test]
+    fn v6_read_resumes_after_a_silent_link() {
+        let mut collected: Vec<u8> = Vec::new();
+        let opens = std::cell::Cell::new(0usize);
+
+        // session 1 answers one read and goes silent
+        let mut first_da = {
+            let mut da = XmlDa::new(Box::new(mock_xml_da_muted(1)));
+            da.get_command_result().unwrap();
+            da.init_session().unwrap();
+            Some(da)
+        };
+
+        let mut reopen = || -> Result<XmlDa> {
+            opens.set(opens.get() + 1);
+            if let Some(da) = first_da.take() {
+                return Ok(da);
+            }
+            let mut da = XmlDa::new(Box::new(mock_xml_da()));
+            da.get_command_result().unwrap();
+            da.init_session().unwrap();
+            Ok(da)
+        };
+        let mut sink = |pos: usize, data: &[u8]| {
+            let _ = pos;
+            collected.extend_from_slice(data);
+            Ok(())
+        };
+        let read = XmlDa::read_flash_resumable(0x300, 0x100, &mut sink, &mut reopen).unwrap();
+        assert_eq!(read, 0x300);
+        assert_eq!(collected.len(), 0x300);
+        // the offset-aware pattern proves the continuation started
+        // exactly where the first session dropped
+        assert_eq!(collected[0x200], (0x200 * 7 % 253) as u8);
+        assert_eq!(collected[0x2FF], (0x2FF * 7 % 253) as u8);
+        assert_eq!(opens.get(), 2);
     }
 }
