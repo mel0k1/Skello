@@ -249,6 +249,43 @@ pub fn sparse_plan(image: &[u8], max_download: usize) -> Result<Vec<Vec<u8>>, Sp
     Ok(parts)
 }
 
+/// Materializes a sparse image into raw bytes: RAW chunks are copied,
+/// FILL chunks are repeated, DONT_CARE stays zero. Used for targets
+/// that only take raw data (Firehose, Unisoc FDL).
+pub fn sparse_expand(image: &[u8]) -> Result<Vec<u8>, SparseError> {
+    let header = parse_header(image)?;
+    let chunks = parse_chunks(image, &header)?;
+    let block = header.block_size as usize;
+    let total = header.total_blocks as usize * block;
+    if total > 4 * 1024 * 1024 * 1024 {
+        return Err(SparseError::BadHeader("image over 4GiB"));
+    }
+    let mut out = vec![0u8; total];
+    let mut pos = 0usize;
+    for chunk in chunks {
+        match chunk.kind {
+            CHUNK_RAW => {
+                out[pos..pos + chunk.payload.len()].copy_from_slice(&chunk.payload);
+                pos += chunk.payload.len();
+            }
+            CHUNK_FILL => {
+                let value = u32::from_le_bytes(chunk.payload[..4].try_into().unwrap());
+                let n = chunk.chunk_sz as usize * block;
+                let pattern = value.to_le_bytes();
+                for i in 0..n {
+                    out[pos + i] = pattern[i % 4];
+                }
+                pos += n;
+            }
+            CHUNK_DONT_CARE | CHUNK_CRC32 => {
+                pos += chunk.chunk_sz as usize * block;
+            }
+            _ => {}
+        }
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -384,6 +421,29 @@ mod tests {
             .map(|p| u16::from_le_bytes(p[28..30].try_into().unwrap()))
             .collect();
         assert_eq!(kinds, vec![CHUNK_FILL, CHUNK_RAW, CHUNK_DONT_CARE]);
+    }
+
+    #[test]
+    fn expands_sparse_to_raw() {
+        let image = build_image(
+            4096,
+            &[
+                fill_chunk(2, 0xAABBCCDD),
+                raw_chunk(&vec![0x11u8; 4096 * 2]),
+                Chunk {
+                    kind: CHUNK_DONT_CARE,
+                    chunk_sz: 1,
+                    total_sz: CHUNK_HEADER_SZ,
+                    payload: Vec::new(),
+                },
+            ],
+        );
+        let raw = sparse_expand(&image).unwrap();
+        assert_eq!(raw.len(), 5 * 4096);
+        assert_eq!(&raw[0..4], &[0xDD, 0xCC, 0xBB, 0xAA]);
+        assert_eq!(&raw[4..8], &[0xDD, 0xCC, 0xBB, 0xAA]);
+        assert!(raw[8192..8192 + 8192].iter().all(|b| *b == 0x11));
+        assert!(raw[4096 * 4..].iter().all(|b| *b == 0));
     }
 
     #[test]
