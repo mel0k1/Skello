@@ -107,7 +107,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get magiskGuide =>
-      '1. Сначала разблокируйте загрузчик. Мастер разблокировки — следующий шаг плана MVP.\n2. Скачивайте Magisk только из официального репозитория.\n3. Перенесите проверенный boot.img на телефон.\n4. В приложении Magisk: Установка → Выбрать и пропатчить файл → укажите boot.img.\n5. Верните полученный magisk_patched-XXXXX.img на ПК.\n6. Skello прошьёт его командой fastboot flash boot.';
+      '1. Сначала разблокируйте загрузчик — в Skello для этого есть мастер.\n2. Скачивайте Magisk только из официального репозитория.\n3. Перенесите проверенный boot.img на телефон.\n4. В приложении Magisk: Установка → Выбрать и пропатчить файл → укажите boot.img.\n5. Верните полученный magisk_patched-XXXXX.img на ПК.\n6. Skello прошьёт его командой fastboot flash boot.';
 
   @override
   String get kernelsuGuide =>
@@ -123,4 +123,119 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get warningBody =>
       'Прошивка неподходящего образа или неудачный патч могут окирпичить телефон. Пропатченный образ требует разблокированного загрузчика, а разблокировка стирает всё хранилище. Сверяйте образ со своей моделью.';
+
+  @override
+  String get actionsTooltip => 'Действия';
+
+  @override
+  String get rebootMenuSystem => 'Перезагрузить';
+
+  @override
+  String get rebootMenuBootloader => 'Перезагрузить в bootloader';
+
+  @override
+  String get rebootMenuRecovery => 'Перезагрузить в recovery';
+
+  @override
+  String get unlockMenu => 'Разблокировать загрузчик…';
+
+  @override
+  String get actionStarted => 'Команда отправлена';
+
+  @override
+  String get actionFailed => 'Команда не выполнена';
+
+  @override
+  String get unlockTitle => 'Разблокировка загрузчика';
+
+  @override
+  String get unlockWarningTitle => 'Это сотрёт всё';
+
+  @override
+  String get unlockWarningBody =>
+      'Разблокировка стирает всё хранилище без возможности восстановления, лишает гарантии и на части вендоров включает анти-откат прошивки. Действуйте, только если понимаете риски.';
+
+  @override
+  String get unlockDevice => 'Устройство';
+
+  @override
+  String get unlockVendorNote =>
+      'Стандартный путь работает на Pixel и большинстве Android One. Xiaomi требует утилиту Mi Unlock, у MediaTek и Unisoc свои пути — см. заметки по чипсетам. Мастер выполняет только стандартный путь.';
+
+  @override
+  String get unlockChecking => 'Проверяю состояние загрузчика…';
+
+  @override
+  String get unlockAlready => 'Загрузчик уже разблокирован';
+
+  @override
+  String get unlockLocked => 'Загрузчик заблокирован';
+
+  @override
+  String get unlockUnknown =>
+      'Не удалось узнать состояние загрузчика. Проверьте, что fastboot работает, а устройство находится в режиме fastboot.';
+
+  @override
+  String get unlockSteps =>
+      '1. Skello запустит fastboot flashing unlock.\n2. Телефон покажет экран подтверждения — выберите там Unlock.\n3. Хранилище будет стёрто, телефон перезагрузится.';
+
+  @override
+  String get unlockConfirm => 'Я понимаю, что все данные будут стёрты';
+
+  @override
+  String get unlockRun => 'Разблокировать';
+
+  @override
+  String get unlockWaiting => 'Подтвердите на экране телефона…';
+
+  @override
+  String get unlockFailed => 'Разблокировка не завершилась';
+
+  @override
+  String get flashSectionTitle => 'Прошивка';
+
+  @override
+  String get flashDeviceLabel => 'Устройство в fastboot';
+
+  @override
+  String get flashNoDevice =>
+      'Нет устройства в режиме fastboot. Сначала перезагрузите его в bootloader.';
+
+  @override
+  String get flashPickFirst => 'Сначала выберите и проверьте boot-образ.';
+
+  @override
+  String get flashLocked => 'Загрузчик заблокирован — сначала разблокируйте';
+
+  @override
+  String get flashUnlocked => 'Загрузчик разблокирован';
+
+  @override
+  String get flashStateUnknown => 'Состояние загрузчика неизвестно';
+
+  @override
+  String get flashBootButton => 'Прошить boot';
+
+  @override
+  String get flashConfirmTitle => 'Прошить boot-образ?';
+
+  @override
+  String flashConfirmBody(String serial) {
+    return 'Skello выполнит fastboot flash boot на $serial. Прерывание прошивки может окирпичить устройство.';
+  }
+
+  @override
+  String get flashRunning => 'Прошиваю… не отключайте устройство';
+
+  @override
+  String get flashDone => 'boot прошит';
+
+  @override
+  String get flashOutput => 'вывод fastboot';
+
+  @override
+  String get flashFailed => 'Прошивка не удалась';
+
+  @override
+  String get cancelLabel => 'Отмена';
 }

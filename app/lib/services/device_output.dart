@@ -55,3 +55,15 @@ List<FastbootDevice> parseFastbootDevices(String output) {
   }
   return devices;
 }
+
+String? parseFastbootVar(String output, String name) {
+  for (final line in output.split('\n')) {
+    var text = line.trim();
+    text = text.replaceFirst(RegExp(r'^\(bootloader\)\s*'), '');
+    final prefix = '$name:';
+    if (text.startsWith(prefix)) {
+      return text.substring(prefix.length).trim();
+    }
+  }
+  return null;
+}

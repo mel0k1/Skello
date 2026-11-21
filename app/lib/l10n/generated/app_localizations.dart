@@ -281,7 +281,7 @@ abstract class AppLocalizations {
   /// No description provided for @magiskGuide.
   ///
   /// In en, this message translates to:
-  /// **'1. Unlock the bootloader first. The unlock wizard comes next in the MVP plan.\n2. Download Magisk only from the official repository.\n3. Copy your verified boot.img to the phone.\n4. In the Magisk app: Install → Select and Patch a File → pick boot.img.\n5. Copy the resulting magisk_patched-XXXXX.img back to the PC.\n6. Skello will flash it with fastboot flash boot.'**
+  /// **'1. Unlock the bootloader first - Skello has an unlock wizard for that.\n2. Download Magisk only from the official repository.\n3. Copy your verified boot.img to the phone.\n4. In the Magisk app: Install → Select and Patch a File → pick boot.img.\n5. Copy the resulting magisk_patched-XXXXX.img back to the PC.\n6. Skello will flash it with fastboot flash boot.'**
   String get magiskGuide;
 
   /// No description provided for @kernelsuGuide.
@@ -307,6 +307,222 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Flashing a wrong image or a failed patch can leave the phone dead. A patched image requires an unlocked bootloader, and unlocking wipes the whole storage. Check the image against your exact model.'**
   String get warningBody;
+
+  /// No description provided for @actionsTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Actions'**
+  String get actionsTooltip;
+
+  /// No description provided for @rebootMenuSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'Reboot'**
+  String get rebootMenuSystem;
+
+  /// No description provided for @rebootMenuBootloader.
+  ///
+  /// In en, this message translates to:
+  /// **'Reboot to bootloader'**
+  String get rebootMenuBootloader;
+
+  /// No description provided for @rebootMenuRecovery.
+  ///
+  /// In en, this message translates to:
+  /// **'Reboot to recovery'**
+  String get rebootMenuRecovery;
+
+  /// No description provided for @unlockMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock bootloader…'**
+  String get unlockMenu;
+
+  /// No description provided for @actionStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Command sent'**
+  String get actionStarted;
+
+  /// No description provided for @actionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Command failed'**
+  String get actionFailed;
+
+  /// No description provided for @unlockTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock bootloader'**
+  String get unlockTitle;
+
+  /// No description provided for @unlockWarningTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This wipes everything'**
+  String get unlockWarningTitle;
+
+  /// No description provided for @unlockWarningBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlocking the bootloader wipes the whole storage with no way back, voids the warranty and may trip anti-rollback on some vendors. Proceed only with your own risk assessment.'**
+  String get unlockWarningBody;
+
+  /// No description provided for @unlockDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Device'**
+  String get unlockDevice;
+
+  /// No description provided for @unlockVendorNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The standard path works on Pixel and most Android One devices. Xiaomi needs the Mi Unlock tool, MediaTek and Unisoc have their own routes - see the chipset notes. The wizard runs the standard path only.'**
+  String get unlockVendorNote;
+
+  /// No description provided for @unlockChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking bootloader state…'**
+  String get unlockChecking;
+
+  /// No description provided for @unlockAlready.
+  ///
+  /// In en, this message translates to:
+  /// **'Bootloader is already unlocked'**
+  String get unlockAlready;
+
+  /// No description provided for @unlockLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Bootloader is locked'**
+  String get unlockLocked;
+
+  /// No description provided for @unlockUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read the bootloader state. Check that fastboot works and the device is in fastboot mode.'**
+  String get unlockUnknown;
+
+  /// No description provided for @unlockSteps.
+  ///
+  /// In en, this message translates to:
+  /// **'1. Skello runs fastboot flashing unlock.\n2. The phone shows a confirmation screen - choose Unlock there.\n3. The storage is wiped and the phone reboots.'**
+  String get unlockSteps;
+
+  /// No description provided for @unlockConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'I understand that all data will be erased'**
+  String get unlockConfirm;
+
+  /// No description provided for @unlockRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock'**
+  String get unlockRun;
+
+  /// No description provided for @unlockWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm on the phone screen…'**
+  String get unlockWaiting;
+
+  /// No description provided for @unlockFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock did not complete'**
+  String get unlockFailed;
+
+  /// No description provided for @flashSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Flash'**
+  String get flashSectionTitle;
+
+  /// No description provided for @flashDeviceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Device in fastboot'**
+  String get flashDeviceLabel;
+
+  /// No description provided for @flashNoDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'No device in fastboot mode. Reboot to bootloader first.'**
+  String get flashNoDevice;
+
+  /// No description provided for @flashPickFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Select and verify a boot image first.'**
+  String get flashPickFirst;
+
+  /// No description provided for @flashLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Bootloader is locked - unlock it first'**
+  String get flashLocked;
+
+  /// No description provided for @flashUnlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Bootloader unlocked'**
+  String get flashUnlocked;
+
+  /// No description provided for @flashStateUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Bootloader state unknown'**
+  String get flashStateUnknown;
+
+  /// No description provided for @flashBootButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Flash boot'**
+  String get flashBootButton;
+
+  /// No description provided for @flashConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Flash boot image?'**
+  String get flashConfirmTitle;
+
+  /// No description provided for @flashConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Skello will run fastboot flash boot on {serial}. Interrupting the flash can brick the device.'**
+  String flashConfirmBody(String serial);
+
+  /// No description provided for @flashRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Flashing… do not unplug the device'**
+  String get flashRunning;
+
+  /// No description provided for @flashDone.
+  ///
+  /// In en, this message translates to:
+  /// **'boot flashed'**
+  String get flashDone;
+
+  /// No description provided for @flashOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'fastboot output'**
+  String get flashOutput;
+
+  /// No description provided for @flashFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Flash failed'**
+  String get flashFailed;
+
+  /// No description provided for @cancelLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancelLabel;
 }
 
 class _AppLocalizationsDelegate

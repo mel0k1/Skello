@@ -35,4 +35,18 @@ void main() {
     expect(parseFastbootDevices('waiting for device\n'), isEmpty);
     expect(parseFastbootDevices(''), isEmpty);
   });
+
+  test('parses fastboot getvar value with bootloader prefix', () {
+    const output = '(bootloader) unlocked: no\nFinished. Total time: 0.100s';
+    expect(parseFastbootVar(output, 'unlocked'), 'no');
+  });
+
+  test('parses getvar value without prefix', () {
+    expect(parseFastbootVar('unlocked: yes\n', 'unlocked'), 'yes');
+  });
+
+  test('returns null for a missing variable', () {
+    expect(parseFastbootVar('FAILED (remote: unknown)\n', 'unlocked'), isNull);
+    expect(parseFastbootVar('', 'unlocked'), isNull);
+  });
 }

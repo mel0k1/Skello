@@ -4,6 +4,7 @@ import '../l10n/generated/app_localizations.dart';
 import '../services/device_output.dart';
 import '../services/device_repository.dart';
 import 'root_screen.dart';
+import 'unlock_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.repository = const DeviceRepository()});
@@ -57,6 +58,38 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _openUnlock(DeviceRow row) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => UnlockScreen(
+          serial: row.serial,
+          repository: widget.repository,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _reboot(DeviceRow row, String target) async {
+    final strings = AppLocalizations.of(context)!;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      if (row.source == 'adb') {
+        await widget.repository.adbReboot(row.serial, target);
+      } else {
+        await widget.repository.fastbootReboot(row.serial);
+      }
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(strings.actionStarted)));
+      await Future<void>.delayed(const Duration(seconds: 2));
+      if (mounted) _load();
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('${strings.actionFailed}: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final strings = AppLocalizations.of(context)!;
@@ -87,7 +120,8 @@ class _HomeScreenState extends State<HomeScreen> {
           return ListView(
             padding: EdgeInsets.fromLTRB(side, 24, side, 24),
             children: [
-              for (final row in _rows) _DeviceCard(row: row),
+              for (final row in _rows)
+                _DeviceCard(row: row, onReboot: _reboot, onUnlock: _openUnlock),
             ],
           );
         },
@@ -199,13 +233,20 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _DeviceCard extends StatelessWidget {
-  const _DeviceCard({required this.row});
+  const _DeviceCard({
+    required this.row,
+    required this.onReboot,
+    required this.onUnlock,
+  });
 
   final DeviceRow row;
+  final void Function(DeviceRow row, String target) onReboot;
+  final void Function(DeviceRow row) onUnlock;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final strings = AppLocalizations.of(context)!;
     final Color container;
     final Color onContainer;
     final IconData icon;
@@ -228,12 +269,55 @@ class _DeviceCard extends StatelessWidget {
         leading: Icon(icon, color: onContainer),
         title: Text(row.serial),
         subtitle: Text(row.source),
-        trailing: Chip(
-          label: Text(row.state),
-          labelStyle: TextStyle(color: onContainer),
-          backgroundColor: container,
-          visualDensity: VisualDensity.compact,
-          side: BorderSide.none,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Chip(
+              label: Text(row.state),
+              labelStyle: TextStyle(color: onContainer),
+              backgroundColor: container,
+              visualDensity: VisualDensity.compact,
+              side: BorderSide.none,
+            ),
+            if (row.isActive)
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert),
+                tooltip: strings.actionsTooltip,
+                onSelected: (value) {
+                  if (value == 'unlock') {
+                    onUnlock(row);
+                  } else {
+                    onReboot(row, value == 'reboot' ? '' : value);
+                  }
+                },
+                itemBuilder: (_) => [
+                  if (row.source == 'adb') ...[
+                    PopupMenuItem(
+                      value: '',
+                      child: Text(strings.rebootMenuSystem),
+                    ),
+                    PopupMenuItem(
+                      value: 'bootloader',
+                      child: Text(strings.rebootMenuBootloader),
+                    ),
+                    PopupMenuItem(
+                      value: 'recovery',
+                      child: Text(strings.rebootMenuRecovery),
+                    ),
+                  ],
+                  if (row.source == 'fastboot') ...[
+                    PopupMenuItem(
+                      value: 'reboot',
+                      child: Text(strings.rebootMenuSystem),
+                    ),
+                    PopupMenuItem(
+                      value: 'unlock',
+                      child: Text(strings.unlockMenu),
+                    ),
+                  ],
+                ],
+              ),
+          ],
         ),
       ),
     );

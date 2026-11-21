@@ -107,7 +107,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get magiskGuide =>
-      '1. Unlock the bootloader first. The unlock wizard comes next in the MVP plan.\n2. Download Magisk only from the official repository.\n3. Copy your verified boot.img to the phone.\n4. In the Magisk app: Install → Select and Patch a File → pick boot.img.\n5. Copy the resulting magisk_patched-XXXXX.img back to the PC.\n6. Skello will flash it with fastboot flash boot.';
+      '1. Unlock the bootloader first - Skello has an unlock wizard for that.\n2. Download Magisk only from the official repository.\n3. Copy your verified boot.img to the phone.\n4. In the Magisk app: Install → Select and Patch a File → pick boot.img.\n5. Copy the resulting magisk_patched-XXXXX.img back to the PC.\n6. Skello will flash it with fastboot flash boot.';
 
   @override
   String get kernelsuGuide =>
@@ -123,4 +123,119 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get warningBody =>
       'Flashing a wrong image or a failed patch can leave the phone dead. A patched image requires an unlocked bootloader, and unlocking wipes the whole storage. Check the image against your exact model.';
+
+  @override
+  String get actionsTooltip => 'Actions';
+
+  @override
+  String get rebootMenuSystem => 'Reboot';
+
+  @override
+  String get rebootMenuBootloader => 'Reboot to bootloader';
+
+  @override
+  String get rebootMenuRecovery => 'Reboot to recovery';
+
+  @override
+  String get unlockMenu => 'Unlock bootloader…';
+
+  @override
+  String get actionStarted => 'Command sent';
+
+  @override
+  String get actionFailed => 'Command failed';
+
+  @override
+  String get unlockTitle => 'Unlock bootloader';
+
+  @override
+  String get unlockWarningTitle => 'This wipes everything';
+
+  @override
+  String get unlockWarningBody =>
+      'Unlocking the bootloader wipes the whole storage with no way back, voids the warranty and may trip anti-rollback on some vendors. Proceed only with your own risk assessment.';
+
+  @override
+  String get unlockDevice => 'Device';
+
+  @override
+  String get unlockVendorNote =>
+      'The standard path works on Pixel and most Android One devices. Xiaomi needs the Mi Unlock tool, MediaTek and Unisoc have their own routes - see the chipset notes. The wizard runs the standard path only.';
+
+  @override
+  String get unlockChecking => 'Checking bootloader state…';
+
+  @override
+  String get unlockAlready => 'Bootloader is already unlocked';
+
+  @override
+  String get unlockLocked => 'Bootloader is locked';
+
+  @override
+  String get unlockUnknown =>
+      'Could not read the bootloader state. Check that fastboot works and the device is in fastboot mode.';
+
+  @override
+  String get unlockSteps =>
+      '1. Skello runs fastboot flashing unlock.\n2. The phone shows a confirmation screen - choose Unlock there.\n3. The storage is wiped and the phone reboots.';
+
+  @override
+  String get unlockConfirm => 'I understand that all data will be erased';
+
+  @override
+  String get unlockRun => 'Unlock';
+
+  @override
+  String get unlockWaiting => 'Confirm on the phone screen…';
+
+  @override
+  String get unlockFailed => 'Unlock did not complete';
+
+  @override
+  String get flashSectionTitle => 'Flash';
+
+  @override
+  String get flashDeviceLabel => 'Device in fastboot';
+
+  @override
+  String get flashNoDevice =>
+      'No device in fastboot mode. Reboot to bootloader first.';
+
+  @override
+  String get flashPickFirst => 'Select and verify a boot image first.';
+
+  @override
+  String get flashLocked => 'Bootloader is locked - unlock it first';
+
+  @override
+  String get flashUnlocked => 'Bootloader unlocked';
+
+  @override
+  String get flashStateUnknown => 'Bootloader state unknown';
+
+  @override
+  String get flashBootButton => 'Flash boot';
+
+  @override
+  String get flashConfirmTitle => 'Flash boot image?';
+
+  @override
+  String flashConfirmBody(String serial) {
+    return 'Skello will run fastboot flash boot on $serial. Interrupting the flash can brick the device.';
+  }
+
+  @override
+  String get flashRunning => 'Flashing… do not unplug the device';
+
+  @override
+  String get flashDone => 'boot flashed';
+
+  @override
+  String get flashOutput => 'fastboot output';
+
+  @override
+  String get flashFailed => 'Flash failed';
+
+  @override
+  String get cancelLabel => 'Cancel';
 }

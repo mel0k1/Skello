@@ -3,8 +3,11 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:skello/l10n/generated/app_localizations.dart';
 import 'package:skello/services/boot_image.dart';
+import 'package:skello/services/device_output.dart';
 import 'package:skello/src/rust/api/bootimg.dart';
 import 'package:skello/ui/root_screen.dart';
+
+import 'fake_repository.dart';
 
 class FakeReader implements BootImageReader {
   const FakeReader();
@@ -98,5 +101,48 @@ void main() {
     expect(find.text('Check failed'), findsOneWidget);
     expect(find.text('This file is not a readable Android boot image.'),
         findsOneWidget);
+  });
+
+  testWidgets('flash section gates the button on locked bootloader and image',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final repository = FakeRepository(
+      fastboot: const [FastbootDevice('ABC123', 'fastboot')],
+      unlockedValue: 'no',
+    );
+    await tester.pumpWidget(
+      _wrap(RootScreen(reader: const FakeReader(), repository: repository)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Flash'), findsOneWidget);
+    expect(find.text('Bootloader is locked - unlock it first'), findsOneWidget);
+    expect(find.text('Select and verify a boot image first.'), findsOneWidget);
+    final button = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Flash boot'),
+    );
+    expect(button.onPressed, isNull);
+  });
+
+  testWidgets('flash section reports an unlocked bootloader', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final repository = FakeRepository(
+      fastboot: const [FastbootDevice('ABC123', 'fastboot')],
+      unlockedValue: 'yes',
+    );
+    await tester.pumpWidget(
+      _wrap(RootScreen(reader: const FakeReader(), repository: repository)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bootloader unlocked'), findsOneWidget);
+    expect(find.text('Select and verify a boot image first.'), findsOneWidget);
+    expect(find.byType(DropdownButton<String>), findsOneWidget);
   });
 }
