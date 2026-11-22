@@ -5,7 +5,8 @@ pub const BOOT_MAGIC: &[u8; 8] = b"ANDROID!";
 pub const AVB_FOOTER_MAGIC: &[u8; 4] = b"AVBf";
 
 const V02_HEADER_LEN: usize = 1656;
-const V3_HEADER_LEN: usize = 158;
+/// AOSP boot_img_header_v3 is 1580 bytes (cmdline alone is 1536).
+const V3_HEADER_LEN: usize = 1580;
 const FOOTER_LEN: u64 = 64;
 const V34_FIXED_PAGE_SIZE: u32 = 4096;
 const HEAD_BUFFER: usize = 4096;
@@ -27,6 +28,8 @@ pub enum BootImgError {
     Io(std::io::Error),
     TooSmall,
     BadMagic,
+    /// A header field is inconsistent (zero page size, wrong size).
+    BadHeader(&'static str),
     UnsupportedHeaderVersion(u32),
 }
 
@@ -36,6 +39,7 @@ impl fmt::Display for BootImgError {
             BootImgError::Io(e) => write!(f, "io error: {e}"),
             BootImgError::TooSmall => write!(f, "file is too small for a boot image"),
             BootImgError::BadMagic => write!(f, "boot image magic ANDROID! not found"),
+            BootImgError::BadHeader(what) => write!(f, "bad boot image header: {what}"),
             BootImgError::UnsupportedHeaderVersion(v) => {
                 write!(f, "unsupported boot image header version {v}")
             }
@@ -84,12 +88,16 @@ pub fn parse<R: Read + Seek>(reader: &mut R) -> Result<BootImageInfo, BootImgErr
             if head_len < V02_HEADER_LEN {
                 return Err(BootImgError::TooSmall);
             }
+            let page_size = le_u32(&head, 36);
+            if page_size == 0 || !page_size.is_power_of_two() {
+                return Err(BootImgError::BadHeader("page size"));
+            }
             let (os_version, os_patch_level) = decode_os_version(le_u32(&head, 44));
             Ok(BootImageInfo {
                 header_version,
                 kernel_size: le_u32(&head, 8),
                 ramdisk_size: le_u32(&head, 16),
-                page_size: Some(le_u32(&head, 36)),
+                page_size: Some(page_size),
                 os_version,
                 os_patch_level,
                 file_size,
@@ -97,6 +105,9 @@ pub fn parse<R: Read + Seek>(reader: &mut R) -> Result<BootImageInfo, BootImgErr
             })
         }
         3..=4 => {
+            if le_u32(&head, 20) != V3_HEADER_LEN as u32 {
+                return Err(BootImgError::BadHeader("v3 header size"));
+            }
             let (os_version, os_patch_level) = decode_os_version(le_u32(&head, 16));
             Ok(BootImageInfo {
                 header_version,
@@ -172,7 +183,7 @@ mod tests {
         v[12..16].copy_from_slice(&1048576u32.to_le_bytes());
         let os = (12u32 << 25) | 373;
         v[16..20].copy_from_slice(&os.to_le_bytes());
-        v[20..24].copy_from_slice(&158u32.to_le_bytes());
+        v[20..24].copy_from_slice(&(V3_HEADER_LEN as u32).to_le_bytes());
         v[40..44].copy_from_slice(&3u32.to_le_bytes());
         v.extend(std::iter::repeat_n(0x55u8, 8192));
         v

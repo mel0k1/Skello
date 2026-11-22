@@ -1,3 +1,4 @@
+use std::io::Read;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
@@ -12,16 +13,33 @@ pub fn run_with_timeout(
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| anyhow::anyhow!("{label}: {e}"))?;
+    // Drain both pipes from helper threads: a child writing more than
+    // the pipe buffer would otherwise block on its own output, never
+    // finish and trip the timeout while still doing useful work.
+    let stdout_handle = child.stdout.take().map(|mut pipe| {
+        std::thread::spawn(move || {
+            let mut out = Vec::new();
+            let _ = pipe.read_to_end(&mut out);
+            out
+        })
+    });
+    let stderr_handle = child.stderr.take().map(|mut pipe| {
+        std::thread::spawn(move || {
+            let mut out = Vec::new();
+            let _ = pipe.read_to_end(&mut out);
+            out
+        })
+    });
+    let collect = |h: Option<std::thread::JoinHandle<Vec<u8>>>| {
+        h.and_then(|h| h.join().ok())
+            .map(|v| String::from_utf8_lossy(&v).into_owned())
+            .unwrap_or_default()
+    };
     let deadline = Instant::now() + timeout;
     loop {
         match child.try_wait()? {
             Some(status) => {
-                let out = child.wait_with_output()?;
-                let text = format!(
-                    "{}{}",
-                    String::from_utf8_lossy(&out.stdout),
-                    String::from_utf8_lossy(&out.stderr)
-                );
+                let text = format!("{}{}", collect(stdout_handle), collect(stderr_handle));
                 if status.success() {
                     return Ok(text);
                 }
@@ -30,7 +48,10 @@ pub fn run_with_timeout(
             None => {
                 if Instant::now() > deadline {
                     let _ = child.kill();
-                    anyhow::bail!("{label} timed out after {}s", timeout.as_secs());
+                    let text = format!("{}{}", collect(stdout_handle), collect(stderr_handle));
+                    // reap the killed process before reporting
+                    let _ = child.wait();
+                    anyhow::bail!("{label} timed out after {}s: {text}", timeout.as_secs());
                 }
                 std::thread::sleep(Duration::from_millis(100));
             }

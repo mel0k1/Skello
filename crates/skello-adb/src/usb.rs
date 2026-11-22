@@ -180,6 +180,12 @@ impl UsbAdb {
         let mut header = [0u8; HEADER_SIZE];
         self.read_exact_usb(&mut header)?;
         let msg = Message::decode(&header).map_err(|e| AdbError::Protocol(e.to_string()))?;
+        if msg.data_length as usize > self.maxdata {
+            return Err(AdbError::Protocol(format!(
+                "payload {} bytes exceeds negotiated maxdata {}",
+                msg.data_length, self.maxdata
+            )));
+        }
         let mut data = vec![0u8; msg.data_length as usize];
         if !data.is_empty() {
             self.read_exact_usb(&mut data)?;
@@ -212,7 +218,6 @@ impl UsbAdb {
         let mut signature_sent = false;
         let mut pubkey_sent = false;
         loop {
-            let timed_out = Instant::now() > deadline;
             match self.read_message() {
                 Ok((msg, data)) => match msg.command {
                     A_CNXN => {
@@ -244,14 +249,20 @@ impl UsbAdb {
                         )))
                     }
                 },
-                Err(AdbError::Io(_)) if timed_out => {
+                Err(AdbError::Io(_)) => {
+                    // A per-read timeout inside the handshake window
+                    // only means the device has not answered yet: the
+                    // user may still be looking at the auth dialog on
+                    // the phone. Only the deadline ends the wait.
+                    if Instant::now() < deadline {
+                        continue;
+                    }
                     return Err(if pubkey_sent {
                         AdbError::Unauthorized
                     } else {
                         AdbError::Timeout
                     });
                 }
-                Err(AdbError::Io(e)) => return Err(AdbError::Io(e)),
                 Err(e) => return Err(e),
             }
         }

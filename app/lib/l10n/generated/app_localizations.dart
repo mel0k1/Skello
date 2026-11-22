@@ -63,7 +63,7 @@ import 'app_localizations_ru.dart';
 /// property.
 abstract class AppLocalizations {
   AppLocalizations(String locale)
-    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+      : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -86,16 +86,16 @@ abstract class AppLocalizations {
   /// of delegates is preferred or required.
   static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
       <LocalizationsDelegate<dynamic>>[
-        delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ];
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
-    Locale('ru'),
+    Locale('ru')
   ];
 
   /// No description provided for @appName.
@@ -961,11 +961,7 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{label}: {file} @ sector {sector} ({sectors})'**
   String chipsetsQualcommEntryLine(
-    String label,
-    String file,
-    String sector,
-    String sectors,
-  );
+      String label, String file, String sector, String sectors);
 
   /// No description provided for @chipsetsQualcommFlash.
   ///
@@ -1290,6 +1286,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancel'**
   String get cancelLabel;
+
+  /// No description provided for @chipsetsEraseConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Erase partition'**
+  String get chipsetsEraseConfirmTitle;
+
+  /// No description provided for @chipsetsEraseConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Partition {name} and everything on it will be erased. This cannot be undone.'**
+  String chipsetsEraseConfirmBody(String name);
 }
 
 class _AppLocalizationsDelegate
@@ -1319,9 +1327,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-    'an issue with the localizations generation tool. Please file an issue '
-    'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.',
-  );
+      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+      'an issue with the localizations generation tool. Please file an issue '
+      'on GitHub with a reproducible sample app and the gen-l10n configuration '
+      'that was used.');
 }

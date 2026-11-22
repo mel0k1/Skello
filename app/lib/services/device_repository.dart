@@ -98,7 +98,9 @@ class DeviceRepository {
             merged.add(FastbootDevice(serial, 'fastboot'));
           }
         }
-      } catch (_) {}
+      } catch (e) {
+            await CommandLog.instance.write('fastboot', 'binary list failed: $e');
+          }
     }
     return merged;
   }
@@ -146,7 +148,8 @@ class DeviceRepository {
           '>> getvar:$name << $value',
         );
         return value;
-      } catch (_) {
+      } catch (e) {
+        await CommandLog.instance.write('fastboot', 'usb getvar failed: $e');
         return _systemFastbootVar(serial, name);
       }
     }
@@ -294,7 +297,9 @@ class DeviceRepository {
         );
         await CommandLog.instance.write('fastboot', '<< $output');
         return output;
-      } catch (_) {}
+      } catch (e) {
+        await CommandLog.instance.write('fastboot', 'usb erase failed: $e');
+      }
     }
     final result = await Process.run('fastboot', [
       '-s',
@@ -315,6 +320,24 @@ class DeviceRepository {
 
   /// Pre-flash checks, then flash over USB with progress; falls back to the
   /// system fastboot binary without progress when USB is unavailable.
+  /// The sparse magic (0x3aff26ed little-endian) marks an image the
+  /// download backends split into several transfers.
+  Future<bool> _isSparseImage(String path) async {
+    try {
+      final raf = File(path).openSync();
+      try {
+        final b = raf.readSync(4);
+        if (b.length < 4) return false;
+        final v = b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24);
+        return v == 0x3AFF26ED;
+      } finally {
+        raf.closeSync();
+      }
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<String> flashPartition(
     String serial,
     String partition,
@@ -337,7 +360,9 @@ class DeviceRepository {
     final maxSize = await fastbootVar(serial, 'max-download-size');
     final maxBytes = maxSize == null ? null : parseDownloadSize(maxSize);
     final imageSize = await File(imagePath).length();
-    if (maxBytes != null && imageSize > maxBytes) {
+    if (maxBytes != null &&
+        imageSize > maxBytes &&
+        !(await _isSparseImage(imagePath))) {
       await CommandLog.instance.write(
         'flash',
         'image $imageSize > max $maxBytes, refuse',

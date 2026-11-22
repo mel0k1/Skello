@@ -12,6 +12,9 @@ pub struct GptPartition {
 pub enum GptError {
     NotGpt,
     TooShort,
+    /// Header or entry-array CRC32 does not match: the table on the
+    /// device is damaged, partition names cannot be trusted.
+    Corrupt,
 }
 
 impl std::fmt::Display for GptError {
@@ -19,6 +22,7 @@ impl std::fmt::Display for GptError {
         match self {
             GptError::NotGpt => write!(f, "no EFI PART signature"),
             GptError::TooShort => write!(f, "gpt truncated"),
+            GptError::Corrupt => write!(f, "gpt crc mismatch"),
         }
     }
 }
@@ -38,7 +42,9 @@ fn u64le(data: &[u8], off: usize) -> u64 {
 }
 
 /// Parses the GPT from a raw disk image: `disk` starts at LBA 0 with
-/// the protective MBR, `lba_size` is usually 512.
+/// the protective MBR, `lba_size` is usually 512. Header and entry
+/// array CRCs are checked: the result feeds erase and write decisions,
+/// and a damaged table must not yield offsets.
 pub fn parse_gpt(disk: &[u8], lba_size: usize) -> Result<Vec<GptPartition>, GptError> {
     let header = lba_size;
     if disk.len() < header + 92 {
@@ -47,21 +53,45 @@ pub fn parse_gpt(disk: &[u8], lba_size: usize) -> Result<Vec<GptPartition>, GptE
     if &disk[header..header + 8] != b"EFI PART" {
         return Err(GptError::NotGpt);
     }
-    let first_entry = u64le(disk, header + 72) as usize;
+    let header_crc = u32le(disk, header + 16);
+    let mut header_copy = disk[header..header + 92].to_vec();
+    header_copy[16..20].fill(0);
+    if crc32fast::hash(&header_copy) != header_crc {
+        return Err(GptError::Corrupt);
+    }
+    let first_entry = u64le(disk, header + 72);
     let entry_count = u32le(disk, header + 80) as usize;
     let entry_size = u32le(disk, header + 84) as usize;
+    if entry_size < 128 || entry_count == 0 || entry_count > 2048 {
+        return Err(GptError::Corrupt);
+    }
+    let first_entry = usize::try_from(first_entry)
+        .ok()
+        .and_then(|e| e.checked_mul(lba_size))
+        .ok_or(GptError::TooShort)?;
+    let array_len = entry_count
+        .checked_mul(entry_size)
+        .ok_or(GptError::Corrupt)?;
+    if first_entry + array_len > disk.len() {
+        return Err(GptError::TooShort);
+    }
+    if crc32fast::hash(&disk[first_entry..first_entry + array_len]) != u32le(disk, header + 88) {
+        return Err(GptError::Corrupt);
+    }
     let mut out = Vec::new();
     for i in 0..entry_count {
-        let base = first_entry * lba_size + i * entry_size;
-        if base + entry_size > disk.len() {
-            return Err(GptError::TooShort);
-        }
+        let base = first_entry + i * entry_size;
         // type GUID all-zero marks an unused entry
         if disk[base..base + 16].iter().all(|b| *b == 0) {
             continue;
         }
         let first_lba = u64le(disk, base + 32);
         let last_lba = u64le(disk, base + 40);
+        // A wrapped range from a damaged entry must not reach
+        // find_partition: (last - first + 1) would underflow there.
+        if last_lba < first_lba {
+            continue;
+        }
         let name_raw = &disk[base + 56..base + 128];
         let mut name = String::new();
         for c in name_raw.chunks(2) {
@@ -86,7 +116,10 @@ pub fn find_partition(parts: &[GptPartition], name: &str, lba_size: usize) -> Op
     parts
         .iter()
         .find(|p| p.name.eq_ignore_ascii_case(name))
-        .map(|p| (p.first_lba * lba, (p.last_lba - p.first_lba + 1) * lba))
+        .and_then(|p| {
+            let size = (p.last_lba - p.first_lba + 1).checked_mul(lba)?;
+            Some((p.first_lba * lba, size))
+        })
 }
 
 /// Builds a GPT disk image for tests: protective MBR, header at LBA 1
@@ -109,6 +142,11 @@ pub(crate) fn build_gpt_image(entries: &[(&str, u64, u64)]) -> Vec<u8> {
             disk[base + 56 + j * 2..base + 58 + j * 2].copy_from_slice(&c.to_le_bytes());
         }
     }
+    let array_crc = crc32fast::hash(&disk[2 * lba..2 * lba + entries.len() * 128]);
+    disk[lba + 88..lba + 92].copy_from_slice(&array_crc.to_le_bytes());
+    disk[lba + 16..lba + 20].fill(0);
+    let header_crc = crc32fast::hash(&disk[lba..lba + 92]);
+    disk[lba + 16..lba + 20].copy_from_slice(&header_crc.to_le_bytes());
     disk
 }
 
@@ -134,6 +172,11 @@ mod tests {
                     .copy_from_slice(&(unit as u16).to_le_bytes());
             }
         }
+        let array_crc = crc32fast::hash(&disk[lba * 2..lba * 2 + entries.len() * 128]);
+        disk[lba + 88..lba + 92].copy_from_slice(&array_crc.to_le_bytes());
+        disk[lba + 16..lba + 20].fill(0);
+        let header_crc = crc32fast::hash(&disk[lba..lba + 92]);
+        disk[lba + 16..lba + 20].copy_from_slice(&header_crc.to_le_bytes());
         disk
     }
 

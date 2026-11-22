@@ -175,7 +175,12 @@ impl Link for UsbSerialLink {
     }
 
     fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
-        self.write.write_all(buf)
+        // nusb buffers writes and only submits the transfer once the
+        // buffer fills or a flush happens; protocol exchanges are
+        // smaller than the 16 KiB buffer, so flush every write.
+        self.write.set_write_timeout(Duration::from_secs(10));
+        self.write.write_all(buf)?;
+        self.write.flush()
     }
 }
 

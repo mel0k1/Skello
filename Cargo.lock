@@ -553,6 +553,7 @@ name = "skello-chipsets"
 version = "0.1.0"
 dependencies = [
  "aes",
+ "crc32fast",
  "hex",
  "md-5",
  "nusb",

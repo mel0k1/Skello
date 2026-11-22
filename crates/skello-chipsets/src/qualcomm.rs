@@ -121,6 +121,11 @@ impl Sahara {
         read_exact(&mut *self.link, &mut head, timeout)?;
         let cmd = u32::from_le_bytes(head[0..4].try_into().unwrap());
         let len = u32::from_le_bytes(head[4..8].try_into().unwrap()) as usize;
+        // A glitched or wedged device must not make the host allocate
+        // gigabytes from its length field.
+        if len > 8 * 1024 * 1024 {
+            return Err(EdlError::BadPacket);
+        }
         let mut body = vec![0u8; len];
         read_exact(&mut *self.link, &mut body, timeout)?;
         Ok(SaharaPacket { cmd, body })
@@ -409,9 +414,14 @@ impl Firehose {
         }
     }
 
-    /// Programs `sectors` sectors from `data` at `start_sector`.
+    /// Programs `sectors` sectors from `data` at `start_sector`: the
+    /// data is padded to whole sectors, most programmers expect
+    /// exactly the announced sector count.
     pub fn program(&mut self, phys_part: u8, start_sector: &str, data: &[u8]) -> Result<()> {
         let sectors = data.len().div_ceil(self.sector_size);
+        let mut padded = Vec::with_capacity(sectors * self.sector_size);
+        padded.extend_from_slice(data);
+        padded.resize(sectors * self.sector_size, 0);
         let resp = self.xml_command(
             "program",
             &[
@@ -424,11 +434,9 @@ impl Firehose {
         if !resp.contains("value=\"ACK\"") {
             return Err(EdlError::Nack("program".to_owned()));
         }
-        for chunk in data.chunks(self.send_buffer_size) {
+        for chunk in padded.chunks(self.send_buffer_size) {
             self.link.write_all(chunk)?;
         }
-        // Zero length packet ends the stream.
-        let _ = self.link.write_all(&[]);
         let final_resp = self.read_response("program end")?;
         if !final_resp.contains("value=\"ACK\"") {
             return Err(EdlError::Nack("program end".to_owned()));
@@ -615,6 +623,7 @@ mod tests {
         let data_ref = data.clone();
         let data_ref2 = data.clone();
         let state = RefCell::new(0usize);
+        let written = RefCell::new(0usize);
         mock.device = Some(Box::new(move |out, input| {
             let mut st = state.borrow_mut();
             let text = String::from_utf8_lossy(input);
@@ -622,8 +631,11 @@ mod tests {
                 out.extend(ack_xml("program"));
                 *st = 1;
             } else if *st == 1 {
-                // host streams the image; answer the final ACK after it
-                if input.is_empty() {
+                // host streams the image; the final ACK goes out once
+                // the padded sector count has arrived
+                *written.borrow_mut() += input.len();
+                let expect = data_ref2.len().div_ceil(sector) * sector;
+                if *written.borrow() >= expect {
                     out.extend(ack_xml("program end"));
                     *st = 0;
                 }

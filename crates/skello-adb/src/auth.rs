@@ -41,10 +41,15 @@ pub struct AdbKeys {
 impl AdbKeys {
     pub fn load_or_generate(dir: &Path) -> Result<Self, AuthError> {
         let key_file = dir.join("adbkey");
-        if let Ok(pem) = fs::read_to_string(&key_file) {
-            if let Ok(key) = RsaPrivateKey::from_pkcs1_pem(&pem) {
-                return Ok(AdbKeys { key });
-            }
+        if key_file.exists() {
+            // An existing key that fails to parse must not be
+            // overwritten: every device that trusted it would ask for
+            // authorization again. Report the broken file instead.
+            let pem = fs::read_to_string(&key_file)
+                .map_err(|e| AuthError::Io(e.to_string()))?;
+            let key =
+                RsaPrivateKey::from_pkcs1_pem(&pem).map_err(|e| AuthError::Decode(e.to_string()))?;
+            return Ok(AdbKeys { key });
         }
         let mut rng = rand::rngs::OsRng;
         let key =
@@ -55,6 +60,11 @@ impl AdbKeys {
             .to_string();
         fs::create_dir_all(dir).map_err(|e| AuthError::Io(e.to_string()))?;
         fs::write(&key_file, pem).map_err(|e| AuthError::Io(e.to_string()))?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = fs::set_permissions(&key_file, fs::Permissions::from_mode(0o600));
+        }
         Ok(AdbKeys { key })
     }
 
@@ -92,7 +102,14 @@ pub fn android_pubkey_encode(key: &impl PublicKeyParts) -> Vec<u8> {
     let mut rr_bytes = vec![0u8; MODULUS_LEN];
     rr_bytes[..rr.len().min(MODULUS_LEN)].copy_from_slice(&rr);
     out.extend_from_slice(&rr_bytes);
-    out.extend_from_slice(&65537u32.to_le_bytes());
+    // The exponent is a u32 field: copy the real one when it fits
+    // (generated keys use 65537), pad otherwise.
+    let mut e_bytes = [0u8; 4];
+    let e_le = key.e().to_bytes_le();
+    if e_le.len() <= 4 {
+        e_bytes[..e_le.len()].copy_from_slice(&e_le);
+    }
+    out.extend_from_slice(&e_bytes);
     out
 }
 

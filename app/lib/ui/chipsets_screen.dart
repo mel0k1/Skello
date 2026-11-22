@@ -81,6 +81,23 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
   bool _qualBusy = false;
   String? _qualResult;
   String? _qualError;
+
+  /// Every operation on this screen owns the same USB port, so a
+  /// running op disables all the others despite separate result slots.
+  bool get _anyBusy => _mtkBusy ||
+        _v6Busy ||
+        _exploitBusy ||
+        _scatterBusy ||
+        _eraseBusy ||
+        _pacBusy ||
+        _qcEraseBusy ||
+        _qcPatchBusy ||
+        _rpmbBusy ||
+        _unisocBusy ||
+        _tableBusy ||
+        _unlockBusy ||
+        _qualBusy ||
+        _serialBusy;
   bool _serialBusy = false;
   List<String>? _serialPorts;
   String? _selectedPort;
@@ -99,6 +116,10 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
     _fdl1AddrCtrl.dispose();
     _fdl2AddrCtrl.dispose();
     _partitionCtrl.dispose();
+    _eraseController.dispose();
+    _v6PartitionCtrl.dispose();
+    _v6OutCtrl.dispose();
+    _qcEraseCtrl.dispose();
     super.dispose();
   }
 
@@ -125,12 +146,14 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
   }
 
   Future<String?> _pickPath(List<String> extensions) async {
+    if (!mounted) return null;
     final strings = AppLocalizations.of(context)!;
     final file = await openFile(
       acceptedTypeGroups: [
         XTypeGroup(label: strings.chipsetsPickType, extensions: extensions),
       ],
     );
+    if (!mounted) return null;
     return file?.path;
   }
 
@@ -583,8 +606,8 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
       return;
     }
     final go = await _confirm(
-      strings.chipsetsExploitConfirmTitle,
-      strings.chipsetsExploitConfirmBody,
+      strings.chipsetsEraseConfirmTitle,
+      strings.chipsetsEraseConfirmBody(name),
     );
     if (!go) return;
     setState(() {
@@ -925,7 +948,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                 const SizedBox(height: 12),
                 FilledButton.icon(
                   onPressed:
-                      _loaderPath != null && !_mtkBusy ? _runMtkUnlock : null,
+                      _loaderPath != null && !_anyBusy ? _runMtkUnlock : null,
                   icon: const Icon(Icons.lock_open),
                   label: Text(strings.chipsetsMtkUnlock),
                 ),
@@ -946,7 +969,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: _loaderPath != null && !_v6Busy
+                        onPressed: _loaderPath != null && !_anyBusy
                             ? () => _runV6Boot('fastboot')
                             : null,
                         child: Text(strings.chipsetsMtkV6Fastboot),
@@ -955,7 +978,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: _loaderPath != null && !_v6Busy
+                        onPressed: _loaderPath != null && !_anyBusy
                             ? () => _runV6Boot('meta')
                             : null,
                         child: Text(strings.chipsetsMtkV6Meta),
@@ -983,7 +1006,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                 ),
                 const SizedBox(height: 4),
                 OutlinedButton(
-                  onPressed: !_exploitBusy ? _runBromDump : null,
+                  onPressed: !_anyBusy ? _runBromDump : null,
                   child: Text(strings.chipsetsExploitDump),
                 ),
                 const SizedBox(height: 8),
@@ -991,7 +1014,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: _loaderPath != null && !_exploitBusy
+                        onPressed: _loaderPath != null && !_anyBusy
                             ? () => _runExploitUnlock(false)
                             : null,
                         child: Text(strings.chipsetsExploitKamakiri),
@@ -1000,7 +1023,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: _loaderPath != null && !_exploitBusy
+                        onPressed: _loaderPath != null && !_anyBusy
                             ? () => _runExploitUnlock(true)
                             : null,
                         child: Text(strings.chipsetsExploitCarbonara),
@@ -1016,7 +1039,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                 ),
                 const SizedBox(height: 8),
                 OutlinedButton(
-                  onPressed: _loaderPath != null && !_rpmbBusy
+                  onPressed: _loaderPath != null && !_anyBusy
                       ? _runRpmbRead
                       : null,
                   child: Text(strings.chipsetsRpmbRead),
@@ -1044,7 +1067,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: !_scatterBusy
+                        onPressed: !_anyBusy && _loaderPath != null
                             ? () async {
                                 final path = await _pickPath(
                                   const ['txt'],
@@ -1098,7 +1121,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                 const SizedBox(height: 4),
                 OutlinedButton(
                   onPressed:
-                      _loaderPath != null && !_eraseBusy ? _runErase : null,
+                      _loaderPath != null && !_anyBusy ? _runErase : null,
                   child: Text(strings.chipsetsEraseBtn),
                 ),
                 _resultLine(
@@ -1141,7 +1164,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                     Expanded(
                       child: OutlinedButton(
                         onPressed:
-                            _loaderPath != null && !_v6Busy ? _runV6Read : null,
+                            _loaderPath != null && !_anyBusy ? _runV6Read : null,
                         child: Text(strings.chipsetsV6Read),
                       ),
                     ),
@@ -1149,7 +1172,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                     Expanded(
                       child: OutlinedButton(
                         onPressed:
-                            _loaderPath != null && !_v6Busy ? _runV6Erase : null,
+                            _loaderPath != null && !_anyBusy ? _runV6Erase : null,
                         child: Text(strings.chipsetsEraseBtn),
                       ),
                     ),
@@ -1161,7 +1184,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                     Expanded(
                       flex: 2,
                       child: OutlinedButton(
-                        onPressed: !_v6Busy
+                        onPressed: !_anyBusy
                             ? () async {
                                 final path = await _pickPath(const [
                                   'img',
@@ -1183,7 +1206,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                     Expanded(
                       child: FilledButton(
                         onPressed:
-                            _loaderPath != null && _v6ImagePath != null && !_v6Busy
+                            _loaderPath != null && _v6ImagePath != null && !_anyBusy
                                 ? _runV6Write
                                 : null,
                         child: Text(strings.chipsetsV6Write),
@@ -1271,7 +1294,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                 ),
                 const SizedBox(height: 12),
                 FilledButton.icon(
-                  onPressed: _unisocReady && !_unisocBusy
+                  onPressed: _unisocReady && !_anyBusy
                       ? _runUnisocFlash
                       : null,
                   icon: const Icon(Icons.flash_on),
@@ -1288,8 +1311,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                   child: OutlinedButton(
                     onPressed: _fdl1Path != null &&
                             _fdl2Path != null &&
-                            !_tableBusy &&
-                            !_unisocBusy
+                            !_anyBusy
                         ? _loadTable
                         : null,
                     child: Text(strings.chipsetsUnisocTable),
@@ -1323,7 +1345,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                 ),
                 const SizedBox(height: 4),
                 FilledButton.icon(
-                  onPressed: !_unlockBusy ? _runUnisocUnlock : null,
+                  onPressed: !_anyBusy ? _runUnisocUnlock : null,
                   icon: const Icon(Icons.lock_open),
                   label: Text(strings.chipsetsUnisocUnlock),
                 ),
@@ -1347,7 +1369,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                 ),
                 const SizedBox(height: 4),
                 OutlinedButton(
-                  onPressed: !_pacBusy
+                  onPressed: !_anyBusy
                       ? () async {
                           final path = await _pickPath(const ['pac']);
                           if (path == null) return;
@@ -1381,7 +1403,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                   ),
                 const SizedBox(height: 4),
                 FilledButton(
-                  onPressed: _pacPath != null && !_pacBusy
+                  onPressed: _pacPath != null && !_anyBusy
                       ? _runPacFlash
                       : null,
                   child: Text(strings.chipsetsPacFlash),
@@ -1425,7 +1447,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                 ),
                 const SizedBox(height: 8),
                 OutlinedButton(
-                  onPressed: _xmlPath != null && !_qualBusy
+                  onPressed: _xmlPath != null && !_anyBusy
                       ? _parseXml
                       : null,
                   child: Text(strings.chipsetsQualcommParse),
@@ -1453,7 +1475,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                   onPressed: _programmerPath != null &&
                           _entries != null &&
                           _entries!.isNotEmpty &&
-                          !_qualBusy
+                          !_anyBusy
                       ? _runQualcommFlash
                       : null,
                   icon: const Icon(Icons.flash_on),
@@ -1487,7 +1509,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                 ),
                 const SizedBox(height: 4),
                 OutlinedButton(
-                  onPressed: _programmerPath != null && !_qcEraseBusy
+                  onPressed: _programmerPath != null && !_anyBusy
                       ? _runQcErase
                       : null,
                   child: Text(strings.chipsetsEraseBtn),
@@ -1508,7 +1530,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                     Expanded(
                       flex: 2,
                       child: OutlinedButton(
-                        onPressed: !_qcPatchBusy
+                        onPressed: !_anyBusy
                             ? () async {
                                 final path = await _pickPath(const ['xml']);
                                 if (path == null) return;
@@ -1528,7 +1550,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                       child: FilledButton(
                         onPressed: _programmerPath != null &&
                                 _qcPatchPath != null &&
-                                !_qcPatchBusy
+                                !_anyBusy
                             ? _runQcPatch
                             : null,
                         child: Text(strings.chipsetsQcPatchApply),
@@ -1551,7 +1573,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                 ),
                 const SizedBox(height: 4),
                 OutlinedButton(
-                  onPressed: !_serialBusy ? _loadSerialPorts : null,
+                  onPressed: !_anyBusy ? _loadSerialPorts : null,
                   child: Text(strings.chipsetsQualcommSerialLoad),
                 ),
                 if (_serialPorts != null) ...[
@@ -1582,7 +1604,7 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                           _entries != null &&
                           _entries!.isNotEmpty &&
                           _selectedPort != null &&
-                          !_serialBusy
+                          !_anyBusy
                       ? _runSerialFlash
                       : null,
                   icon: const Icon(Icons.settings_input_composite),

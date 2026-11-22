@@ -18,6 +18,9 @@ pub const DT_PROTOCOL_FLOW: u32 = 1;
 /// Log messages the DA streams aside: skipped by the reader.
 pub const DT_MESSAGE: u32 = 2;
 
+/// Sanity cap on any length field coming from the DA.
+const MAX_XML_PACKET: usize = 64 * 1024 * 1024;
+
 const BOOT_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Boot target for `set_boot_mode`.
@@ -167,11 +170,16 @@ impl XmlDa {
             }
             let datatype = u32::from_le_bytes(hdr[4..8].try_into().unwrap());
             let length = u32::from_le_bytes(hdr[8..12].try_into().unwrap()) as usize;
+            if length > MAX_XML_PACKET {
+                return Err(XmlDaError::Unexpected("oversized packet length"));
+            }
             if datatype == DT_MESSAGE {
-                // 4-byte priority + text; the log line is discarded
-                let mut priority = [0u8; 4];
-                self.read_exact(&mut priority, timeout)?;
-                let mut msg = vec![0u8; length.saturating_sub(4)];
+                // priority is 4 bytes when the packet is long enough;
+                // a short packet must not swallow the next header
+                let priority_len = length.min(4);
+                let mut skip = vec![0u8; priority_len];
+                self.read_exact(&mut skip, timeout)?;
+                let mut msg = vec![0u8; length - priority_len];
                 self.read_exact(&mut msg, timeout)?;
                 continue;
             }
@@ -207,8 +215,18 @@ impl XmlDa {
                 return Err(XmlDaError::Unexpected("transfer ack"));
             }
             self.ack()?;
+            // The length comes from the DA's own OK@ string; cap the
+            // allocation and the loop before trusting it.
+            if length > MAX_XML_PACKET {
+                return Err(XmlDaError::Unexpected("oversized transfer length"));
+            }
             let mut out = Vec::with_capacity(length);
+            let mut iters = 0u32;
             while out.len() < length {
+                iters += 1;
+                if iters > 1_000_000 {
+                    return Err(XmlDaError::Unexpected("transfer made no progress"));
+                }
                 out.extend_from_slice(&self.get_response_data()?);
             }
             self.ack()?;

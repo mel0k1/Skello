@@ -263,6 +263,13 @@ pub fn sparse_expand(image: &[u8]) -> Result<Vec<u8>, SparseError> {
     let mut out = vec![0u8; total];
     let mut pos = 0usize;
     for chunk in chunks {
+        // parse_chunks validates each chunk against itself, not
+        // against the header's total_blocks: a truncated or crafted
+        // image must error out instead of indexing past `out`.
+        let span = chunk.chunk_sz as usize * block;
+        if pos + span > out.len() {
+            return Err(SparseError::BadHeader("chunks exceed total_blocks"));
+        }
         match chunk.kind {
             CHUNK_RAW => {
                 out[pos..pos + chunk.payload.len()].copy_from_slice(&chunk.payload);

@@ -1,6 +1,5 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -487,11 +486,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String chipsetsQualcommEntryLine(
-    String label,
-    String file,
-    String sector,
-    String sectors,
-  ) {
+      String label, String file, String sector, String sectors) {
     return '$label: $file @ сектор $sector ($sectors)';
   }
 
@@ -674,4 +669,12 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get cancelLabel => 'Отмена';
+
+  @override
+  String get chipsetsEraseConfirmTitle => 'Стереть раздел';
+
+  @override
+  String chipsetsEraseConfirmBody(String name) {
+    return 'Раздел $name и все данные на нём будут стёрты. Это необратимо.';
+  }
 }

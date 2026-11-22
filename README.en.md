@@ -49,6 +49,21 @@ Protocol notes and the AOSP source breakdown live in [ARCHITECTURE.en.md](ARCHIT
 
 The order can change along the way.
 
+## Roadmap
+
+Priority from the alpha.15 code audit and what is still missing for a full SP Flash Tool + QPST grade combine:
+
+1. Cancel long operations: a shared cancel flag for USB flashing and DA sessions, a stop button in the UI
+2. Backup and restore: partition reads through DA/firehose into files before flashing, a backup wizard for seccfg/boot/vbmeta
+3. Image checks before writing: sizes against the actual GPT (not only the scatter), a foreign-image warning
+4. A/B slots: getvar current-slot, set_active, flashing the inactive slot and switching after
+5. Dynamic partitions: super, resizing through LP metadata
+6. Qualcomm: the full rawprogram + patch0.xml pipeline (today separate operations), reads from LUNs other than zero
+7. OTA sideload through the adb transport
+8. New vendors: Samsung (download mode / Loke), Allwinner
+9. Log export to a file and in-app driver hints: detect missing udev rules / WinUSB and point at the install
+10. Auto-update and localization beyond ru/en
+
 ## Safety
 
 Unlocking the bootloader wipes the whole device storage. Flashing a wrong image or a mid-way failure can leave the phone dead. Skello shows what is about to happen before every dangerous step, but the person pressing the button owns the operation. Check that the image is built for your exact model.

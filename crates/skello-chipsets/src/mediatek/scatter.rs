@@ -6,6 +6,16 @@
 use std::io;
 use std::path::Path;
 
+/// The hardware area a scatter entry targets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Area {
+    /// The main user area (the only one with a GPT).
+    #[default]
+    User,
+    Boot1,
+    Boot2,
+}
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ScatterEntry {
     pub index: String,
@@ -15,8 +25,9 @@ pub struct ScatterEntry {
     pub linear_start_addr: u64,
     pub physical_start_addr: u64,
     pub partition_size: u64,
-    /// EMMC_BOOT1_BOOT2 entries land in the hardware boot area.
-    pub boot_area: bool,
+    /// Boot-region entries (preloader and friends) land in the
+    /// hardware boot areas; the default is the user area.
+    pub area: Area,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -160,7 +171,23 @@ pub fn parse_scatter(text: &str) -> Result<Scatter, ScatterError> {
             }
             (false, "region") => {
                 if let Some(e) = current.as_mut() {
-                    e.boot_area = value.contains("BOOT1");
+                    // Regions appear as EMMC_BOOT1_BOOT2, EMMC_BOOT_1,
+                    // UFS_BL1 and friends: normalize, check BOOT2
+                    // first, then BOOT1/BL. A boot-region image flashed
+                    // into the user area would clobber the protective
+                    // MBR and the GPT header.
+                    let v = value.to_ascii_uppercase().replace('_', "");
+                    e.area = if v.contains("BOOT1") {
+                        // EMMC_BOOT1_BOOT2 (the preloader layout) names
+                        // both areas; the preloader goes to boot1.
+                        Area::Boot1
+                    } else if v.contains("BOOT2") || v.contains("BL2") {
+                        Area::Boot2
+                    } else if v.contains("BL1") {
+                        Area::Boot1
+                    } else {
+                        Area::User
+                    };
                 }
             }
             _ => {}
@@ -244,7 +271,7 @@ mod tests {
   linear_start_addr: 0x1D40000
   physical_start_addr: 0x1D40000
   partition_size: 0x1000000
-  region: EMMC_BOOT_1
+  region: EMMC_USER
   storage: HW_STORAGE_EMMC
   boundary_check: true
   is_reserved: false
@@ -281,13 +308,14 @@ mod tests {
         assert!(preloader.is_download);
         assert_eq!(preloader.linear_start_addr, 0x0);
         assert_eq!(preloader.partition_size, 0x40000);
-        assert!(preloader.boot_area);
+        assert_eq!(preloader.area, Area::Boot1);
         let boot = &sc.entries[1];
         assert_eq!(boot.linear_start_addr, 0x1D40000);
-        assert!(!boot.boot_area);
+        assert_eq!(boot.area, Area::User);
         let para = &sc.entries[2];
         assert!(para.file_name.is_none());
         assert!(!para.is_download);
+        assert_eq!(para.area, Area::Boot1);
     }
 
     #[test]

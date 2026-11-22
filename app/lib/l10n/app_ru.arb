@@ -288,5 +288,19 @@
   "chipsetsQcPatchPick": "Выбрать patch XML",
   "chipsetsQcPatchApply": "Применить",
   "chipsetsQcPatchDone": "Patch XML применён",
-  "cancelLabel": "Отмена"
+  "cancelLabel": "Отмена",
+  "chipsetsEraseConfirmTitle": "Стереть раздел",
+  "@chipsetsEraseConfirmTitle": {
+    "type": "text",
+    "placeholders": {}
+  },
+  "chipsetsEraseConfirmBody": "Раздел {name} и все данные на нём будут стёрты. Это необратимо.",
+  "@chipsetsEraseConfirmBody": {
+    "type": "text",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

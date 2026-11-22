@@ -248,6 +248,7 @@ class _RootScreenState extends State<RootScreen> {
       ],
     );
     if (file == null) return;
+    if (!mounted) return;
     setState(() {
       _checking = true;
       _check = null;

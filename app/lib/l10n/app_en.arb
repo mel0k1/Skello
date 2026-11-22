@@ -271,7 +271,13 @@
   "chipsetsPacFlash": "Flash firmware",
   "chipsetsPacDone": "Pac firmware flashed",
   "chipsetsPacConfirm": "Flash this firmware? {info}",
-  "@chipsetsPacConfirm": {"placeholders": {"info": {"type": "String"}}},
+  "@chipsetsPacConfirm": {
+    "placeholders": {
+      "info": {
+        "type": "String"
+      }
+    }
+  },
   "chipsetsV6Title": "DA V6 (XML) partition ops",
   "chipsetsV6Hint": "Reads and writes go in 1 MiB chunks through the XML DA; after a disconnect the session rebuilds and the operation continues at the exact offset.",
   "chipsetsV6OutPath": "Save read to (file path)",
@@ -289,8 +295,40 @@
   "chipsetsQcPatchPick": "Pick patch XML",
   "chipsetsQcPatchApply": "Apply",
   "chipsetsQcPatchDone": "Patch XML applied",
-  "@chipsetsV6WriteConfirm": {"placeholders": {"name": {"type": "String"}}},
-  "@chipsetsV6EraseConfirm": {"placeholders": {"name": {"type": "String"}}},
-  "@chipsetsQcEraseConfirm": {"placeholders": {"name": {"type": "String"}}},
-  "cancelLabel": "Cancel"
+  "@chipsetsV6WriteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@chipsetsV6EraseConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@chipsetsQcEraseConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cancelLabel": "Cancel",
+  "chipsetsEraseConfirmTitle": "Erase partition",
+  "@chipsetsEraseConfirmTitle": {
+    "type": "text",
+    "placeholders": {}
+  },
+  "chipsetsEraseConfirmBody": "Partition {name} and everything on it will be erased. This cannot be undone.",
+  "@chipsetsEraseConfirmBody": {
+    "type": "text",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

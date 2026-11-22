@@ -1,6 +1,5 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -483,11 +482,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String chipsetsQualcommEntryLine(
-    String label,
-    String file,
-    String sector,
-    String sectors,
-  ) {
+      String label, String file, String sector, String sectors) {
     return '$label: $file @ sector $sector ($sectors)';
   }
 
@@ -670,4 +665,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cancelLabel => 'Cancel';
+
+  @override
+  String get chipsetsEraseConfirmTitle => 'Erase partition';
+
+  @override
+  String chipsetsEraseConfirmBody(String name) {
+    return 'Partition $name and everything on it will be erased. This cannot be undone.';
+  }
 }

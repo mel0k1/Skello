@@ -9,8 +9,9 @@ use std::io;
 pub const PAC_MAGIC: u32 = !0x0005_0005;
 /// The directory header: version strings, counters and CRCs.
 pub const PAC_HEADER_SIZE: usize = 2124;
-/// One directory entry with the id/name strings and the offsets.
-pub const PAC_ENTRY_SIZE: usize = 3080;
+/// One directory entry with the id/name strings and the offsets
+/// (sizeof(sprd_file_t) == 2580 in unpac, the format reference).
+pub const PAC_ENTRY_SIZE: usize = 2580;
 
 pub const FILE_TYPE_OPERATION: u32 = 0;
 pub const FILE_TYPE_FILE: u32 = 1;
@@ -160,14 +161,14 @@ pub fn parse_pac(data: &[u8]) -> Result<PacFirmware, PacError> {
         if u32_at(data, base) as usize != PAC_ENTRY_SIZE {
             return Err(PacError::BadEntrySize(base));
         }
-        let size = (u32_at(data, base + 1528) as u64) << 32 | u32_at(data, base + 1536) as u64;
-        let offset = (u32_at(data, base + 1532) as u64) << 32 | u32_at(data, base + 1548) as u64;
-        let kind = u32_at(data, base + 1540);
-        let flash_use = u32_at(data, base + 1544);
-        let addr_num = (u32_at(data, base + 1556) as usize).min(5);
+        let size = (u32_at(data, base + 1532) as u64) << 32 | u32_at(data, base + 1540) as u64;
+        let offset = (u32_at(data, base + 1536) as u64) << 32 | u32_at(data, base + 1552) as u64;
+        let kind = u32_at(data, base + 1544);
+        let flash_use = u32_at(data, base + 1548);
+        let addr_num = (u32_at(data, base + 1560) as usize).min(5);
         let mut addr = [0u32; 5];
         for (j, a) in addr.iter_mut().take(addr_num).enumerate() {
-            *a = u32_at(data, base + 1560 + j * 4);
+            *a = u32_at(data, base + 1564 + j * 4);
         }
         let entry = PacEntry {
             id: utf16_at(data, base + 4, 256),
@@ -261,15 +262,15 @@ pub fn build_test_pac(entries: &[(&str, u32, u32, &[u8])]) -> Vec<u8> {
         for (i, c) in id.encode_utf16().enumerate() {
             e[516 + i * 2..518 + i * 2].copy_from_slice(&c.to_le_bytes());
         }
-        e[1528..1532].copy_from_slice(&0u32.to_le_bytes());
         e[1532..1536].copy_from_slice(&0u32.to_le_bytes());
-        e[1536..1540].copy_from_slice(&(blob.len() as u32).to_le_bytes());
-        e[1540..1544].copy_from_slice(&kind.to_le_bytes());
-        e[1544..1548].copy_from_slice(&1u32.to_le_bytes());
+        e[1536..1540].copy_from_slice(&0u32.to_le_bytes());
+        e[1540..1544].copy_from_slice(&(blob.len() as u32).to_le_bytes());
+        e[1544..1548].copy_from_slice(&kind.to_le_bytes());
+        e[1548..1552].copy_from_slice(&1u32.to_le_bytes());
         let off = PAC_HEADER_SIZE + PAC_ENTRY_SIZE * entries.len() + data_area.len();
-        e[1548..1552].copy_from_slice(&(off as u32).to_le_bytes());
-        e[1556..1560].copy_from_slice(&1u32.to_le_bytes());
-        e[1560..1564].copy_from_slice(&addr0.to_le_bytes());
+        e[1552..1556].copy_from_slice(&(off as u32).to_le_bytes());
+        e[1560..1564].copy_from_slice(&1u32.to_le_bytes());
+        e[1564..1568].copy_from_slice(&addr0.to_le_bytes());
         dir_entries.extend_from_slice(&e);
         data_area.extend_from_slice(blob);
     }

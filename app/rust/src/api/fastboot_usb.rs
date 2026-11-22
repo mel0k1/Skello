@@ -133,7 +133,14 @@ pub fn fastboot_flash_usb(
             }
         })?;
         sent_base += part.len() as u64;
+        // Writing a large partition keeps the device busy long after
+        // the download finished: the default response timeout would
+        // fire in the middle of the write.
+        usb.set_read_timeout(std::time::Duration::from_secs(600));
         let (payload, infos) = usb.command(&skello_fastboot::flash(&partition))?;
+        usb.set_read_timeout(std::time::Duration::from_secs(
+            skello_fastboot::RESP_TIMEOUT_SECS,
+        ));
         log::core_log(
             "flash-usb",
             &format!(

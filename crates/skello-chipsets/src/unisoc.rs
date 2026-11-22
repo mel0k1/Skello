@@ -303,9 +303,11 @@ impl Bsl {
     /// Downloads one FDL image: START_DATA(addr, size), MIDST chunks,
     /// END_DATA, EXEC_DATA.
     pub fn send_fdl(&mut self, addr: u32, image: &[u8]) -> Result<()> {
+        // FDL load takes addr and size big-endian (spd_dump send_buf);
+        // the partition commands below stay little-endian.
         let mut head = Vec::new();
-        head.extend_from_slice(&addr.to_le_bytes());
-        head.extend_from_slice(&(image.len() as u32).to_le_bytes());
+        head.extend_from_slice(&addr.to_be_bytes());
+        head.extend_from_slice(&(image.len() as u32).to_be_bytes());
         self.send_and_check(BSL_CMD_START_DATA, &head)?;
         for chunk in image.chunks(FDL_CHUNK) {
             self.send_and_check(BSL_CMD_MIDST_DATA, chunk)?;
@@ -373,7 +375,7 @@ impl Bsl {
 
     /// Writes `name` = UTF-16, size, then the data blocks.
     pub fn write_partition(&mut self, name: &str, data: &[u8]) -> Result<()> {
-        let pkt = partition_request(name, data.len() as u64, false);
+        let pkt = partition_request(name, data.len() as u64, data.len() > u32::MAX as usize);
         self.send_and_check(BSL_CMD_START_DATA, &pkt)?;
         for chunk in data.chunks(0x800) {
             self.send_and_check(BSL_CMD_MIDST_DATA, chunk)?;
@@ -384,13 +386,29 @@ impl Bsl {
 
     /// Reads a partition by name via READ_START/READ_MIDST/READ_END.
     pub fn read_partition(&mut self, name: &str, size: u64) -> Result<Vec<u8>> {
-        let pkt = partition_request(name, size, false);
+        let pkt = partition_request(name, size, size > u32::MAX as u64);
         self.send_and_check(BSL_CMD_READ_START, &pkt)?;
         let mut out = Vec::new();
+        let mut iters = 0u32;
         loop {
-            self.send(BSL_CMD_READ_MIDST, &[0u8; 8])?;
+            // Each MIDST asks for the next chunk explicitly; an
+            // all-zero request makes some FDL2 answer empty frames
+            // forever.
+            let want = size.saturating_sub(out.len() as u64).min(0x800) as u32;
+            let mut req = Vec::with_capacity(8);
+            req.extend_from_slice(&want.to_le_bytes());
+            req.extend_from_slice(&(out.len() as u32).to_le_bytes());
+            self.send(BSL_CMD_READ_MIDST, &req)?;
             let pkt = self.recv()?;
             if pkt.kind == BSL_REP_READ_FLASH {
+                if pkt.data.is_empty() {
+                    iters += 1;
+                    if iters > 65536 {
+                        return Err(BslError::Reply(pkt.kind, "read made no progress"));
+                    }
+                } else {
+                    iters = 0;
+                }
                 out.extend_from_slice(&pkt.data);
                 if out.len() as u64 >= size {
                     break;
@@ -431,7 +449,7 @@ impl Bsl {
     }
 
     pub fn erase_partition(&mut self, name: &str, size: u64) -> Result<()> {
-        let pkt = partition_request(name, size, false);
+        let pkt = partition_request(name, size, size > u32::MAX as u64);
         self.send_and_check(BSL_CMD_ERASE_FLASH, &pkt)?;
         Ok(())
     }

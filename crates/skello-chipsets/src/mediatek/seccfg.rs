@@ -177,7 +177,9 @@ fn parse_v3(indata: &[u8]) -> Result<(LockState, String), SecCfgError> {
     let size = read32(indata, 24);
     let _enc_offset = read32(indata, 28);
     let enc_len = read32(indata, 32);
-    let body_len = size as usize - V3_HEADER_SZ - 4;
+    let body_len = (size as usize)
+        .checked_sub(V3_HEADER_SZ + 4)
+        .ok_or(SecCfgError::Truncated("body"))?;
     let end_pos = V3_HEADER_SZ + body_len;
     if indata.len() < end_pos {
         return Err(SecCfgError::Truncated("body"));
@@ -187,6 +189,9 @@ fn parse_v3(indata: &[u8]) -> Result<(LockState, String), SecCfgError> {
     }
     let body = &indata[V3_HEADER_SZ..end_pos];
     let plain = sej_sw(body, false)?;
+    if plain.len() < V3_IMGINFO_SZ + 12 {
+        return Err(SecCfgError::Truncated("v3 imginfo"));
+    }
     let status = read32(&plain, V3_IMGINFO_SZ + 4);
     let attr = read32(&plain, V3_IMGINFO_SZ + 8);
     let marker_ok = status == STATUS_COMPLETE || status == STATUS_INCOMPLETE;
@@ -408,8 +413,13 @@ pub fn patch_v4(
             s.encrypt(&fresh, other)?
         }
     };
-    let mut out = Vec::with_capacity(fields.size as usize + 0x200);
-    out.extend_from_slice(&fields.header_bytes(new_lock, fields.dm_verity));
+    // The V4 hash lives at size-0x20 (the mtkclient layout); the
+    // rebuilt image is 0x3C bytes: 28 header + 32 hash. Force the
+    // size field so the on-device check looks where the hash is.
+    let mut header = fields.header_bytes(new_lock, fields.dm_verity);
+    header[8..12].copy_from_slice(&0x3Cu32.to_le_bytes());
+    let mut out = Vec::with_capacity(0x3C + 0x200);
+    out.extend_from_slice(&header);
     out.extend_from_slice(&enc_hash);
     while out.len() % 0x200 != 0 {
         out.push(0);

@@ -49,6 +49,11 @@ pub const PART_RPMB: u32 = 3;
 
 const IO_TIMEOUT: Duration = Duration::from_secs(10);
 const BOOT_TIMEOUT: Duration = Duration::from_secs(30);
+/// Sanity cap on any length field coming from the device: a glitched
+/// or wedged DA must not make the host allocate gigabytes.
+const MAX_PACKET: usize = 16 * 1024 * 1024;
+/// Fallback packet length while the DA has not reported usable ones.
+const DEFAULT_PACKET_LENGTH: usize = 0x20000;
 
 #[derive(Debug)]
 pub enum XFlashError {
@@ -157,6 +162,9 @@ impl XFlash {
         if magic != XFLASH_MAGIC {
             return Err(XFlashError::WrongMagic);
         }
+        if length > MAX_PACKET {
+            return Err(XFlashError::Unexpected(format!("packet of {length} bytes")));
+        }
         let mut body = vec![0u8; length];
         self.read_exact(&mut body, timeout)?;
         Ok(body)
@@ -176,7 +184,15 @@ impl XFlash {
         Ok(match length {
             2 => u16::from_le_bytes(body.try_into().unwrap()) as u32,
             4 => u32::from_le_bytes(body.try_into().unwrap()),
-            _ => u32::from_le_bytes(body[..4.min(body.len())].try_into().unwrap_or([0, 0, 0, 0])),
+            _ => {
+                if body.len() >= 4 {
+                    u32::from_le_bytes(body[..4].try_into().unwrap())
+                } else {
+                    return Err(XFlashError::Unexpected(format!(
+                        "status packet of {length} bytes"
+                    )));
+                }
+            }
         })
     }
 
@@ -254,12 +270,20 @@ impl XFlash {
         }
         let resp = self.xread(BOOT_TIMEOUT)?;
         if resp.len() >= 8 {
-            self.write_packet_length =
-                usize::try_from(u32::from_le_bytes(resp[0..4].try_into().unwrap()))
-                    .unwrap_or(self.write_packet_length);
-            self.read_packet_length =
-                usize::try_from(u32::from_le_bytes(resp[4..8].try_into().unwrap()))
-                    .unwrap_or(self.read_packet_length);
+            // Keep the defaults when the DA reports something unusable:
+            // a zero or unaligned length would stall the write loop or
+            // desynchronize the packet stream.
+            let usable = |v: usize| v != 0 && v.is_multiple_of(512) && v <= MAX_PACKET;
+            let wp = usize::try_from(u32::from_le_bytes(resp[0..4].try_into().unwrap()))
+                .unwrap_or(DEFAULT_PACKET_LENGTH);
+            let rp = usize::try_from(u32::from_le_bytes(resp[4..8].try_into().unwrap()))
+                .unwrap_or(DEFAULT_PACKET_LENGTH);
+            if usable(wp) {
+                self.write_packet_length = wp;
+            }
+            if usable(rp) {
+                self.read_packet_length = rp;
+            }
         }
         Ok(())
     }
@@ -308,6 +332,7 @@ impl XFlash {
     pub fn readflash_pt(&mut self, addr: u64, length: usize, parttype: u32) -> Result<Vec<u8>> {
         self.cmd_read_data(addr, length, parttype)?;
         let mut out = Vec::with_capacity(length);
+        let mut flag_packets = 0u32;
         while out.len() < length {
             let mut hdr = [0u8; 12];
             self.read_exact(&mut hdr, IO_TIMEOUT)?;
@@ -316,9 +341,16 @@ impl XFlash {
             if magic != XFLASH_MAGIC {
                 return Err(XFlashError::WrongMagic);
             }
+            if slength > MAX_PACKET {
+                return Err(XFlashError::Unexpected(format!("read chunk of {slength} bytes")));
+            }
             let mut chunk = vec![0u8; slength];
             self.read_exact(&mut chunk, IO_TIMEOUT)?;
             if slength == 4 {
+                flag_packets += 1;
+                if flag_packets > 1024 {
+                    return Err(XFlashError::Unexpected("read flooded with status flags".into()));
+                }
                 let flag = u32::from_le_bytes(chunk.try_into().unwrap());
                 if flag != 0 {
                     return Err(XFlashError::CommandFailed(flag, "read"));
@@ -350,7 +382,7 @@ impl XFlash {
         self.cmd_write_data(addr, payload.len(), parttype)?;
         let mut pos = 0;
         while pos < payload.len() {
-            let dsize = (payload.len() - pos).min(self.write_packet_length);
+            let dsize = (payload.len() - pos).min(self.write_packet_length.max(512));
             let mut chunk = payload[pos..pos + dsize].to_vec();
             if !chunk.len().is_multiple_of(512) {
                 chunk.resize(chunk.len() + (512 - chunk.len() % 512), 0);
@@ -556,7 +588,9 @@ impl XFlash {
         )?;
         let mut xflash = XFlash::new(link);
         xflash.init_after_jump()?;
-        let gpt = xflash.readflash(0, 512 * 4)?;
+        // GPT header plus the entry array: 34 sectors cover the
+        // standard 128-entry layout, 4 cut the array in half.
+        let gpt = xflash.readflash(0, 512 * 34)?;
         let parts = parse_gpt(&gpt, 512)
             .map_err(|e| XFlashError::Io(std::io::Error::other(e.to_string())))?;
         let (off, size) = find_partition(&parts, name, 512)
@@ -648,10 +682,10 @@ impl XFlash {
                     entry.partition_size
                 )));
             }
-            let parttype = if entry.boot_area {
-                PART_BOOT1
-            } else {
-                PART_USER
+            let parttype = match entry.area {
+                crate::mediatek::scatter::Area::Boot1 => PART_BOOT1,
+                crate::mediatek::scatter::Area::Boot2 => PART_BOOT2,
+                crate::mediatek::scatter::Area::User => PART_USER,
             };
             xflash.writeflash_pt(entry.linear_start_addr, &data, parttype)?;
             written.push(entry.name.clone());
@@ -709,7 +743,8 @@ impl XFlash {
         let mut xflash = XFlash::new(link);
         xflash.init_after_jump()?;
 
-        let gpt = xflash.readflash(0, 512 * 4)?;
+        // 34 sectors: header plus the full 128-entry array.
+        let gpt = xflash.readflash(0, 512 * 34)?;
         let parts = parse_gpt(&gpt, 512)
             .map_err(|e| XFlashError::Io(std::io::Error::other(e.to_string())))?;
         let (off, _size) = find_partition(&parts, "seccfg", 512)
@@ -863,11 +898,11 @@ mod tests {
         data
     }
 
-    /// Four LBAs: protective MBR, GPT header, entry array with one
-    /// seccfg partition.
+    /// 34 LBAs: protective MBR, GPT header, entry array with one
+    /// seccfg partition, the same span the flows read back.
     fn build_gpt() -> Vec<u8> {
         let lba = 512usize;
-        let mut disk = vec![0u8; lba * 4];
+        let mut disk = vec![0u8; lba * 34];
         disk[lba..lba + 8].copy_from_slice(b"EFI PART");
         disk[lba + 72..lba + 80].copy_from_slice(&2u64.to_le_bytes());
         disk[lba + 80..lba + 84].copy_from_slice(&1u32.to_le_bytes());
@@ -879,6 +914,11 @@ mod tests {
         for (i, c) in "seccfg".chars().enumerate() {
             disk[base + 56 + i * 2..base + 58 + i * 2].copy_from_slice(&(c as u16).to_le_bytes());
         }
+        let array_crc = crc32fast::hash(&disk[base..base + 128]);
+        disk[lba + 88..lba + 92].copy_from_slice(&array_crc.to_le_bytes());
+        disk[lba + 16..lba + 20].fill(0);
+        let header_crc = crc32fast::hash(&disk[lba..lba + 92]);
+        disk[lba + 16..lba + 20].copy_from_slice(&header_crc.to_le_bytes());
         disk
     }
 

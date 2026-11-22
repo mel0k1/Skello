@@ -265,9 +265,13 @@ pub fn unisoc_unlock_bootloader() -> anyhow::Result<String> {
         .map_err(|e| anyhow::anyhow!("download signature: {e}"))?;
     match fb.command("flashing unlock_bootloader") {
         Ok(_) => Ok("unlock sent; confirm on the device screen".to_owned()),
-        Err(e) => Ok(format!(
-            "signature sent; confirm on the device screen (device said: {e})"
-        )),
+        Err(e) => {
+            // A FAIL here is a real rejection (signature check or a
+            // locked policy): reporting it as success would send the
+            // user into a reboot with the bootloader still locked.
+            log::core_log("unisoc", &format!("unlock_bootloader failed: {e}"));
+            Err(anyhow::anyhow!("flashing unlock_bootloader failed: {e}"))
+        }
     }
 }
 
@@ -411,8 +415,20 @@ pub fn mediatek_scatter_flash(loader_path: String, scatter_path: String) -> anyh
 }
 
 /// Qualcomm EDL: erases one partition by its GPT name (one `<erase>`
-/// command over the LBA range).
+/// command over the LBA range). The bootloader chain and the baseband
+/// storage are refused: erasing them from under the device kills it.
 pub fn qualcomm_edl_erase(programmer_path: String, partition: String) -> anyhow::Result<String> {
+    const PROTECTED: &[&str] = &[
+        "xbl", "xbl_config", "abl", "tz", "hyp", "devcfg", "keymaster", "bootloader", "sbl1",
+        "sbl2", "sbl3", "rpm", "cmnlib", "cmnlib64", "apdp", "msadp", "modem", "efs", "fsg",
+        "modemst1", "modemst2", "persist", "ssd", "misc",
+    ];
+    if PROTECTED
+        .iter()
+        .any(|p| p.eq_ignore_ascii_case(partition.trim()))
+    {
+        anyhow::bail!("partition {partition} is protected (bootloader chain or baseband data)");
+    }
     let mut fh = edl_firehose(programmer_path)?;
     let parts = fh.gpt_list(0)?;
     let (first, last) = parts
@@ -420,6 +436,9 @@ pub fn qualcomm_edl_erase(programmer_path: String, partition: String) -> anyhow:
         .find(|p| p.name.eq_ignore_ascii_case(&partition))
         .map(|p| (p.first_lba, p.last_lba))
         .ok_or_else(|| anyhow::anyhow!("partition {partition} not found"))?;
+    if last < first {
+        anyhow::bail!("partition {partition}: corrupted GPT entry (first {first} > last {last})");
+    }
     fh.erase(0, first, last)?;
     let _ = fh.reset();
     let message = format!("{partition} erased ({} sectors)", last - first + 1);

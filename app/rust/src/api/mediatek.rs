@@ -32,7 +32,9 @@ fn run_shell(serial: &str, keys_dir: &str, command: &str) -> anyhow::Result<Stri
 }
 
 fn is_rooted(serial: &str, keys_dir: &str) -> anyhow::Result<bool> {
-    let out = adb_usb_shell(serial.to_owned(), keys_dir.to_owned(), "id".to_owned())?;
+    // Through run_shell: adb without root but with a working su still
+    // reaches the seccfg partition, a bare "id" would underreport.
+    let out = run_shell(serial, keys_dir, "id")?;
     Ok(out.contains("uid=0"))
 }
 
