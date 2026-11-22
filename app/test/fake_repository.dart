@@ -14,6 +14,9 @@ class FakeRepository implements DeviceRepository {
   bool comesBack = true;
   bool rooted = true;
   String seccfgState = 'locked';
+  String? currentSlotValue;
+  bool hasSlotValue = false;
+  bool isUserspaceValue = true;
   String? shellOutput;
   final List<String> calls = [];
 
@@ -50,9 +53,10 @@ class FakeRepository implements DeviceRepository {
     String serial,
     String partition,
     String imagePath,
-    FlashProgressCallback? onProgress,
-  ) async {
-    calls.add('flash $serial $partition');
+    FlashProgressCallback? onProgress, {
+    String? slot,
+  }) async {
+    calls.add('flash $serial $partition slot=$slot');
     onProgress?.call(const FlashProgressEvent(50, 100, 'download'));
     onProgress?.call(const FlashProgressEvent(100, 100, 'flash'));
     return 'Sending OKAY\nWriting OKAY';
@@ -331,7 +335,77 @@ class FakeRepository implements DeviceRepository {
   }
 
   @override
-  Future<String> qualcommEdlErase(String programmerPath, String partition) async {
+  Future<String?> fastbootCurrentSlot(String serial) async =>
+      currentSlotValue;
+
+  @override
+  Future<bool> fastbootHasSlot(String serial, String partition) async =>
+      hasSlotValue;
+
+  @override
+  Future<String> fastbootSetActiveSlot(String serial, String slot) async {
+    calls.add('set-active $serial $slot');
+    currentSlotValue = slot;
+    return 'OKAY';
+  }
+
+  @override
+  Future<bool> fastbootIsUserspace(String serial) async => isUserspaceValue;
+
+  @override
+  Future<String> fastbootResizePartition(
+    String serial,
+    String name,
+    int sizeBytes,
+  ) async {
+    calls.add('resize-partition $name $sizeBytes');
+    return 'OKAY';
+  }
+
+  @override
+  Future<String> fastbootDeletePartition(String serial, String name) async {
+    calls.add('delete-partition $name');
+    return 'OKAY';
+  }
+
+  @override
+  Future<String> fastbootCreatePartition(
+    String serial,
+    String name,
+    int sizeBytes,
+  ) async {
+    calls.add('create-partition $name $sizeBytes');
+    return 'OKAY';
+  }
+
+  @override
+  Future<String> lpInfo(String path) async {
+    calls.add('lp-info $path');
+    return 'metadata: 2 slots';
+  }
+
+  @override
+  Future<String> qualcommEdlProgram(
+    String programmerPath,
+    String rawprogramPath,
+    String? patchXmlPath,
+  ) async {
+    calls.add('qc-program $rawprogramPath patch=$patchXmlPath');
+    return '1 program entries flashed, 0 patches applied, LUNs [0]';
+  }
+
+  @override
+  Future<String> qualcommEdlGpt(String programmerPath, int lun) async {
+    calls.add('qc-gpt $lun');
+    return 'lun $lun table';
+  }
+
+  @override
+  Future<String> qualcommEdlErase(
+    String programmerPath,
+    String partition,
+    int lun,
+  ) async {
     calls.add('edl-erase $partition');
     if (failChipsetCalls) throw Exception('partition boot not found');
     return qcMessage;

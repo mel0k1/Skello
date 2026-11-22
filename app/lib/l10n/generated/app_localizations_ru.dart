@@ -689,4 +689,133 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get chipsetsBackupDone => 'Бэкап готов';
+
+  @override
+  String get flashSlotLabel => 'Слот';
+
+  @override
+  String flashSlotCurrent(String slot) {
+    return '$slot (активный)';
+  }
+
+  @override
+  String flashSlotOther(String slot) {
+    return '$slot (неактивный)';
+  }
+
+  @override
+  String get flashSlotSwitchTitle => 'Переключить слот';
+
+  @override
+  String flashSlotSwitchBody(String slot) {
+    return 'Образ записан в слот $slot. Сделать его активным?';
+  }
+
+  @override
+  String flashSlotSwitchOk(String slot) {
+    return 'Переключить на $slot';
+  }
+
+  @override
+  String get superSectionTitle => 'super (динамические разделы)';
+
+  @override
+  String get superSectionHint =>
+      'Разбор LP-метаданных образа super и управление разделами через fastbootd';
+
+  @override
+  String get superPickImage => 'Открыть super-образ';
+
+  @override
+  String get superDeviceTitle => 'Разделы на устройстве (fastbootd)';
+
+  @override
+  String get superNameField => 'Имя раздела';
+
+  @override
+  String get superSizeField => 'Размер, МБ';
+
+  @override
+  String get superUserspaceHint =>
+      'Нужен fastbootd: adb reboot fastboot, затем повторите';
+
+  @override
+  String get superNameSizeRequired => 'Укажите имя раздела и размер в МБ';
+
+  @override
+  String get superCreateBtn => 'Создать';
+
+  @override
+  String get superCreateTitle => 'Создать раздел';
+
+  @override
+  String superCreateBody(String name, String size) {
+    return 'create-partition $name, $size МБ';
+  }
+
+  @override
+  String get superResizeBtn => 'Изменить размер';
+
+  @override
+  String get superResizeTitle => 'Изменить размер раздела';
+
+  @override
+  String superResizeBody(String name, String size) {
+    return 'resize-partition $name → $size МБ';
+  }
+
+  @override
+  String get superDeleteBtn => 'Удалить';
+
+  @override
+  String get superDeleteTitle => 'Удалить раздел';
+
+  @override
+  String superDeleteBody(String name) {
+    return 'delete-partition $name: данные будут потеряны';
+  }
+
+  @override
+  String get chipsetsQcGptTitle => 'GPT (LUN)';
+
+  @override
+  String get chipsetsQcLun => 'LUN:';
+
+  @override
+  String get chipsetsQcGptBtn => 'Показать GPT';
+
+  @override
+  String get chipsetsQcGptDone => 'Таблица разделов';
+
+  @override
+  String get chipsetsQcProgramTitle => 'Полная прошивка rawprogram';
+
+  @override
+  String get chipsetsQcProgramHint =>
+      'Один прогон: все файлы из rawprogram.xml по своим LUN с проверкой размеров по GPT, затем patch0.xml';
+
+  @override
+  String get chipsetsQcProgramPick => 'Выбрать rawprogram…xml';
+
+  @override
+  String chipsetsQcProgramPatchPick(String name) {
+    return 'patch0.xml: $name';
+  }
+
+  @override
+  String get chipsetsQcProgramPatchNone => 'без patch0.xml';
+
+  @override
+  String get chipsetsQcProgramRun => 'Прошить rawprogram';
+
+  @override
+  String get chipsetsQcProgramConfirmTitle => 'Полная прошивка rawprogram';
+
+  @override
+  String chipsetsQcProgramConfirmBody(String file) {
+    return 'Прошить $file целиком, затем патчи?';
+  }
+
+  @override
+  String get chipsetsQcProgramDone => 'Готово';
 }

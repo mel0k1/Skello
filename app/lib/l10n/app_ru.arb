@@ -322,5 +322,200 @@
   "@chipsetsBackupDone": {
     "type": "text",
     "placeholders": {}
+  },
+  "flashSlotLabel": "Слот",
+  "@flashSlotLabel": {
+    "type": "text"
+  },
+  "flashSlotCurrent": "{slot} (активный)",
+  "@flashSlotCurrent": {
+    "type": "text",
+    "placeholders": {
+      "slot": {
+        "type": "String"
+      }
+    }
+  },
+  "flashSlotOther": "{slot} (неактивный)",
+  "@flashSlotOther": {
+    "type": "text",
+    "placeholders": {
+      "slot": {
+        "type": "String"
+      }
+    }
+  },
+  "flashSlotSwitchTitle": "Переключить слот",
+  "@flashSlotSwitchTitle": {
+    "type": "text"
+  },
+  "flashSlotSwitchBody": "Образ записан в слот {slot}. Сделать его активным?",
+  "@flashSlotSwitchBody": {
+    "type": "text",
+    "placeholders": {
+      "slot": {
+        "type": "String"
+      }
+    }
+  },
+  "flashSlotSwitchOk": "Переключить на {slot}",
+  "@flashSlotSwitchOk": {
+    "type": "text",
+    "placeholders": {
+      "slot": {
+        "type": "String"
+      }
+    }
+  },
+  "superSectionTitle": "super (динамические разделы)",
+  "@superSectionTitle": {
+    "type": "text"
+  },
+  "superSectionHint": "Разбор LP-метаданных образа super и управление разделами через fastbootd",
+  "@superSectionHint": {
+    "type": "text"
+  },
+  "superPickImage": "Открыть super-образ",
+  "@superPickImage": {
+    "type": "text"
+  },
+  "superDeviceTitle": "Разделы на устройстве (fastbootd)",
+  "@superDeviceTitle": {
+    "type": "text"
+  },
+  "superNameField": "Имя раздела",
+  "@superNameField": {
+    "type": "text"
+  },
+  "superSizeField": "Размер, МБ",
+  "@superSizeField": {
+    "type": "text"
+  },
+  "superUserspaceHint": "Нужен fastbootd: adb reboot fastboot, затем повторите",
+  "@superUserspaceHint": {
+    "type": "text"
+  },
+  "superNameSizeRequired": "Укажите имя раздела и размер в МБ",
+  "@superNameSizeRequired": {
+    "type": "text"
+  },
+  "superCreateBtn": "Создать",
+  "@superCreateBtn": {
+    "type": "text"
+  },
+  "superCreateTitle": "Создать раздел",
+  "@superCreateTitle": {
+    "type": "text"
+  },
+  "superCreateBody": "create-partition {name}, {size} МБ",
+  "@superCreateBody": {
+    "type": "text",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "superResizeBtn": "Изменить размер",
+  "@superResizeBtn": {
+    "type": "text"
+  },
+  "superResizeTitle": "Изменить размер раздела",
+  "@superResizeTitle": {
+    "type": "text"
+  },
+  "superResizeBody": "resize-partition {name} → {size} МБ",
+  "@superResizeBody": {
+    "type": "text",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "superDeleteBtn": "Удалить",
+  "@superDeleteBtn": {
+    "type": "text"
+  },
+  "superDeleteTitle": "Удалить раздел",
+  "@superDeleteTitle": {
+    "type": "text"
+  },
+  "superDeleteBody": "delete-partition {name}: данные будут потеряны",
+  "@superDeleteBody": {
+    "type": "text",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chipsetsQcGptTitle": "GPT (LUN)",
+  "@chipsetsQcGptTitle": {
+    "type": "text"
+  },
+  "chipsetsQcLun": "LUN:",
+  "@chipsetsQcLun": {
+    "type": "text"
+  },
+  "chipsetsQcGptBtn": "Показать GPT",
+  "@chipsetsQcGptBtn": {
+    "type": "text"
+  },
+  "chipsetsQcGptDone": "Таблица разделов",
+  "@chipsetsQcGptDone": {
+    "type": "text"
+  },
+  "chipsetsQcProgramTitle": "Полная прошивка rawprogram",
+  "@chipsetsQcProgramTitle": {
+    "type": "text"
+  },
+  "chipsetsQcProgramHint": "Один прогон: все файлы из rawprogram.xml по своим LUN с проверкой размеров по GPT, затем patch0.xml",
+  "@chipsetsQcProgramHint": {
+    "type": "text"
+  },
+  "chipsetsQcProgramPick": "Выбрать rawprogram…xml",
+  "@chipsetsQcProgramPick": {
+    "type": "text"
+  },
+  "chipsetsQcProgramPatchPick": "patch0.xml: {name}",
+  "@chipsetsQcProgramPatchPick": {
+    "type": "text",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chipsetsQcProgramPatchNone": "без patch0.xml",
+  "@chipsetsQcProgramPatchNone": {
+    "type": "text"
+  },
+  "chipsetsQcProgramRun": "Прошить rawprogram",
+  "@chipsetsQcProgramRun": {
+    "type": "text"
+  },
+  "chipsetsQcProgramConfirmTitle": "Полная прошивка rawprogram",
+  "@chipsetsQcProgramConfirmTitle": {
+    "type": "text"
+  },
+  "chipsetsQcProgramConfirmBody": "Прошить {file} целиком, затем патчи?",
+  "@chipsetsQcProgramConfirmBody": {
+    "type": "text",
+    "placeholders": {
+      "file": {
+        "type": "String"
+      }
+    }
+  },
+  "chipsetsQcProgramDone": "Готово",
+  "@chipsetsQcProgramDone": {
+    "type": "text"
   }
 }

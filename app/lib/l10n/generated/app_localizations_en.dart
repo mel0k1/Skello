@@ -685,4 +685,134 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chipsetsBackupDone => 'Backup done';
+
+  @override
+  String get flashSlotLabel => 'Slot';
+
+  @override
+  String flashSlotCurrent(String slot) {
+    return '$slot (active)';
+  }
+
+  @override
+  String flashSlotOther(String slot) {
+    return '$slot (inactive)';
+  }
+
+  @override
+  String get flashSlotSwitchTitle => 'Switch slot';
+
+  @override
+  String flashSlotSwitchBody(String slot) {
+    return 'The image was written to slot $slot. Make it active?';
+  }
+
+  @override
+  String flashSlotSwitchOk(String slot) {
+    return 'Switch to $slot';
+  }
+
+  @override
+  String get superSectionTitle => 'super (dynamic partitions)';
+
+  @override
+  String get superSectionHint =>
+      'Parse LP metadata of a super image and manage partitions through fastbootd';
+
+  @override
+  String get superPickImage => 'Open a super image';
+
+  @override
+  String get superDeviceTitle => 'On-device partitions (fastbootd)';
+
+  @override
+  String get superNameField => 'Partition name';
+
+  @override
+  String get superSizeField => 'Size, MB';
+
+  @override
+  String get superUserspaceHint =>
+      'fastbootd required: adb reboot fastboot, then retry';
+
+  @override
+  String get superNameSizeRequired =>
+      'Provide the partition name and the size in MB';
+
+  @override
+  String get superCreateBtn => 'Create';
+
+  @override
+  String get superCreateTitle => 'Create partition';
+
+  @override
+  String superCreateBody(String name, String size) {
+    return 'create-partition $name, $size MB';
+  }
+
+  @override
+  String get superResizeBtn => 'Resize';
+
+  @override
+  String get superResizeTitle => 'Resize partition';
+
+  @override
+  String superResizeBody(String name, String size) {
+    return 'resize-partition $name → $size MB';
+  }
+
+  @override
+  String get superDeleteBtn => 'Delete';
+
+  @override
+  String get superDeleteTitle => 'Delete partition';
+
+  @override
+  String superDeleteBody(String name) {
+    return 'delete-partition $name: data will be lost';
+  }
+
+  @override
+  String get chipsetsQcGptTitle => 'GPT (LUN)';
+
+  @override
+  String get chipsetsQcLun => 'LUN:';
+
+  @override
+  String get chipsetsQcGptBtn => 'Show GPT';
+
+  @override
+  String get chipsetsQcGptDone => 'Partition table';
+
+  @override
+  String get chipsetsQcProgramTitle => 'Full rawprogram flash';
+
+  @override
+  String get chipsetsQcProgramHint =>
+      'One run: every rawprogram.xml file goes to its LUN with GPT size checks, then patch0.xml applies';
+
+  @override
+  String get chipsetsQcProgramPick => 'Pick rawprogram…xml';
+
+  @override
+  String chipsetsQcProgramPatchPick(String name) {
+    return 'patch0.xml: $name';
+  }
+
+  @override
+  String get chipsetsQcProgramPatchNone => 'no patch0.xml';
+
+  @override
+  String get chipsetsQcProgramRun => 'Flash rawprogram';
+
+  @override
+  String get chipsetsQcProgramConfirmTitle => 'Full rawprogram flash';
+
+  @override
+  String chipsetsQcProgramConfirmBody(String file) {
+    return 'Flash $file completely, then apply patches?';
+  }
+
+  @override
+  String get chipsetsQcProgramDone => 'Done';
 }

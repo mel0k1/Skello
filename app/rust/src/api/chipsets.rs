@@ -421,10 +421,58 @@ pub fn mediatek_scatter_flash(loader_path: String, scatter_path: String) -> anyh
     Ok(result)
 }
 
+/// Parses a super image (raw or sparse): dynamic partition groups,
+/// their partitions, sizes and free space per group.
+pub fn lp_info(image_path: String) -> anyhow::Result<String> {
+    let mut data = std::fs::read(&image_path)?;
+    if skello_fastboot::sparse::is_sparse(&data) {
+        data = skello_fastboot::sparse::sparse_expand(&data)
+            .map_err(|e| anyhow::anyhow!("sparse expansion failed: {e}"))?;
+    }
+    let meta = skello_bootimg::lp::parse_metadata(&data)
+        .map_err(|e| anyhow::anyhow!("lp metadata: {e}"))?;
+    let mut out = format!(
+        "metadata: {} slots, slot max {} bytes, block {} bytes",
+        meta.slot_count, meta.metadata_max_size, meta.logical_block_size
+    );
+    for g in &meta.groups {
+        let used: u64 = meta
+            .partitions
+            .iter()
+            .filter(|p| p.group == g.name)
+            .map(|p| p.size_bytes)
+            .sum();
+        let _ = std::fmt::Write::write_fmt(
+            &mut out,
+            format_args!(
+                "\ngroup {}: max {} bytes, used {used}",
+                g.name, g.maximum_size
+            ),
+        );
+        if g.maximum_size > 0 {
+            let free = g.maximum_size.saturating_sub(used);
+            let _ = std::fmt::Write::write_fmt(&mut out, format_args!(", free {free}"));
+        }
+        for p in meta.partitions.iter().filter(|p| p.group == g.name) {
+            let ro = if p.readonly { " (readonly)" } else { "" };
+            let _ = std::fmt::Write::write_fmt(
+                &mut out,
+                format_args!("\n  {}: {} bytes, {} extent(s){}", p.name, p.size_bytes, p.extents, ro),
+            );
+        }
+    }
+    log::core_log("super", &out.replace('\n', " | "));
+    Ok(out)
+}
+
 /// Qualcomm EDL: erases one partition by its GPT name (one `<erase>`
 /// command over the LBA range). The bootloader chain and the baseband
 /// storage are refused: erasing them from under the device kills it.
-pub fn qualcomm_edl_erase(programmer_path: String, partition: String) -> anyhow::Result<String> {
+pub fn qualcomm_edl_erase(
+    programmer_path: String,
+    partition: String,
+    lun: u8,
+) -> anyhow::Result<String> {
     skello_cancel::reset();
     const PROTECTED: &[&str] = &[
         "xbl", "xbl_config", "abl", "tz", "hyp", "devcfg", "keymaster", "bootloader", "sbl1",
@@ -438,27 +486,27 @@ pub fn qualcomm_edl_erase(programmer_path: String, partition: String) -> anyhow:
         anyhow::bail!("partition {partition} is protected (bootloader chain or baseband data)");
     }
     let mut fh = edl_firehose(programmer_path)?;
-    let parts = fh.gpt_list(0)?;
+    let parts = fh.gpt_list(lun)?;
     let (first, last) = parts
         .iter()
         .find(|p| p.name.eq_ignore_ascii_case(&partition))
         .map(|p| (p.first_lba, p.last_lba))
-        .ok_or_else(|| anyhow::anyhow!("partition {partition} not found"))?;
+        .ok_or_else(|| anyhow::anyhow!("partition {partition} not found on LUN {lun}"))?;
     if last < first {
         anyhow::bail!("partition {partition}: corrupted GPT entry (first {first} > last {last})");
     }
-    fh.erase(0, first, last)?;
+    fh.erase(lun, first, last)?;
     let _ = fh.reset();
     let message = format!("{partition} erased ({} sectors)", last - first + 1);
     log::core_log("qualcomm", &message);
     Ok(message)
 }
 
-/// Qualcomm EDL: lists the GPT partitions of LUN 0 with their LBA
-/// ranges, the read-only companion for the erase flow.
-pub fn qualcomm_edl_gpt(programmer_path: String) -> anyhow::Result<String> {
+/// Qualcomm EDL: lists the GPT partitions of one LUN with their
+/// LBA ranges, the read-only companion for the erase flow.
+pub fn qualcomm_edl_gpt(programmer_path: String, lun: u8) -> anyhow::Result<String> {
     let mut fh = edl_firehose(programmer_path)?;
-    let parts = fh.gpt_list(0)?;
+    let parts = fh.gpt_list(lun)?;
     let lines: Vec<String> = parts
         .iter()
         .map(|p| format!("{}: lba {}..{}", p.name, p.first_lba, p.last_lba))
@@ -859,6 +907,108 @@ pub fn qualcomm_edl_flash(
     }
     fh.reset()?;
     Ok(format!("{} entries flashed", entries.len()))
+}
+
+/// Qualcomm EDL: the full rawprogram pipeline in one device session.
+/// Every program entry flashes its file at the start sector (sparse
+/// images expanded first, sizes checked against the per-LUN GPT of
+/// named entries), then every DISK patch applies — matching the qdl
+/// rawprogram+patch0.xml workflow instead of two separate runs.
+pub fn qualcomm_edl_program(
+    programmer_path: String,
+    rawprogram_path: String,
+    patch_xml_path: Option<String>,
+) -> anyhow::Result<String> {
+    skello_cancel::reset();
+    let entries = parse_rawprogram(rawprogram_path)?;
+    if entries.is_empty() {
+        anyhow::bail!("no program entries found");
+    }
+    let patches = match patch_xml_path {
+        Some(path) => {
+            let list = parse_patchxml(path.clone())?;
+            if list.is_empty() {
+                anyhow::bail!("no DISK patch entries found in {path}");
+            }
+            Some(list)
+        }
+        None => None,
+    };
+    let blob = std::fs::read(&programmer_path)?;
+    if blob.starts_with(b"<?xml") {
+        anyhow::bail!("the programmer file is an ELF or cpio archive, plain binary expected");
+    }
+    Sahara::boot_programmer(&[blob])?;
+    let mut fh = Firehose::new(open_usb_serial(VID_QUALCOMM, PID_EDL)?);
+    fh.configure("ufs")?;
+    // one GPT read per referenced LUN backs the size checks
+    let mut luns: Vec<u8> = entries.iter().map(|e| e.phys_part).collect();
+    luns.sort();
+    luns.dedup();
+    let mut gpts: Vec<(u8, Vec<skello_chipsets::mediatek::gpt::GptPartition>)> = Vec::new();
+    for lun in &luns {
+        if let Ok(parts) = fh.gpt_list(*lun) {
+            gpts.push((*lun, parts));
+        }
+    }
+    let gpt_for = |lun: u8| -> Option<&Vec<_>> {
+        gpts.iter().find(|(l, _)| *l == lun).map(|(_, parts)| parts)
+    };
+    for entry in &entries {
+        if skello_cancel::is_requested() {
+            anyhow::bail!("operation cancelled");
+        }
+        let mut data = std::fs::read(&entry.file_path)?;
+        if skello_fastboot::sparse::is_sparse(&data) {
+            data = skello_fastboot::sparse::sparse_expand(&data)
+                .map_err(|e| anyhow::anyhow!("sparse expansion failed: {e}"))?;
+        }
+        if let Some(parts) = gpt_for(entry.phys_part) {
+            if let Some(p) = parts.iter().find(|p| p.name.eq_ignore_ascii_case(&entry.label)) {
+                let hold = (p.last_lba - p.first_lba + 1) * fh.sector_size as u64;
+                if data.len() as u64 > hold {
+                    anyhow::bail!(
+                        "image for {} is {} bytes, partition on LUN {} holds {} bytes",
+                        entry.label,
+                        data.len(),
+                        entry.phys_part,
+                        hold
+                    );
+                }
+            }
+        }
+        log::core_log(
+            "qualcomm",
+            &format!(
+                "program {} at sector {} (lun {}), {} bytes",
+                entry.label, entry.start_sector, entry.phys_part, data.len()
+            ),
+        );
+        fh.program(entry.phys_part, &entry.start_sector, &data)?;
+    }
+    let mut patched = 0usize;
+    if let Some(patches) = &patches {
+        for entry in patches {
+            if skello_cancel::is_requested() {
+                anyhow::bail!("operation cancelled");
+            }
+            fh.patch(
+                entry.phys_part,
+                entry.byte_offset,
+                entry.size,
+                &entry.start_sector,
+                &entry.value,
+            )?;
+            patched += 1;
+        }
+    }
+    fh.reset()?;
+    let message = format!(
+        "{} program entries flashed, {patched} patches applied, LUNs {luns:?}",
+        entries.len()
+    );
+    log::core_log("qualcomm", &message);
+    Ok(message)
 }
 
 fn usb_err(e: skello_chipsets::transport::LinkError) -> anyhow::Error {

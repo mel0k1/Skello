@@ -1322,6 +1322,222 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Backup done'**
   String get chipsetsBackupDone;
+
+  /// No description provided for @flashSlotLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Slot'**
+  String get flashSlotLabel;
+
+  /// No description provided for @flashSlotCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'{slot} (active)'**
+  String flashSlotCurrent(String slot);
+
+  /// No description provided for @flashSlotOther.
+  ///
+  /// In en, this message translates to:
+  /// **'{slot} (inactive)'**
+  String flashSlotOther(String slot);
+
+  /// No description provided for @flashSlotSwitchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch slot'**
+  String get flashSlotSwitchTitle;
+
+  /// No description provided for @flashSlotSwitchBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The image was written to slot {slot}. Make it active?'**
+  String flashSlotSwitchBody(String slot);
+
+  /// No description provided for @flashSlotSwitchOk.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to {slot}'**
+  String flashSlotSwitchOk(String slot);
+
+  /// No description provided for @superSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'super (dynamic partitions)'**
+  String get superSectionTitle;
+
+  /// No description provided for @superSectionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Parse LP metadata of a super image and manage partitions through fastbootd'**
+  String get superSectionHint;
+
+  /// No description provided for @superPickImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Open a super image'**
+  String get superPickImage;
+
+  /// No description provided for @superDeviceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'On-device partitions (fastbootd)'**
+  String get superDeviceTitle;
+
+  /// No description provided for @superNameField.
+  ///
+  /// In en, this message translates to:
+  /// **'Partition name'**
+  String get superNameField;
+
+  /// No description provided for @superSizeField.
+  ///
+  /// In en, this message translates to:
+  /// **'Size, MB'**
+  String get superSizeField;
+
+  /// No description provided for @superUserspaceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'fastbootd required: adb reboot fastboot, then retry'**
+  String get superUserspaceHint;
+
+  /// No description provided for @superNameSizeRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Provide the partition name and the size in MB'**
+  String get superNameSizeRequired;
+
+  /// No description provided for @superCreateBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get superCreateBtn;
+
+  /// No description provided for @superCreateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create partition'**
+  String get superCreateTitle;
+
+  /// No description provided for @superCreateBody.
+  ///
+  /// In en, this message translates to:
+  /// **'create-partition {name}, {size} MB'**
+  String superCreateBody(String name, String size);
+
+  /// No description provided for @superResizeBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Resize'**
+  String get superResizeBtn;
+
+  /// No description provided for @superResizeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Resize partition'**
+  String get superResizeTitle;
+
+  /// No description provided for @superResizeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'resize-partition {name} → {size} MB'**
+  String superResizeBody(String name, String size);
+
+  /// No description provided for @superDeleteBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get superDeleteBtn;
+
+  /// No description provided for @superDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete partition'**
+  String get superDeleteTitle;
+
+  /// No description provided for @superDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'delete-partition {name}: data will be lost'**
+  String superDeleteBody(String name);
+
+  /// No description provided for @chipsetsQcGptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'GPT (LUN)'**
+  String get chipsetsQcGptTitle;
+
+  /// No description provided for @chipsetsQcLun.
+  ///
+  /// In en, this message translates to:
+  /// **'LUN:'**
+  String get chipsetsQcLun;
+
+  /// No description provided for @chipsetsQcGptBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Show GPT'**
+  String get chipsetsQcGptBtn;
+
+  /// No description provided for @chipsetsQcGptDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Partition table'**
+  String get chipsetsQcGptDone;
+
+  /// No description provided for @chipsetsQcProgramTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Full rawprogram flash'**
+  String get chipsetsQcProgramTitle;
+
+  /// No description provided for @chipsetsQcProgramHint.
+  ///
+  /// In en, this message translates to:
+  /// **'One run: every rawprogram.xml file goes to its LUN with GPT size checks, then patch0.xml applies'**
+  String get chipsetsQcProgramHint;
+
+  /// No description provided for @chipsetsQcProgramPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick rawprogram…xml'**
+  String get chipsetsQcProgramPick;
+
+  /// No description provided for @chipsetsQcProgramPatchPick.
+  ///
+  /// In en, this message translates to:
+  /// **'patch0.xml: {name}'**
+  String chipsetsQcProgramPatchPick(String name);
+
+  /// No description provided for @chipsetsQcProgramPatchNone.
+  ///
+  /// In en, this message translates to:
+  /// **'no patch0.xml'**
+  String get chipsetsQcProgramPatchNone;
+
+  /// No description provided for @chipsetsQcProgramRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Flash rawprogram'**
+  String get chipsetsQcProgramRun;
+
+  /// No description provided for @chipsetsQcProgramConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Full rawprogram flash'**
+  String get chipsetsQcProgramConfirmTitle;
+
+  /// No description provided for @chipsetsQcProgramConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Flash {file} completely, then apply patches?'**
+  String chipsetsQcProgramConfirmBody(String file);
+
+  /// No description provided for @chipsetsQcProgramDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get chipsetsQcProgramDone;
 }
 
 class _AppLocalizationsDelegate

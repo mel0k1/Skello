@@ -350,5 +350,200 @@
   "@chipsetsBackupDone": {
     "type": "text",
     "placeholders": {}
+  },
+  "flashSlotLabel": "Slot",
+  "@flashSlotLabel": {
+    "type": "text"
+  },
+  "flashSlotCurrent": "{slot} (active)",
+  "@flashSlotCurrent": {
+    "type": "text",
+    "placeholders": {
+      "slot": {
+        "type": "String"
+      }
+    }
+  },
+  "flashSlotOther": "{slot} (inactive)",
+  "@flashSlotOther": {
+    "type": "text",
+    "placeholders": {
+      "slot": {
+        "type": "String"
+      }
+    }
+  },
+  "flashSlotSwitchTitle": "Switch slot",
+  "@flashSlotSwitchTitle": {
+    "type": "text"
+  },
+  "flashSlotSwitchBody": "The image was written to slot {slot}. Make it active?",
+  "@flashSlotSwitchBody": {
+    "type": "text",
+    "placeholders": {
+      "slot": {
+        "type": "String"
+      }
+    }
+  },
+  "flashSlotSwitchOk": "Switch to {slot}",
+  "@flashSlotSwitchOk": {
+    "type": "text",
+    "placeholders": {
+      "slot": {
+        "type": "String"
+      }
+    }
+  },
+  "superSectionTitle": "super (dynamic partitions)",
+  "@superSectionTitle": {
+    "type": "text"
+  },
+  "superSectionHint": "Parse LP metadata of a super image and manage partitions through fastbootd",
+  "@superSectionHint": {
+    "type": "text"
+  },
+  "superPickImage": "Open a super image",
+  "@superPickImage": {
+    "type": "text"
+  },
+  "superDeviceTitle": "On-device partitions (fastbootd)",
+  "@superDeviceTitle": {
+    "type": "text"
+  },
+  "superNameField": "Partition name",
+  "@superNameField": {
+    "type": "text"
+  },
+  "superSizeField": "Size, MB",
+  "@superSizeField": {
+    "type": "text"
+  },
+  "superUserspaceHint": "fastbootd required: adb reboot fastboot, then retry",
+  "@superUserspaceHint": {
+    "type": "text"
+  },
+  "superNameSizeRequired": "Provide the partition name and the size in MB",
+  "@superNameSizeRequired": {
+    "type": "text"
+  },
+  "superCreateBtn": "Create",
+  "@superCreateBtn": {
+    "type": "text"
+  },
+  "superCreateTitle": "Create partition",
+  "@superCreateTitle": {
+    "type": "text"
+  },
+  "superCreateBody": "create-partition {name}, {size} MB",
+  "@superCreateBody": {
+    "type": "text",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "superResizeBtn": "Resize",
+  "@superResizeBtn": {
+    "type": "text"
+  },
+  "superResizeTitle": "Resize partition",
+  "@superResizeTitle": {
+    "type": "text"
+  },
+  "superResizeBody": "resize-partition {name} → {size} MB",
+  "@superResizeBody": {
+    "type": "text",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "superDeleteBtn": "Delete",
+  "@superDeleteBtn": {
+    "type": "text"
+  },
+  "superDeleteTitle": "Delete partition",
+  "@superDeleteTitle": {
+    "type": "text"
+  },
+  "superDeleteBody": "delete-partition {name}: data will be lost",
+  "@superDeleteBody": {
+    "type": "text",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chipsetsQcGptTitle": "GPT (LUN)",
+  "@chipsetsQcGptTitle": {
+    "type": "text"
+  },
+  "chipsetsQcLun": "LUN:",
+  "@chipsetsQcLun": {
+    "type": "text"
+  },
+  "chipsetsQcGptBtn": "Show GPT",
+  "@chipsetsQcGptBtn": {
+    "type": "text"
+  },
+  "chipsetsQcGptDone": "Partition table",
+  "@chipsetsQcGptDone": {
+    "type": "text"
+  },
+  "chipsetsQcProgramTitle": "Full rawprogram flash",
+  "@chipsetsQcProgramTitle": {
+    "type": "text"
+  },
+  "chipsetsQcProgramHint": "One run: every rawprogram.xml file goes to its LUN with GPT size checks, then patch0.xml applies",
+  "@chipsetsQcProgramHint": {
+    "type": "text"
+  },
+  "chipsetsQcProgramPick": "Pick rawprogram…xml",
+  "@chipsetsQcProgramPick": {
+    "type": "text"
+  },
+  "chipsetsQcProgramPatchPick": "patch0.xml: {name}",
+  "@chipsetsQcProgramPatchPick": {
+    "type": "text",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chipsetsQcProgramPatchNone": "no patch0.xml",
+  "@chipsetsQcProgramPatchNone": {
+    "type": "text"
+  },
+  "chipsetsQcProgramRun": "Flash rawprogram",
+  "@chipsetsQcProgramRun": {
+    "type": "text"
+  },
+  "chipsetsQcProgramConfirmTitle": "Full rawprogram flash",
+  "@chipsetsQcProgramConfirmTitle": {
+    "type": "text"
+  },
+  "chipsetsQcProgramConfirmBody": "Flash {file} completely, then apply patches?",
+  "@chipsetsQcProgramConfirmBody": {
+    "type": "text",
+    "placeholders": {
+      "file": {
+        "type": "String"
+      }
+    }
+  },
+  "chipsetsQcProgramDone": "Done",
+  "@chipsetsQcProgramDone": {
+    "type": "text"
   }
 }

@@ -99,13 +99,24 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
         _qualBusy ||
         _serialBusy ||
         _mtkBackupBusy ||
-        _qcBackupBusy;
+        _qcBackupBusy ||
+        _qcGptBusy ||
+        _qcProgramBusy;
   bool _mtkBackupBusy = false;
   String? _mtkBackupResult;
   String? _mtkBackupError;
   bool _qcBackupBusy = false;
   String? _qcBackupResult;
   String? _qcBackupError;
+  int _qcLun = 0;
+  bool _qcGptBusy = false;
+  String? _qcGptResult;
+  String? _qcGptError;
+  String? _qcProgramRawPath;
+  String? _qcProgramPatchPath;
+  bool _qcProgramBusy = false;
+  String? _qcProgramResult;
+  String? _qcProgramError;
   bool _serialBusy = false;
   List<String>? _serialPorts;
   String? _selectedPort;
@@ -617,8 +628,8 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
       _qcEraseError = null;
     });
     try {
-      final message =
-          await widget.repository.qualcommEdlErase(_programmerPath!, name);
+      final message = await widget.repository
+          .qualcommEdlErase(_programmerPath!, name, _qcLun);
       if (!mounted) return;
       setState(() {
         _qcEraseResult = message;
@@ -629,6 +640,66 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
       setState(() {
         _qcEraseError = e.toString();
         _qcEraseBusy = false;
+      });
+    }
+  }
+
+  Future<void> _runQcGpt() async {
+    if (_programmerPath == null) return;
+    setState(() {
+      _qcGptBusy = true;
+      _qcGptResult = null;
+      _qcGptError = null;
+    });
+    try {
+      final message =
+          await widget.repository.qualcommEdlGpt(_programmerPath!, _qcLun);
+      if (!mounted) return;
+      setState(() {
+        _qcGptResult = message;
+        _qcGptBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _qcGptError = e.toString();
+        _qcGptBusy = false;
+      });
+    }
+  }
+
+  /// The full rawprogram pipeline: every program entry flashes at its
+  /// start sector (sizes checked against the per-LUN GPT), then every
+  /// DISK patch applies, all in one device session.
+  Future<void> _runQcProgram() async {
+    final strings = AppLocalizations.of(context)!;
+    if (_programmerPath == null || _qcProgramRawPath == null) return;
+    final go = await _confirm(
+      strings.chipsetsQcProgramConfirmTitle,
+      strings.chipsetsQcProgramConfirmBody(_baseName(_qcProgramRawPath!)),
+    );
+    if (!go) return;
+    setState(() {
+      _qcProgramBusy = true;
+      _qcProgramResult = null;
+      _qcProgramError = null;
+    });
+    try {
+      final message = await widget.repository.qualcommEdlProgram(
+        _programmerPath!,
+        _qcProgramRawPath!,
+        _qcProgramPatchPath,
+      );
+      if (!mounted) return;
+      setState(() {
+        _qcProgramResult = message;
+        _qcProgramBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _qcProgramError = e.toString();
+        _qcProgramBusy = false;
       });
     }
   }
@@ -1617,6 +1688,43 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                   error: _qcBackupError,
                   successText: strings.chipsetsBackupDone,
                 ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    strings.chipsetsQcGptTitle,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(strings.chipsetsQcLun),
+                    const SizedBox(width: 12),
+                    DropdownButton<int>(
+                      value: _qcLun,
+                      items: [
+                        for (var i = 0; i < 8; i++)
+                          DropdownMenuItem(value: i, child: Text('$i')),
+                      ],
+                      onChanged: _anyBusy
+                          ? null
+                          : (value) => setState(() => _qcLun = value!),
+                    ),
+                    const SizedBox(width: 16),
+                    OutlinedButton(
+                      onPressed: _programmerPath != null && !_anyBusy
+                          ? _runQcGpt
+                          : null,
+                      child: Text(strings.chipsetsQcGptBtn),
+                    ),
+                  ],
+                ),
+                _resultLine(
+                  context,
+                  result: _qcGptResult,
+                  error: _qcGptError,
+                  successText: strings.chipsetsQcGptDone,
+                ),
                 Text(
                   strings.chipsetsQcPatchHint,
                   style: Theme.of(context).textTheme.bodySmall,
@@ -1660,6 +1768,73 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                   result: _qcPatchResult,
                   error: _qcPatchError,
                   successText: strings.chipsetsQcPatchDone,
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    strings.chipsetsQcProgramTitle,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  strings.chipsetsQcProgramHint,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 4),
+                OutlinedButton(
+                  onPressed: !_anyBusy
+                      ? () async {
+                          final path =
+                              await _pickPath(const ['xml']);
+                          if (path == null) return;
+                          setState(() {
+                            _qcProgramRawPath = path;
+                            _qcProgramResult = null;
+                            _qcProgramError = null;
+                          });
+                        }
+                      : null,
+                  child: Text(strings.chipsetsQcProgramPick),
+                ),
+                if (_qcProgramRawPath != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(_baseName(_qcProgramRawPath!)),
+                  ),
+                const SizedBox(height: 4),
+                OutlinedButton(
+                  onPressed: !_anyBusy
+                      ? () async {
+                          final path =
+                              await _pickPath(const ['xml']);
+                          if (path == null) return;
+                          setState(() => _qcProgramPatchPath = path);
+                        }
+                      : null,
+                  child: Text(
+                    strings.chipsetsQcProgramPatchPick(
+                      _qcProgramPatchPath == null
+                          ? strings.chipsetsQcProgramPatchNone
+                          : _baseName(_qcProgramPatchPath!),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                FilledButton.icon(
+                  onPressed: _programmerPath != null &&
+                          _qcProgramRawPath != null &&
+                          !_anyBusy
+                      ? _runQcProgram
+                      : null,
+                  icon: const Icon(Icons.flash_on),
+                  label: Text(strings.chipsetsQcProgramRun),
+                ),
+                _resultLine(
+                  context,
+                  result: _qcProgramResult,
+                  error: _qcProgramError,
+                  successText: strings.chipsetsQcProgramDone,
                 ),
                 Padding(
                   padding: const EdgeInsets.only(top: 12),

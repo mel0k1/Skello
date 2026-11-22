@@ -54,14 +54,12 @@ The order can change along the way.
 Priority from the alpha.15 code audit and what is still missing for a full SP Flash Tool + QPST grade combine:
 
 Done in alpha.16: cancel for long operations (a shared flag and a stop button), seccfg/boot/vbmeta backups through DA and firehose, image checks against the actual GPT before writing.
+Done in alpha.17: A/B slots (slot choice when flashing with a switch afterwards), dynamic partitions (LP metadata parsing for super, create/resize/delete through fastbootd), the full Qualcomm rawprogram + patch0.xml pipeline in one session, GPT reads and erases on LUNs 0-7.
 
-1. A/B slots: getvar current-slot, set_active, flashing the inactive slot and switching after
-2. Dynamic partitions: super, resizing through LP metadata
-3. Qualcomm: the full rawprogram + patch0.xml pipeline (today separate operations), reads from LUNs other than zero
-4. OTA sideload through the adb transport
-5. New vendors: Samsung (download mode / Loke), Allwinner
-6. Log export to a file and in-app driver hints: detect missing udev rules / WinUSB and point at the install
-7. Auto-update and localization beyond ru/en
+1. OTA sideload through the adb transport
+2. New vendors: Samsung (download mode / Loke), Allwinner
+3. Log export to a file and in-app driver hints: detect missing udev rules / WinUSB and point at the install
+4. Auto-update and localization beyond ru/en
 
 ## Safety
 

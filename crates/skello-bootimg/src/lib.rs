@@ -1,6 +1,8 @@
 use std::fmt;
 use std::io::{Read, Seek, SeekFrom};
 
+pub mod lp;
+
 pub const BOOT_MAGIC: &[u8; 8] = b"ANDROID!";
 pub const AVB_FOOTER_MAGIC: &[u8; 4] = b"AVBf";
 

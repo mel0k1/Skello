@@ -118,6 +118,22 @@ pub fn set_active(slot: &str) -> String {
     format!("{CMD_SET_ACTIVE}:{slot}")
 }
 
+/// fastbootd only: creates a dynamic partition inside its group.
+pub fn create_partition(name: &str, size: u64) -> String {
+    format!("create-partition:{name}:{size}")
+}
+
+/// fastbootd only: resizes a dynamic partition through the LP
+/// metadata of the running super layout.
+pub fn resize_partition(name: &str, size: u64) -> String {
+    format!("resize-partition:{name}:{size}")
+}
+
+/// fastbootd only: deletes a dynamic partition.
+pub fn delete_partition(name: &str) -> String {
+    format!("delete-partition:{name}")
+}
+
 pub fn reboot() -> String {
     CMD_REBOOT.to_owned()
 }
@@ -169,6 +185,20 @@ pub fn flashing_lock() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fastbootd_partition_commands_use_wire_syntax() {
+        assert_eq!(set_active("b"), "set_active:b");
+        assert_eq!(
+            create_partition("vendor", 536870912),
+            "create-partition:vendor:536870912"
+        );
+        assert_eq!(
+            resize_partition("system", 1073741824),
+            "resize-partition:system:1073741824"
+        );
+        assert_eq!(delete_partition("product"), "delete-partition:product");
+    }
 
     #[test]
     fn parses_all_statuses() {

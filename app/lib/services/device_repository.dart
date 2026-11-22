@@ -343,8 +343,14 @@ class DeviceRepository {
     String serial,
     String partition,
     String imagePath,
-    FlashProgressCallback? onProgress,
-  ) async {
+    FlashProgressCallback? onProgress, {
+    String? slot,
+  }) async {
+    var target = partition;
+    if (slot != null && await fastbootHasSlot(serial, partition)) {
+      target = '$partition$slot';
+      await CommandLog.instance.write('flash', 'slot suffix -> $target');
+    }
     final unlocked = await fastbootVar(serial, 'unlocked');
     if (unlocked?.toLowerCase() != 'yes') {
       await CommandLog.instance.write('flash', 'unlocked != yes, refuse');
@@ -372,7 +378,7 @@ class DeviceRepository {
     }
     if (rustCore.ready) {
       try {
-        return await _usbFlash(serial, partition, imagePath, onProgress);
+        return await _usbFlash(serial, target, imagePath, onProgress);
       } catch (e) {
         await CommandLog.instance.write('flash', 'usb failed: $e');
       }
@@ -381,7 +387,7 @@ class DeviceRepository {
       '-s',
       serial,
       'flash',
-      partition,
+      target,
       imagePath,
     ]);
     final output = '${result.stdout}${result.stderr}'.trim();
@@ -912,6 +918,184 @@ class DeviceRepository {
     await util_api.cancelRequest();
   }
 
+  /// Current A/B slot ("a"/"b"); null when the device is not A/B.
+  Future<String?> fastbootCurrentSlot(String serial) async {
+    final value = await fastbootVar(serial, 'current-slot');
+    final slot = value?.trim().toLowerCase();
+    if (slot == null || slot.isEmpty || slot.length > 2) return null;
+    return slot;
+  }
+
+  /// True when `partition` carries slot suffixes on this device.
+  Future<bool> fastbootHasSlot(String serial, String partition) async {
+    final value = await fastbootVar(serial, 'has-slot:$partition');
+    return value?.trim().toLowerCase() == 'yes';
+  }
+
+  /// Switches the active A/B slot through the bootloader.
+  Future<String> fastbootSetActiveSlot(String serial, String slot) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('fastboot-usb', '>> set_active:$slot');
+    try {
+      final message = await fastboot_usb_api.fastbootUsbSetActive(
+        serial: serial,
+        slot: slot,
+      );
+      await CommandLog.instance.write('fastboot-usb', '<< $message');
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('fastboot-usb', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// True under fastbootd (userspace fastboot); the dynamic-partition
+  /// commands only exist there.
+  Future<bool> fastbootIsUserspace(String serial) async {
+    if (!rustCore.ready) return false;
+    return fastboot_usb_api.fastbootUsbIsUserspace(serial: serial);
+  }
+
+  Future<String> fastbootResizePartition(
+    String serial,
+    String name,
+    int sizeBytes,
+  ) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write(
+      'fastboot-usb',
+      '>> resize-partition $name $sizeBytes',
+    );
+    try {
+      final message = await fastboot_usb_api.fastbootUsbResizePartition(
+        serial: serial,
+        name: name,
+        size: BigInt.from(sizeBytes),
+      );
+      await CommandLog.instance.write('fastboot-usb', '<< $message');
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('fastboot-usb', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  Future<String> fastbootDeletePartition(String serial, String name) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('fastboot-usb', '>> delete-partition $name');
+    try {
+      final message = await fastboot_usb_api.fastbootUsbDeletePartition(
+        serial: serial,
+        name: name,
+      );
+      await CommandLog.instance.write('fastboot-usb', '<< $message');
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('fastboot-usb', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  Future<String> fastbootCreatePartition(
+    String serial,
+    String name,
+    int sizeBytes,
+  ) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write(
+      'fastboot-usb',
+      '>> create-partition $name $sizeBytes',
+    );
+    try {
+      final message = await fastboot_usb_api.fastbootUsbCreatePartition(
+        serial: serial,
+        name: name,
+        size: BigInt.from(sizeBytes),
+      );
+      await CommandLog.instance.write('fastboot-usb', '<< $message');
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('fastboot-usb', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Parses a super image (raw or sparse): groups, partitions, sizes.
+  Future<String> lpInfo(String path) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('super', '>> lp info $path');
+    try {
+      final message = await chipsets_api.lpInfo(imagePath: path);
+      await CommandLog.instance.write(
+        'super',
+        '<< ${message.replaceAll('\n', ' | ')}',
+      );
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('super', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Qualcomm EDL: the full rawprogram pipeline in one session.
+  Future<String> qualcommEdlProgram(
+    String programmerPath,
+    String rawprogramPath,
+    String? patchXmlPath,
+  ) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('qualcomm', '>> rawprogram pipeline');
+    try {
+      final message = await chipsets_api.qualcommEdlProgram(
+        programmerPath: programmerPath,
+        rawprogramPath: rawprogramPath,
+        patchXmlPath: patchXmlPath,
+      );
+      await CommandLog.instance.write(
+        'qualcomm',
+        '<< ${message.replaceAll('\n', ' | ')}',
+      );
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('qualcomm', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Qualcomm EDL: lists the GPT of one LUN.
+  Future<String> qualcommEdlGpt(String programmerPath, int lun) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('qualcomm', '>> gpt lun $lun');
+    try {
+      final message = await chipsets_api.qualcommEdlGpt(
+        programmerPath: programmerPath,
+        lun: lun,
+      );
+      await CommandLog.instance.write(
+        'qualcomm',
+        '<< ${message.replaceAll('\n', ' | ')}',
+      );
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('qualcomm', '<< failed: $e');
+      rethrow;
+    }
+  }
+
   /// Reads the standard pre-flash partition set into `outDir` through
   /// the MTK DA V6 session (backup before unlocking or flashing).
   Future<String> mediatekV6Backup(String loaderPath, String outDir) async {
@@ -1079,7 +1263,11 @@ class DeviceRepository {
   }
 
   /// Qualcomm EDL: erases one partition by its GPT name.
-  Future<String> qualcommEdlErase(String programmerPath, String partition) async {
+  Future<String> qualcommEdlErase(
+    String programmerPath,
+    String partition,
+    int lun,
+  ) async {
     if (!rustCore.ready) {
       throw Exception('rust core unavailable');
     }
@@ -1088,6 +1276,7 @@ class DeviceRepository {
       final message = await chipsets_api.qualcommEdlErase(
         programmerPath: programmerPath,
         partition: partition,
+        lun: lun,
       );
       await CommandLog.instance.write(
         'chipsets',

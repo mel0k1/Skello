@@ -51,6 +51,81 @@ pub fn fastboot_usb_unlock(serial: String) -> anyhow::Result<String> {
     Ok(lines.join("\n"))
 }
 
+/// Switches the active A/B slot; the bootloader applies it on the
+/// next boot. Slot letters are "a"/"b".
+pub fn fastboot_usb_set_active(serial: String, slot: String) -> anyhow::Result<String> {
+    log::core_log("fastboot-usb", &format!(">> set_active:{slot} on {serial}"));
+    let mut usb = UsbFastboot::connect(&serial)?;
+    let (payload, infos) = usb.command(&skello_fastboot::set_active(&slot))?;
+    let mut lines = infos;
+    if !payload.is_empty() {
+        lines.push(payload);
+    }
+    log::core_log("fastboot-usb", &format!("<< {}", lines.join(" | ")));
+    Ok(lines.join("\n"))
+}
+
+/// True under fastbootd (userspace fastboot): only there do the
+/// dynamic-partition commands exist; the bootloader answers "no".
+pub fn fastboot_usb_is_userspace(serial: String) -> anyhow::Result<bool> {
+    let mut usb = UsbFastboot::connect(&serial)?;
+    let (payload, _infos) = usb.command(&skello_fastboot::getvar("is-userspace"))?;
+    Ok(payload.trim().eq_ignore_ascii_case("yes"))
+}
+
+/// fastbootd: resizes a dynamic partition through the LP metadata.
+pub fn fastboot_usb_resize_partition(
+    serial: String,
+    name: String,
+    size: u64,
+) -> anyhow::Result<String> {
+    log::core_log(
+        "fastboot-usb",
+        &format!(">> resize-partition:{name}:{size} on {serial}"),
+    );
+    let mut usb = UsbFastboot::connect(&serial)?;
+    let (payload, infos) = usb.command(&skello_fastboot::resize_partition(&name, size))?;
+    let mut lines = infos;
+    if !payload.is_empty() {
+        lines.push(payload);
+    }
+    log::core_log("fastboot-usb", &format!("<< {}", lines.join(" | ")));
+    Ok(lines.join("\n"))
+}
+
+/// fastbootd: deletes a dynamic partition.
+pub fn fastboot_usb_delete_partition(serial: String, name: String) -> anyhow::Result<String> {
+    log::core_log("fastboot-usb", &format!(">> delete-partition:{name} on {serial}"));
+    let mut usb = UsbFastboot::connect(&serial)?;
+    let (payload, infos) = usb.command(&skello_fastboot::delete_partition(&name))?;
+    let mut lines = infos;
+    if !payload.is_empty() {
+        lines.push(payload);
+    }
+    log::core_log("fastboot-usb", &format!("<< {}", lines.join(" | ")));
+    Ok(lines.join("\n"))
+}
+
+/// fastbootd: creates a dynamic partition inside its group.
+pub fn fastboot_usb_create_partition(
+    serial: String,
+    name: String,
+    size: u64,
+) -> anyhow::Result<String> {
+    log::core_log(
+        "fastboot-usb",
+        &format!(">> create-partition:{name}:{size} on {serial}"),
+    );
+    let mut usb = UsbFastboot::connect(&serial)?;
+    let (payload, infos) = usb.command(&skello_fastboot::create_partition(&name, size))?;
+    let mut lines = infos;
+    if !payload.is_empty() {
+        lines.push(payload);
+    }
+    log::core_log("fastboot-usb", &format!("<< {}", lines.join(" | ")));
+    Ok(lines.join("\n"))
+}
+
 pub fn fastboot_usb_erase(serial: String, partition: String) -> anyhow::Result<String> {
     log::core_log(
         "fastboot-usb",

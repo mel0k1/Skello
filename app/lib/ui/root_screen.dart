@@ -36,6 +36,21 @@ class _RootScreenState extends State<RootScreen> {
   List<FastbootDevice> _devices = const [];
   String? _selectedSerial;
   bool? _unlocked;
+  String? _currentSlot;
+  String? _flashSlot;
+  bool _superBusy = false;
+  String? _superPath;
+  String? _superInfo;
+  String? _superError;
+  final _superNameCtrl = TextEditingController();
+  final _superSizeCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _superNameCtrl.dispose();
+    _superSizeCtrl.dispose();
+    super.dispose();
+  }
   String _partition = 'boot';
   FlashProgressEvent? _progress;
   bool _flashing = false;
@@ -76,9 +91,15 @@ class _RootScreenState extends State<RootScreen> {
       final value = await widget.repository.fastbootVar(serial, 'unlocked');
       if (!mounted) return;
       setState(() => _unlocked = value == null ? null : value == 'yes');
+      final slot = await widget.repository.fastbootCurrentSlot(serial);
+      if (!mounted) return;
+      setState(() => _currentSlot = slot);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _unlocked = null);
+      setState(() {
+        _unlocked = null;
+        _currentSlot = null;
+      });
     }
   }
 
@@ -91,6 +112,287 @@ class _RootScreenState extends State<RootScreen> {
 
   bool _canErase() {
     return _selectedSerial != null && _unlocked == true && !_flashing;
+  }
+
+  String _otherSlot() => _currentSlot == 'a' ? 'b' : 'a';
+
+  String _baseName(String path) {
+    return path.replaceAll('\\', '/').split('/').last;
+  }
+
+  Future<void> _pickSuperImage() async {
+    final file = await openFile(
+      acceptedTypeGroups: [
+        const XTypeGroup(label: 'super image', extensions: ['img', 'bin']),
+      ],
+    );
+    if (file == null) return;
+    setState(() {
+      _superPath = file.path;
+      _superInfo = null;
+      _superError = null;
+      _superBusy = true;
+    });
+    try {
+      final info = await widget.repository.lpInfo(file.path);
+      if (!mounted) return;
+      setState(() {
+        _superInfo = info;
+        _superBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _superError = e.toString();
+        _superBusy = false;
+      });
+    }
+  }
+
+  bool _superDeviceBusy() {
+    return _superBusy || _flashing || _selectedSerial == null;
+  }
+
+  /// The dynamic-partition commands exist only under fastbootd; the
+  /// bootloader answers getvar is-userspace with "no".
+  Future<bool> _ensureSuperFastbootd(AppLocalizations strings) async {
+    final serial = _selectedSerial;
+    if (serial == null) return false;
+    setState(() => _superBusy = true);
+    try {
+      final ok = await widget.repository.fastbootIsUserspace(serial);
+      if (!mounted) return false;
+      if (!ok) {
+        setState(() => _superBusy = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(strings.superUserspaceHint)),
+        );
+        return false;
+      }
+      return true;
+    } catch (e) {
+      if (!mounted) return false;
+      setState(() {
+        _superError = e.toString();
+        _superBusy = false;
+      });
+      return false;
+    }
+  }
+
+  int? _superSizeMb() => int.tryParse(_superSizeCtrl.text.trim());
+
+  Future<void> _superCreate() async {
+    final strings = AppLocalizations.of(context)!;
+    final name = _superNameCtrl.text.trim();
+    final sizeMb = _superSizeMb();
+    if (name.isEmpty || sizeMb == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(strings.superNameSizeRequired)),
+      );
+      return;
+    }
+    if (!await _ensureSuperFastbootd(strings) || !mounted) return;
+    final go = await _confirmDestructive(
+      strings,
+      strings.superCreateTitle,
+      strings.superCreateBody(name, '$sizeMb'),
+      strings.superCreateBtn,
+    );
+    if (!go) return;
+    setState(() => _superBusy = true);
+    try {
+      final message = await widget.repository.fastbootCreatePartition(
+        _selectedSerial!,
+        name,
+        sizeMb * 1024 * 1024,
+      );
+      if (!mounted) return;
+      setState(() {
+        _superInfo = message;
+        _superError = null;
+        _superBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _superError = e.toString();
+        _superBusy = false;
+      });
+    }
+  }
+
+  Future<void> _superResize() async {
+    final strings = AppLocalizations.of(context)!;
+    final name = _superNameCtrl.text.trim();
+    final sizeMb = _superSizeMb();
+    if (name.isEmpty || sizeMb == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(strings.superNameSizeRequired)),
+      );
+      return;
+    }
+    if (!await _ensureSuperFastbootd(strings) || !mounted) return;
+    final go = await _confirmDestructive(
+      strings,
+      strings.superResizeTitle,
+      strings.superResizeBody(name, '$sizeMb'),
+      strings.superResizeBtn,
+    );
+    if (!go) return;
+    setState(() => _superBusy = true);
+    try {
+      final message = await widget.repository.fastbootResizePartition(
+        _selectedSerial!,
+        name,
+        sizeMb * 1024 * 1024,
+      );
+      if (!mounted) return;
+      setState(() {
+        _superInfo = message;
+        _superError = null;
+        _superBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _superError = e.toString();
+        _superBusy = false;
+      });
+    }
+  }
+
+  Future<void> _superDelete() async {
+    final strings = AppLocalizations.of(context)!;
+    final name = _superNameCtrl.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(strings.superNameSizeRequired)),
+      );
+      return;
+    }
+    if (!await _ensureSuperFastbootd(strings) || !mounted) return;
+    final go = await _confirmDestructive(
+      strings,
+      strings.superDeleteTitle,
+      strings.superDeleteBody(name),
+      strings.superDeleteBtn,
+    );
+    if (!go) return;
+    setState(() => _superBusy = true);
+    try {
+      final message = await widget.repository.fastbootDeletePartition(
+        _selectedSerial!,
+        name,
+      );
+      if (!mounted) return;
+      setState(() {
+        _superInfo = message;
+        _superError = null;
+        _superBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _superError = e.toString();
+        _superBusy = false;
+      });
+    }
+  }
+
+  Widget _superSection(AppLocalizations strings, ColorScheme scheme) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              strings.superSectionTitle,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              strings.superSectionHint,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _superBusy ? null : _pickSuperImage,
+              icon: const Icon(Icons.file_open_outlined),
+              label: Text(_superPath == null
+                  ? strings.superPickImage
+                  : _baseName(_superPath!)),
+            ),
+            if (_superInfo != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: SelectableText(
+                  _superInfo!,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+            if (_superError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: SelectableText(
+                  _superError!,
+                  style: TextStyle(color: scheme.error, fontSize: 12),
+                ),
+              ),
+            const SizedBox(height: 12),
+            Text(
+              strings.superDeviceTitle,
+              style: Theme.of(context).textTheme.labelMedium,
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _superNameCtrl,
+                    decoration: InputDecoration(
+                      labelText: strings.superNameField,
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _superSizeCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: strings.superSizeField,
+                      isDense: true,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton(
+                  onPressed: _superDeviceBusy() ? null : _superCreate,
+                  child: Text(strings.superCreateBtn),
+                ),
+                OutlinedButton(
+                  onPressed: _superDeviceBusy() ? null : _superResize,
+                  child: Text(strings.superResizeBtn),
+                ),
+                OutlinedButton(
+                  onPressed: _superDeviceBusy() ? null : _superDelete,
+                  child: Text(strings.superDeleteBtn),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<bool> _confirmDestructive(
@@ -152,12 +454,35 @@ class _RootScreenState extends State<RootScreen> {
           if (!mounted) return;
           setState(() => _progress = event);
         },
+        slot: _flashSlot,
       );
       if (!mounted) return;
       setState(() {
         _flashing = false;
         _flashOutput = output;
       });
+      final target = _flashSlot;
+      if (target != null && _currentSlot != null && target != _currentSlot) {
+        final go = await _confirmDestructive(
+          strings,
+          strings.flashSlotSwitchTitle,
+          strings.flashSlotSwitchBody(target),
+          strings.flashSlotSwitchOk(target),
+        );
+        if (go) {
+          try {
+            await widget.repository.fastbootSetActiveSlot(serial, target);
+            if (!mounted) return;
+            setState(() {
+              _currentSlot = target;
+              _flashSlot = target;
+            });
+          } catch (e) {
+            if (!mounted) return;
+            setState(() => _flashError = e.toString());
+          }
+        }
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -353,6 +678,8 @@ class _RootScreenState extends State<RootScreen> {
               const SizedBox(height: 12),
               _flashSection(strings, scheme),
               const SizedBox(height: 16),
+              _superSection(strings, scheme),
+              const SizedBox(height: 16),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -482,6 +809,8 @@ class _RootScreenState extends State<RootScreen> {
                         setState(() {
                           _selectedSerial = value;
                           _unlocked = null;
+                          _currentSlot = null;
+                          _flashSlot = null;
                         });
                         _checkUnlocked();
                       },
@@ -503,6 +832,30 @@ class _RootScreenState extends State<RootScreen> {
                 Expanded(child: Text(unlockedText)),
               ],
             ),
+            if (_currentSlot != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                strings.flashSlotLabel,
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+              const SizedBox(height: 8),
+              SegmentedButton<String>(
+                segments: [
+                  ButtonSegment(
+                    value: _currentSlot!,
+                    label: Text(strings.flashSlotCurrent(_currentSlot!)),
+                  ),
+                  ButtonSegment(
+                    value: _otherSlot(),
+                    label: Text(strings.flashSlotOther(_otherSlot())),
+                  ),
+                ],
+                selected: {_flashSlot ?? _currentSlot!},
+                onSelectionChanged: _flashing
+                    ? null
+                    : (selection) => setState(() => _flashSlot = selection.first),
+              ),
+            ],
             const SizedBox(height: 12),
             Text(
               strings.flashPartitionLabel,
