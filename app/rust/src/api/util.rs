@@ -2,6 +2,17 @@ use std::io::Read;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
+/// Clears the shared cancel flag; every long operation calls this
+/// on start, so a stale request cannot kill the next run.
+pub fn cancel_reset() {
+    skello_cancel::reset();
+}
+
+/// Asks the running long operation to stop at the next chunk boundary.
+pub fn cancel_request() {
+    skello_cancel::request();
+}
+
 #[flutter_rust_bridge::frb(ignore)]
 pub fn run_with_timeout(
     mut cmd: Command,

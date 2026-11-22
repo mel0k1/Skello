@@ -34,6 +34,8 @@ const BOOT_TIMEOUT: Duration = Duration::from_secs(30);
 pub enum EdlError {
     Io(std::io::Error),
     BadPacket,
+    /// The stop button was pressed between chunks.
+    Cancelled,
     Status(u32, &'static str),
     Nack(String),
     Timeout(&'static str),
@@ -44,6 +46,7 @@ impl std::fmt::Display for EdlError {
         match self {
             EdlError::Io(e) => write!(f, "edl io: {e}"),
             EdlError::BadPacket => write!(f, "edl bad packet"),
+            EdlError::Cancelled => write!(f, "operation cancelled"),
             EdlError::Status(s, what) => write!(f, "edl status {s:#010x} in {what}"),
             EdlError::Nack(what) => write!(f, "edl NAK in {what}"),
             EdlError::Timeout(what) => write!(f, "edl timeout in {what}"),
@@ -189,6 +192,9 @@ impl Sahara {
     /// END_OF_IMAGE / DONE / COMMAND_READY handling.
     fn serve(&mut self, images: &[Vec<u8>]) -> Result<()> {
         loop {
+            if skello_cancel::is_requested() {
+                return Err(EdlError::Cancelled);
+            }
             let pkt = self.read(BOOT_TIMEOUT)?;
             match pkt.cmd {
                 SAHARA_READ_DATA | 0x12 => {
@@ -418,6 +424,9 @@ impl Firehose {
     /// data is padded to whole sectors, most programmers expect
     /// exactly the announced sector count.
     pub fn program(&mut self, phys_part: u8, start_sector: &str, data: &[u8]) -> Result<()> {
+        if skello_cancel::is_requested() {
+            return Err(EdlError::Cancelled);
+        }
         let sectors = data.len().div_ceil(self.sector_size);
         let mut padded = Vec::with_capacity(sectors * self.sector_size);
         padded.extend_from_slice(data);
@@ -435,6 +444,9 @@ impl Firehose {
             return Err(EdlError::Nack("program".to_owned()));
         }
         for chunk in padded.chunks(self.send_buffer_size) {
+            if skello_cancel::is_requested() {
+                return Err(EdlError::Cancelled);
+            }
             self.link.write_all(chunk)?;
         }
         let final_resp = self.read_response("program end")?;

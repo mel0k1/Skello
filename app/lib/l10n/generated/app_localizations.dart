@@ -1298,6 +1298,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Partition {name} and everything on it will be erased. This cannot be undone.'**
   String chipsetsEraseConfirmBody(String name);
+
+  /// No description provided for @commonStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get commonStop;
+
+  /// No description provided for @commonCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation cancelled'**
+  String get commonCancelled;
+
+  /// No description provided for @chipsetsBackupBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Back up partitions'**
+  String get chipsetsBackupBtn;
+
+  /// No description provided for @chipsetsBackupDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup done'**
+  String get chipsetsBackupDone;
 }
 
 class _AppLocalizationsDelegate

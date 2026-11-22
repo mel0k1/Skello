@@ -97,7 +97,15 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
         _tableBusy ||
         _unlockBusy ||
         _qualBusy ||
-        _serialBusy;
+        _serialBusy ||
+        _mtkBackupBusy ||
+        _qcBackupBusy;
+  bool _mtkBackupBusy = false;
+  String? _mtkBackupResult;
+  String? _mtkBackupError;
+  bool _qcBackupBusy = false;
+  String? _qcBackupResult;
+  String? _qcBackupError;
   bool _serialBusy = false;
   List<String>? _serialPorts;
   String? _selectedPort;
@@ -218,6 +226,59 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
         _mtkError = e.toString();
         _mtkBusy = false;
       });
+    }
+  }
+
+  /// The stop button asks the running operation to abort at the
+  /// next chunk; the operation reports it through its own error.
+  String _friendly(Object e, AppLocalizations strings) {
+    if (e.toString().contains('cancelled')) return strings.commonCancelled;
+    return e.toString();
+  }
+
+  Future<void> _runMtkBackup() async {
+    final strings = AppLocalizations.of(context)!;
+    final dir = await getDirectoryPath();
+    if (dir == null) return;
+    if (!mounted) return;
+    setState(() {
+      _mtkBackupBusy = true;
+      _mtkBackupResult = null;
+      _mtkBackupError = null;
+    });
+    try {
+      final message =
+          await widget.repository.mediatekV6Backup(_loaderPath!, dir);
+      if (!mounted) return;
+      setState(() => _mtkBackupResult = message);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _mtkBackupError = _friendly(e, strings));
+    } finally {
+      if (mounted) setState(() => _mtkBackupBusy = false);
+    }
+  }
+
+  Future<void> _runQcBackup() async {
+    final strings = AppLocalizations.of(context)!;
+    final dir = await getDirectoryPath();
+    if (dir == null) return;
+    if (!mounted) return;
+    setState(() {
+      _qcBackupBusy = true;
+      _qcBackupResult = null;
+      _qcBackupError = null;
+    });
+    try {
+      final message =
+          await widget.repository.qualcommEdlBackup(_programmerPath!, dir);
+      if (!mounted) return;
+      setState(() => _qcBackupResult = message);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _qcBackupError = _friendly(e, strings));
+    } finally {
+      if (mounted) setState(() => _qcBackupBusy = false);
     }
   }
 
@@ -929,6 +990,15 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
               ),
               const SizedBox(height: 16),
             ],
+            if (_anyBusy)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: OutlinedButton.icon(
+                  onPressed: widget.repository.cancelOperation,
+                  icon: const Icon(Icons.stop),
+                  label: Text(strings.commonStop),
+                ),
+              ),
             _card(
               title: strings.chipsetsMtkTitle,
               hint: strings.chipsetsMtkHint,
@@ -957,6 +1027,19 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                   result: _mtkResult,
                   error: _mtkError,
                   successText: strings.chipsetsMtkDone,
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed:
+                      _loaderPath != null && !_anyBusy ? _runMtkBackup : null,
+                  icon: const Icon(Icons.save),
+                  label: Text(strings.chipsetsBackupBtn),
+                ),
+                _resultLine(
+                  context,
+                  result: _mtkBackupResult,
+                  error: _mtkBackupError,
+                  successText: strings.chipsetsBackupDone,
                 ),
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
@@ -1519,6 +1602,20 @@ class _ChipsetsScreenState extends State<ChipsetsScreen> {
                   result: _qcEraseResult,
                   error: _qcEraseError,
                   successText: strings.chipsetsEraseDone,
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _programmerPath != null && !_anyBusy
+                      ? _runQcBackup
+                      : null,
+                  icon: const Icon(Icons.save),
+                  label: Text(strings.chipsetsBackupBtn),
+                ),
+                _resultLine(
+                  context,
+                  result: _qcBackupResult,
+                  error: _qcBackupError,
+                  successText: strings.chipsetsBackupDone,
                 ),
                 Text(
                   strings.chipsetsQcPatchHint,

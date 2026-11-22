@@ -272,6 +272,23 @@ class FakeRepository implements DeviceRepository {
   }
 
   @override
+  Future<void> cancelOperation() async {
+    calls.add('cancel');
+  }
+
+  @override
+  Future<String> mediatekV6Backup(String loaderPath, String outDir) async {
+    calls.add('mtk-backup $outDir');
+    return 'backup -> $outDir: seccfg (512 bytes)';
+  }
+
+  @override
+  Future<String> qualcommEdlBackup(String programmerPath, String outDir) async {
+    calls.add('qc-backup $outDir');
+    return 'backup -> $outDir: boot (512 bytes)';
+  }
+
+  @override
   Future<String> mediatekScatterFlash(String loaderPath, String scatterPath) async {
     calls.add('scatter-flash $scatterPath');
     if (failChipsetCalls) throw Exception('scatter line 14: not a hex number');

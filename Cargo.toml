@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/skello-adb", "crates/skello-chipsets", "crates/skello-fastboot", "crates/skello-bootimg"]
+members = ["crates/skello-adb", "crates/skello-cancel", "crates/skello-chipsets", "crates/skello-fastboot", "crates/skello-bootimg"]
 exclude = ["app/rust"]
 
 [workspace.package]

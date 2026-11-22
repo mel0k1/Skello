@@ -6,5 +6,6 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+skello-cancel = { path = "../skello-cancel" }
 crc32fast = { workspace = true }
 nusb = "0.2.9"

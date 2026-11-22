@@ -1,0 +1,6 @@
+[package]
+name = "skello-cancel"
+description = "Shared cancel flag for Skello long operations"
+version.workspace = true
+edition.workspace = true
+license.workspace = true

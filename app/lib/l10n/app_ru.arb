@@ -302,5 +302,25 @@
         "type": "String"
       }
     }
+  },
+  "commonStop": "Стоп",
+  "@commonStop": {
+    "type": "text",
+    "placeholders": {}
+  },
+  "commonCancelled": "Операция отменена",
+  "@commonCancelled": {
+    "type": "text",
+    "placeholders": {}
+  },
+  "chipsetsBackupBtn": "Бэкап разделов",
+  "@chipsetsBackupBtn": {
+    "type": "text",
+    "placeholders": {}
+  },
+  "chipsetsBackupDone": "Бэкап готов",
+  "@chipsetsBackupDone": {
+    "type": "text",
+    "placeholders": {}
   }
 }

@@ -72,6 +72,7 @@ pub fn fastboot_flash_usb(
     image_path: String,
     progress: StreamSink<FlashProgress>,
 ) -> anyhow::Result<String> {
+    skello_cancel::reset();
     let data = fs::read(&image_path)?;
     let mut usb = UsbFastboot::connect(&serial)?;
     let total = data.len() as u64;

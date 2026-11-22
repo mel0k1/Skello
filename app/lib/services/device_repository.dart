@@ -8,6 +8,7 @@ import 'package:skello/src/rust/api/fastboot.dart' as fastboot_api;
 import 'package:skello/src/rust/api/fastboot_usb.dart' as fastboot_usb_api;
 import 'package:skello/src/rust/api/chipsets.dart' as chipsets_api;
 import 'package:skello/src/rust/api/mediatek.dart' as mediatek_api;
+import 'package:skello/src/rust/api/util.dart' as util_api;
 
 import 'command_log.dart';
 import 'core.dart';
@@ -900,6 +901,75 @@ class DeviceRepository {
       return message;
     } catch (e) {
       await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Asks the running long operation to stop at the next chunk
+  /// boundary; the operation reports the abort through its own error.
+  Future<void> cancelOperation() async {
+    await CommandLog.instance.write('app', '>> cancel requested');
+    await util_api.cancelRequest();
+  }
+
+  /// Reads the standard pre-flash partition set into `outDir` through
+  /// the MTK DA V6 session (backup before unlocking or flashing).
+  Future<String> mediatekV6Backup(String loaderPath, String outDir) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('chipsets', '>> v6 backup');
+    try {
+      final message = await chipsets_api.mediatekV6Backup(
+        loaderPath: loaderPath,
+        outDir: outDir,
+        partitions: const [
+          'seccfg',
+          'boot',
+          'vbmeta',
+          'vbmeta_system',
+          'vbmeta_vendor',
+        ],
+      );
+      await CommandLog.instance.write(
+        'chipsets',
+        '<< ${message.replaceAll('\n', ' | ')}',
+      );
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('chipsets', '<< failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Reads the standard pre-flash partition set into `outDir` over
+  /// EDL (backup before flashing).
+  Future<String> qualcommEdlBackup(
+    String programmerPath,
+    String outDir,
+  ) async {
+    if (!rustCore.ready) {
+      throw Exception('rust core unavailable');
+    }
+    await CommandLog.instance.write('qualcomm', '>> edl backup');
+    try {
+      final message = await chipsets_api.qualcommEdlBackup(
+        programmerPath: programmerPath,
+        outDir: outDir,
+        partitions: const [
+          'boot',
+          'vbmeta',
+          'vbmeta_system',
+          'vbmeta_vendor',
+        ],
+      );
+      await CommandLog.instance.write(
+        'qualcomm',
+        '<< ${message.replaceAll('\n', ' | ')}',
+      );
+      return message;
+    } catch (e) {
+      await CommandLog.instance.write('qualcomm', '<< failed: $e');
       rethrow;
     }
   }

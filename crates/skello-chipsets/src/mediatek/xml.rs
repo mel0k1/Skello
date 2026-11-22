@@ -48,6 +48,8 @@ pub enum XmlDaError {
     Rejected(String),
     /// The loader file is not a V6 XML DA.
     NotV6Loader,
+    /// The stop button was pressed between chunks.
+    Cancelled,
 }
 
 impl std::fmt::Display for XmlDaError {
@@ -55,6 +57,7 @@ impl std::fmt::Display for XmlDaError {
         match self {
             XmlDaError::Io(e) => write!(f, "xml da io: {e}"),
             XmlDaError::WrongMagic => write!(f, "xml da wrong packet magic"),
+            XmlDaError::Cancelled => write!(f, "operation cancelled"),
             XmlDaError::Unexpected(s) => write!(f, "xml da unexpected response: {s}"),
             XmlDaError::Rejected(s) => write!(f, "xml da rejected: {s}"),
             XmlDaError::NotV6Loader => write!(f, "loader file is not a V6 XML DA"),
@@ -430,6 +433,9 @@ impl XmlDa {
         let mut pos = 0usize;
         let mut attempts = 0usize;
         while pos < total_len {
+            if skello_cancel::is_requested() {
+                return Err(XmlDaError::Cancelled);
+            }
             let want = chunk_len.min(total_len - pos);
             match session.read_flash_region("user", pos as u64, want) {
                 Ok(data) => {
@@ -463,6 +469,9 @@ impl XmlDa {
         let mut pos = 0usize;
         let mut attempts = 0usize;
         while pos < total_len {
+            if skello_cancel::is_requested() {
+                return Err(XmlDaError::Cancelled);
+            }
             let want = chunk_len.min(total_len - pos);
             let mut chunk = vec![0u8; want];
             source.read_exact(&mut chunk)?;

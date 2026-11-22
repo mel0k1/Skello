@@ -677,4 +677,16 @@ class AppLocalizationsRu extends AppLocalizations {
   String chipsetsEraseConfirmBody(String name) {
     return 'Раздел $name и все данные на нём будут стёрты. Это необратимо.';
   }
+
+  @override
+  String get commonStop => 'Стоп';
+
+  @override
+  String get commonCancelled => 'Операция отменена';
+
+  @override
+  String get chipsetsBackupBtn => 'Бэкап разделов';
+
+  @override
+  String get chipsetsBackupDone => 'Бэкап готов';
 }

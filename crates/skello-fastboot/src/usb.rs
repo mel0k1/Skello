@@ -28,6 +28,8 @@ pub enum UsbError {
     Endpoints(String),
     Io(String),
     Device(String),
+    /// The stop button was pressed; the transfer aborted cleanly.
+    Cancelled,
 }
 
 impl fmt::Display for UsbError {
@@ -38,6 +40,7 @@ impl fmt::Display for UsbError {
             UsbError::Endpoints(s) => write!(f, "fastboot endpoints missing: {s}"),
             UsbError::Io(s) => write!(f, "usb transfer failed: {s}"),
             UsbError::Device(s) => write!(f, "device refused: {s}"),
+            UsbError::Cancelled => write!(f, "operation cancelled"),
         }
     }
 }
@@ -239,6 +242,9 @@ impl UsbFastboot {
         frame.push(0);
         self.send_raw(&frame)?;
         loop {
+            if skello_cancel::is_requested() {
+                return Err(UsbError::Cancelled);
+            }
             match self.read_packet()? {
                 Response::Data(size) => {
                     if size as usize != payload.len() {
@@ -264,6 +270,9 @@ impl UsbFastboot {
     ) -> Result<(), UsbError> {
         let total = payload.len();
         for start in (0..total).step_by(WRITE_CHUNK) {
+            if skello_cancel::is_requested() {
+                return Err(UsbError::Cancelled);
+            }
             let end = (start + WRITE_CHUNK).min(total);
             self.send_raw(&payload[start..end])?;
             progress(end as u64, total as u64);

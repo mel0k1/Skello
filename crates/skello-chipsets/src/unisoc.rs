@@ -86,6 +86,8 @@ pub enum BslError {
     Io(std::io::Error),
     /// Delimiter or checksum mismatch on a received packet.
     BadFrame,
+    /// The stop button was pressed between chunks.
+    Cancelled,
     Unexpected(&'static str),
     Reply(u16, &'static str),
 }
@@ -95,6 +97,7 @@ impl std::fmt::Display for BslError {
         match self {
             BslError::Io(e) => write!(f, "bsl io: {e}"),
             BslError::BadFrame => write!(f, "bsl bad frame"),
+            BslError::Cancelled => write!(f, "operation cancelled"),
             BslError::Unexpected(s) => write!(f, "bsl unexpected response: {s}"),
             BslError::Reply(t, s) => write!(f, "bsl reply {t:#04x}: {s}"),
         }
@@ -375,9 +378,15 @@ impl Bsl {
 
     /// Writes `name` = UTF-16, size, then the data blocks.
     pub fn write_partition(&mut self, name: &str, data: &[u8]) -> Result<()> {
+        if skello_cancel::is_requested() {
+            return Err(BslError::Cancelled);
+        }
         let pkt = partition_request(name, data.len() as u64, data.len() > u32::MAX as usize);
         self.send_and_check(BSL_CMD_START_DATA, &pkt)?;
         for chunk in data.chunks(0x800) {
+            if skello_cancel::is_requested() {
+                return Err(BslError::Cancelled);
+            }
             self.send_and_check(BSL_CMD_MIDST_DATA, chunk)?;
         }
         self.send_and_check(BSL_CMD_END_DATA, &[])?;
@@ -386,11 +395,17 @@ impl Bsl {
 
     /// Reads a partition by name via READ_START/READ_MIDST/READ_END.
     pub fn read_partition(&mut self, name: &str, size: u64) -> Result<Vec<u8>> {
+        if skello_cancel::is_requested() {
+            return Err(BslError::Cancelled);
+        }
         let pkt = partition_request(name, size, size > u32::MAX as u64);
         self.send_and_check(BSL_CMD_READ_START, &pkt)?;
         let mut out = Vec::new();
         let mut iters = 0u32;
         loop {
+            if skello_cancel::is_requested() {
+                return Err(BslError::Cancelled);
+            }
             // Each MIDST asks for the next chunk explicitly; an
             // all-zero request makes some FDL2 answer empty frames
             // forever.

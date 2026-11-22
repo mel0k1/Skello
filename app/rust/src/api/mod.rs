@@ -6,7 +6,7 @@ pub mod fastboot;
 pub mod fastboot_usb;
 pub mod log;
 pub mod mediatek;
-mod util;
+pub mod util;
 
 #[flutter_rust_bridge::frb(init)]
 pub fn init_app() {

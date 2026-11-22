@@ -879,6 +879,7 @@ dependencies = [
  "flutter_rust_bridge",
  "skello-adb",
  "skello-bootimg",
+ "skello-cancel",
  "skello-chipsets",
  "skello-fastboot",
 ]
@@ -967,10 +968,15 @@ name = "skello-bootimg"
 version = "0.1.0"
 
 [[package]]
+name = "skello-cancel"
+version = "0.1.0"
+
+[[package]]
 name = "skello-chipsets"
 version = "0.1.0"
 dependencies = [
  "aes",
+ "crc32fast",
  "hex",
  "md-5",
  "nusb",
@@ -978,6 +984,7 @@ dependencies = [
  "serial2",
  "sha1",
  "sha2",
+ "skello-cancel",
 ]
 
 [[package]]
@@ -986,6 +993,7 @@ version = "0.1.0"
 dependencies = [
  "crc32fast",
  "nusb",
+ "skello-cancel",
 ]
 
 [[package]]

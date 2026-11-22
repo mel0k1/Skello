@@ -6,6 +6,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+skello-cancel = { path = "../skello-cancel" }
 aes = "0.8"
 sha2 = "0.10"
 sha1 = "0.10"

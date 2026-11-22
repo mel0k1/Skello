@@ -673,4 +673,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String chipsetsEraseConfirmBody(String name) {
     return 'Partition $name and everything on it will be erased. This cannot be undone.';
   }
+
+  @override
+  String get commonStop => 'Stop';
+
+  @override
+  String get commonCancelled => 'Operation cancelled';
+
+  @override
+  String get chipsetsBackupBtn => 'Back up partitions';
+
+  @override
+  String get chipsetsBackupDone => 'Backup done';
 }

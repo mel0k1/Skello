@@ -330,5 +330,25 @@
         "type": "String"
       }
     }
+  },
+  "commonStop": "Stop",
+  "@commonStop": {
+    "type": "text",
+    "placeholders": {}
+  },
+  "commonCancelled": "Operation cancelled",
+  "@commonCancelled": {
+    "type": "text",
+    "placeholders": {}
+  },
+  "chipsetsBackupBtn": "Back up partitions",
+  "@chipsetsBackupBtn": {
+    "type": "text",
+    "placeholders": {}
+  },
+  "chipsetsBackupDone": "Backup done",
+  "@chipsetsBackupDone": {
+    "type": "text",
+    "placeholders": {}
   }
 }

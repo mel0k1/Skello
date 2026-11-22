@@ -225,6 +225,9 @@ class _RootScreenState extends State<RootScreen> {
         format.format(error.imageSize),
       );
     }
+    if (error.toString().contains('cancelled')) {
+      return strings.commonCancelled;
+    }
     return error.toString();
   }
 
@@ -576,6 +579,12 @@ class _RootScreenState extends State<RootScreen> {
                 const LinearProgressIndicator(),
               const SizedBox(height: 8),
               Text(_flashPhaseText(strings)),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: widget.repository.cancelOperation,
+                icon: const Icon(Icons.stop),
+                label: Text(strings.commonStop),
+              ),
             ],
             if (_flashOutput != null) ...[
               const SizedBox(height: 16),

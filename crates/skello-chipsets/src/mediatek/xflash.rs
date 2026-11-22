@@ -69,6 +69,8 @@ pub enum XFlashError {
     NoStorage,
     /// A custom register command answered with fewer bytes than a u32.
     RegisterReply(usize),
+    /// The stop button was pressed between packets.
+    Cancelled,
 }
 
 impl std::fmt::Display for XFlashError {
@@ -77,6 +79,7 @@ impl std::fmt::Display for XFlashError {
             XFlashError::Brom(e) => write!(f, "{e}"),
             XFlashError::Io(e) => write!(f, "xflash io: {e}"),
             XFlashError::WrongMagic => write!(f, "xflash wrong packet magic"),
+            XFlashError::Cancelled => write!(f, "operation cancelled"),
             XFlashError::Status(s) => write!(f, "xflash status {s:#010x}"),
             XFlashError::CommandFailed(s, what) => {
                 write!(f, "xflash {what} failed, status {s:#010x}")
@@ -330,10 +333,16 @@ impl XFlash {
     /// Reads through the DA from any partition area: user, boot1 /
     /// boot2 or the RPMB block (parttype 3, mtkclient).
     pub fn readflash_pt(&mut self, addr: u64, length: usize, parttype: u32) -> Result<Vec<u8>> {
+        if skello_cancel::is_requested() {
+            return Err(XFlashError::Cancelled);
+        }
         self.cmd_read_data(addr, length, parttype)?;
         let mut out = Vec::with_capacity(length);
         let mut flag_packets = 0u32;
         while out.len() < length {
+            if skello_cancel::is_requested() {
+                return Err(XFlashError::Cancelled);
+            }
             let mut hdr = [0u8; 12];
             self.read_exact(&mut hdr, IO_TIMEOUT)?;
             let magic = u32::from_le_bytes(hdr[0..4].try_into().unwrap());
@@ -379,6 +388,9 @@ impl XFlash {
 
     /// Writes to any partition area: user, boot1 / boot2 or RPMB.
     pub fn writeflash_pt(&mut self, addr: u64, data: &[u8], parttype: u32) -> Result<()> {
+        if skello_cancel::is_requested() {
+            return Err(XFlashError::Cancelled);
+        }
         let mut payload = data.to_vec();
         if !payload.len().is_multiple_of(512) {
             payload.resize(payload.len() + (512 - payload.len() % 512), 0);
@@ -386,6 +398,9 @@ impl XFlash {
         self.cmd_write_data(addr, payload.len(), parttype)?;
         let mut pos = 0;
         while pos < payload.len() {
+            if skello_cancel::is_requested() {
+                return Err(XFlashError::Cancelled);
+            }
             let dsize = (payload.len() - pos).min(self.write_packet_length.max(512));
             let mut chunk = payload[pos..pos + dsize].to_vec();
             if !chunk.len().is_multiple_of(512) {
@@ -406,6 +421,9 @@ impl XFlash {
     /// in the given partition area. The DA may ask to wait a few
     /// milliseconds between status polls (STATUS_CONTINUE).
     pub fn format_pt(&mut self, addr: u64, length: u64, parttype: u32) -> Result<()> {
+        if skello_cancel::is_requested() {
+            return Err(XFlashError::Cancelled);
+        }
         self.xsend_u32(CMD_FORMAT)?;
         let status = self.status()?;
         if status != 0 {
@@ -420,6 +438,9 @@ impl XFlash {
         self.send_params(&[&param])?;
         let mut status = self.status()?;
         for _ in 0..120 {
+            if skello_cancel::is_requested() {
+                return Err(XFlashError::Cancelled);
+            }
             if status == STATUS_COMPLETE {
                 return Ok(());
             }
@@ -669,7 +690,11 @@ impl XFlash {
         xflash.init_after_jump()?;
 
         let mut written = Vec::new();
+        let mut shrunk: Vec<String> = Vec::new();
         for entry in &sc.entries {
+            if skello_cancel::is_requested() {
+                return Err(XFlashError::Cancelled);
+            }
             if !entry.is_download {
                 continue;
             }
@@ -693,14 +718,27 @@ impl XFlash {
             };
             xflash.writeflash_pt(entry.linear_start_addr, &data, parttype)?;
             written.push(entry.name.clone());
+            if (data.len() as u64) < entry.partition_size {
+                shrunk.push(format!(
+                    "{}: image {} bytes < partition {} bytes",
+                    entry.name,
+                    data.len(),
+                    entry.partition_size
+                ));
+            }
         }
         let _ = xflash.shutdown();
-        Ok(format!(
+        let mut result = format!(
             "scatter {}: flashed {} partitions: {}",
             sc.platform,
             written.len(),
             written.join(", ")
-        ))
+        );
+        if !shrunk.is_empty() {
+            result.push_str("; note: ");
+            result.push_str(&shrunk.join("; "));
+        }
+        Ok(result)
     }
 
     /// BROM handshake, stock DA upload and jump, session init: the
@@ -1179,6 +1217,26 @@ mod tests {
         xflash.format_pt(0x1F00, 0x1000, PART_USER).unwrap();
         // a CONTINUE hint is honored too: feed the mock one
         // CONTINUE status round-trip is exercised by the same loop
+    }
+
+    #[test]
+    fn cancel_fires_before_any_da_traffic() {
+        skello_cancel::reset();
+        skello_cancel::request();
+        let mut xflash = XFlash::new(Box::new(crate::transport::MockLink::new()));
+        assert!(matches!(
+            xflash.writeflash_pt(0, &[0u8; 512], PART_USER),
+            Err(XFlashError::Cancelled)
+        ));
+        assert!(matches!(
+            xflash.readflash_pt(0, 512, PART_USER),
+            Err(XFlashError::Cancelled)
+        ));
+        assert!(matches!(
+            xflash.format_pt(0, 512, PART_USER),
+            Err(XFlashError::Cancelled)
+        ));
+        skello_cancel::reset();
     }
 
     #[test]

@@ -40,6 +40,7 @@ pub fn chipset_ports() -> anyhow::Result<ChipsetPorts> {
 /// the V4 patch signed by the on-chip SEJ engine through the DA
 /// registers.
 pub fn mediatek_da_unlock(loader_path: String) -> anyhow::Result<String> {
+    skello_cancel::reset();
     let mut brom = Brom::new(open_usb_serial(VID_MEDIATEK, PID_BROM)?);
     let result = XFlash::unlock_seccfg_with(&mut brom, &loader_path, &mut || {
         open_usb_serial(VID_MEDIATEK, PID_DA)
@@ -128,6 +129,7 @@ pub fn mediatek_exploit_dump_brom(output_path: String) -> anyhow::Result<String>
 /// enforcing DA authentication, then runs the stock seccfg unlock.
 /// Chips without a kamakiri2 config fail honestly.
 pub fn mediatek_exploit_unlock(loader_path: String) -> anyhow::Result<String> {
+    skello_cancel::reset();
     let mut bus = NusbCtrlBus::open(PID_BROM).map_err(usb_err)?;
     let mut brom = Brom::new(bus.take_link().expect("bulk link present"));
     brom.handshake()?;
@@ -154,6 +156,7 @@ pub fn mediatek_exploit_unlock(loader_path: String) -> anyhow::Result<String> {
 /// re-mark and the patched stage 2 - the stock DA signature checks
 /// go away. Ends in the same seccfg unlock.
 pub fn mediatek_carbonara_unlock(loader_path: String) -> anyhow::Result<String> {
+    skello_cancel::reset();
     let mut bus = NusbCtrlBus::open(PID_BROM).map_err(usb_err)?;
     let mut brom = Brom::new(bus.take_link().expect("bulk link present"));
     brom.handshake()?;
@@ -340,6 +343,7 @@ pub fn unisoc_flash_partition(
     partition: String,
     image_path: String,
 ) -> anyhow::Result<String> {
+    skello_cancel::reset();
     let fdl1 = std::fs::read(&fdl1_path)?;
     let fdl2 = std::fs::read(&fdl2_path)?;
     let mut image = std::fs::read(&image_path)?;
@@ -386,6 +390,7 @@ pub fn unisoc_pac_info(pac_path: String) -> anyhow::Result<String> {
 /// package itself, every flash file goes to its named partition, the
 /// device resets afterwards. Data CRC is checked first.
 pub fn unisoc_pac_flash(pac_path: String) -> anyhow::Result<String> {
+    skello_cancel::reset();
     let data = std::fs::read(&pac_path)?;
     let mut bsl = Bsl::new(open_usb_serial(VID_UNISOC, UNISOC_PID_BROM)?, true);
     let result = bsl
@@ -398,6 +403,7 @@ pub fn unisoc_pac_flash(pac_path: String) -> anyhow::Result<String> {
 /// Erases a MediaTek partition by its GPT name through the stock DA
 /// (one FORMAT command over the whole area).
 pub fn mediatek_erase_partition(loader_path: String, name: String) -> anyhow::Result<String> {
+    skello_cancel::reset();
     let mut brom = Brom::new(open_usb_serial(VID_MEDIATEK, PID_BROM)?);
     let result = XFlash::erase_partition_with(&mut brom, &loader_path, &name)?;
     log::core_log("mediatek", &result);
@@ -408,6 +414,7 @@ pub fn mediatek_erase_partition(loader_path: String, name: String) -> anyhow::Re
 /// marked for download is written from the images next to the
 /// scatter, boot-area entries go into the boot1 area.
 pub fn mediatek_scatter_flash(loader_path: String, scatter_path: String) -> anyhow::Result<String> {
+    skello_cancel::reset();
     let mut brom = Brom::new(open_usb_serial(VID_MEDIATEK, PID_BROM)?);
     let result = XFlash::scatter_flash_with(&mut brom, &loader_path, &scatter_path)?;
     log::core_log("mediatek", &result);
@@ -418,6 +425,7 @@ pub fn mediatek_scatter_flash(loader_path: String, scatter_path: String) -> anyh
 /// command over the LBA range). The bootloader chain and the baseband
 /// storage are refused: erasing them from under the device kills it.
 pub fn qualcomm_edl_erase(programmer_path: String, partition: String) -> anyhow::Result<String> {
+    skello_cancel::reset();
     const PROTECTED: &[&str] = &[
         "xbl", "xbl_config", "abl", "tz", "hyp", "devcfg", "keymaster", "bootloader", "sbl1",
         "sbl2", "sbl3", "rpm", "cmnlib", "cmnlib64", "apdp", "msadp", "modem", "efs", "fsg",
@@ -471,6 +479,45 @@ fn edl_firehose(programmer_path: String) -> anyhow::Result<Firehose> {
     Ok(fh)
 }
 
+/// Qualcomm EDL: reads several partitions from LUN 0 into `out_dir`
+/// (a backup before flashing). Missing names are skipped and reported.
+pub fn qualcomm_edl_backup(
+    programmer_path: String,
+    out_dir: String,
+    partitions: Vec<String>,
+) -> anyhow::Result<String> {
+    skello_cancel::reset();
+    let mut fh = edl_firehose(programmer_path)?;
+    let parts = fh.gpt_list(0)?;
+    let mut done: Vec<String> = Vec::new();
+    let mut skipped: Vec<String> = Vec::new();
+    for name in &partitions {
+        if skello_cancel::is_requested() {
+            anyhow::bail!("operation cancelled");
+        }
+        let Some(p) = parts.iter().find(|p| p.name.eq_ignore_ascii_case(name)) else {
+            skipped.push(name.clone());
+            continue;
+        };
+        if p.last_lba < p.first_lba {
+            skipped.push(name.clone());
+            continue;
+        }
+        let sectors = (p.last_lba - p.first_lba + 1) as usize;
+        let data = fh.read(0, &p.first_lba.to_string(), sectors)?;
+        let out_path = std::path::Path::new(&out_dir).join(format!("{name}.img"));
+        std::fs::write(&out_path, &data)?;
+        done.push(format!("{name} ({} bytes)", data.len()));
+    }
+    let _ = fh.reset();
+    let mut message = format!("backup -> {out_dir}: {}", done.join(", "));
+    if !skipped.is_empty() {
+        message.push_str(&format!("; not present: {}", skipped.join(", ")));
+    }
+    log::core_log("qualcomm", &message);
+    Ok(message)
+}
+
 /// One `<patch>` instruction from a patch XML.
 pub struct PatchEntry {
     pub byte_offset: u64,
@@ -517,6 +564,7 @@ pub fn parse_patchxml(xml_path: String) -> anyhow::Result<Vec<PatchEntry>> {
 /// Applies a patch XML: every DISK patch is one Firehose `<patch>`
 /// command, the device fixes the sectors itself.
 pub fn qualcomm_edl_patch(programmer_path: String, patch_xml_path: String) -> anyhow::Result<String> {
+    skello_cancel::reset();
     let entries = parse_patchxml(patch_xml_path)?;
     if entries.is_empty() {
         anyhow::bail!("no DISK patch entries found");
@@ -571,8 +619,9 @@ pub fn mediatek_v6_read_partition(
     partition: String,
     out_path: String,
 ) -> anyhow::Result<String> {
+    skello_cancel::reset();
     let mut session = v6_reopen(&loader_path)?;
-    let (offset, size) = v6_find_partition(&mut session, &partition)?;
+    let (_, size) = v6_find_partition(&mut session, &partition)?;
     let mut file = std::io::BufWriter::new(std::fs::File::create(&out_path)?);
     let mut reopen = || v6_reopen(&loader_path);
     let mut sink = |pos: usize, data: &[u8]| {
@@ -587,6 +636,51 @@ pub fn mediatek_v6_read_partition(
     Ok(message)
 }
 
+/// MTK DA V6: reads several partitions into `out_dir` (a backup
+/// before unlocking or flashing). Missing names are skipped and
+/// reported; every partition gets its own session with the same
+/// resume-on-drop path as the single read.
+pub fn mediatek_v6_backup(
+    loader_path: String,
+    out_dir: String,
+    partitions: Vec<String>,
+) -> anyhow::Result<String> {
+    skello_cancel::reset();
+    let mut done: Vec<String> = Vec::new();
+    let mut skipped: Vec<String> = Vec::new();
+    for name in &partitions {
+        if skello_cancel::is_requested() {
+            anyhow::bail!("operation cancelled");
+        }
+        let mut session = v6_reopen(&loader_path)
+            .map_err(|e| anyhow::anyhow!("v6 boot: {e}"))?;
+        let (_, size) = match v6_find_partition(&mut session, name) {
+            Ok(found) => found,
+            Err(_) => {
+                skipped.push(name.clone());
+                continue;
+            }
+        };
+        let out_path = std::path::Path::new(&out_dir).join(format!("{name}.img"));
+        let mut file = std::io::BufWriter::new(std::fs::File::create(&out_path)?);
+        let mut reopen = || v6_reopen(&loader_path);
+        let mut sink = |pos: usize, data: &[u8]| {
+            let _ = pos;
+            std::io::Write::write_all(&mut file, data)
+                .map_err(skello_chipsets::mediatek::xml::XmlDaError::Io)
+        };
+        let read = XmlDa::read_flash_resumable(size as usize, 0x100_000, &mut sink, &mut reopen)
+            .map_err(|e| anyhow::anyhow!("v6 read {name}: {e}"))?;
+        done.push(format!("{name} ({read} bytes)"));
+    }
+    let mut message = format!("backup -> {out_dir}: {}", done.join(", "));
+    if !skipped.is_empty() {
+        message.push_str(&format!("; not present: {}", skipped.join(", ")));
+    }
+    log::core_log("mediatek", &message);
+    Ok(message)
+}
+
 /// MTK DA V6: writes an image into a partition in 1 MiB chunks.
 /// One erase runs before the first chunk; after a transport drop
 /// the session rebuilds and writing continues at the exact offset
@@ -596,6 +690,7 @@ pub fn mediatek_v6_write_partition(
     partition: String,
     image_path: String,
 ) -> anyhow::Result<String> {
+    skello_cancel::reset();
     let mut session = v6_reopen(&loader_path)?;
     let (offset, size) = v6_find_partition(&mut session, &partition)?;
     let image = std::fs::read(&image_path)?;
@@ -618,6 +713,7 @@ pub fn mediatek_v6_write_partition(
 
 /// MTK DA V6: erases a whole partition by its GPT name.
 pub fn mediatek_v6_erase_partition(loader_path: String, partition: String) -> anyhow::Result<String> {
+    skello_cancel::reset();
     let mut session = v6_reopen(&loader_path)?;
     session.erase_partition_named(&partition)?;
     let message = format!("{partition} erased");
@@ -716,6 +812,7 @@ pub fn qualcomm_edl_flash(
     programmer_path: String,
     entries: Vec<ProgramEntry>,
 ) -> anyhow::Result<String> {
+    skello_cancel::reset();
     let blob = std::fs::read(&programmer_path)?;
     let mut images: Vec<Vec<u8>> = Vec::new();
     if blob.starts_with(b"<?xml") {
@@ -725,11 +822,30 @@ pub fn qualcomm_edl_flash(
     Sahara::boot_programmer(&images)?;
     let mut fh = Firehose::new(open_usb_serial(VID_QUALCOMM, PID_EDL)?);
     fh.configure("ufs")?;
+    // The LUN 0 GPT backs the size check for named entries: an image
+    // bigger than its partition would truncate the next one.
+    let gpt = fh.gpt_list(0).ok();
     for entry in &entries {
+        if skello_cancel::is_requested() {
+            anyhow::bail!("operation cancelled");
+        }
         let mut data = std::fs::read(&entry.file_path)?;
         if skello_fastboot::sparse::is_sparse(&data) {
             data = skello_fastboot::sparse::sparse_expand(&data)
                 .map_err(|e| anyhow::anyhow!("sparse expansion failed: {e}"))?;
+        }
+        if let Some(parts) = &gpt {
+            if let Some(p) = parts.iter().find(|p| p.name.eq_ignore_ascii_case(&entry.label)) {
+                let hold = (p.last_lba - p.first_lba + 1) * fh.sector_size as u64;
+                if data.len() as u64 > hold {
+                    anyhow::bail!(
+                        "image for {} is {} bytes, partition holds {} bytes",
+                        entry.label,
+                        data.len(),
+                        hold
+                    );
+                }
+            }
         }
         log::core_log(
             "qualcomm",
