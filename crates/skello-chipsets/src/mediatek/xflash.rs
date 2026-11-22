@@ -342,14 +342,18 @@ impl XFlash {
                 return Err(XFlashError::WrongMagic);
             }
             if slength > MAX_PACKET {
-                return Err(XFlashError::Unexpected(format!("read chunk of {slength} bytes")));
+                return Err(XFlashError::Unexpected(format!(
+                    "read chunk of {slength} bytes"
+                )));
             }
             let mut chunk = vec![0u8; slength];
             self.read_exact(&mut chunk, IO_TIMEOUT)?;
             if slength == 4 {
                 flag_packets += 1;
                 if flag_packets > 1024 {
-                    return Err(XFlashError::Unexpected("read flooded with status flags".into()));
+                    return Err(XFlashError::Unexpected(
+                        "read flooded with status flags".into(),
+                    ));
                 }
                 let flag = u32::from_le_bytes(chunk.try_into().unwrap());
                 if flag != 0 {

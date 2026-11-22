@@ -45,10 +45,9 @@ impl AdbKeys {
             // An existing key that fails to parse must not be
             // overwritten: every device that trusted it would ask for
             // authorization again. Report the broken file instead.
-            let pem = fs::read_to_string(&key_file)
-                .map_err(|e| AuthError::Io(e.to_string()))?;
-            let key =
-                RsaPrivateKey::from_pkcs1_pem(&pem).map_err(|e| AuthError::Decode(e.to_string()))?;
+            let pem = fs::read_to_string(&key_file).map_err(|e| AuthError::Io(e.to_string()))?;
+            let key = RsaPrivateKey::from_pkcs1_pem(&pem)
+                .map_err(|e| AuthError::Decode(e.to_string()))?;
             return Ok(AdbKeys { key });
         }
         let mut rng = rand::rngs::OsRng;
